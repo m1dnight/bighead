@@ -2,6 +2,44 @@
 
 Implementation of Mem0 in Elixir.
 
+## Getting started
+
+Requires Elixir 1.20.2 / OTP 29.0.3 (see `.tool-versions`) and Docker.
+
+```sh
+docker compose up -d   # Postgres 18 with pgvector — required, there is no local fallback
+mix setup
+mix precommit          # compile, unlock, format, credo, test
+```
+
+`mix dialyzer` is deliberately not part of `precommit`; CI runs it. The
+implementation plan lives in [`.plan/`](.plan/).
+
+### Notes on the setup
+
+- **The `pgvector/pgvector:pg18` tag pins the Postgres major, not the pgvector
+  version, and is rebuilt over time.** Dev and CI can therefore drift on the
+  pgvector patch version. This is accepted rather than overlooked; pin the image
+  by digest in both `docker-compose.yml` and `.github/workflows/ci.yml` if it
+  ever stops being.
+- **Postgres 18+ images require the volume mounted at `/var/lib/postgresql`,**
+  not `/var/lib/postgresql/data`. The entrypoint refuses to start otherwise.
+- **`mix format` runs Quokka**, which rewrites code beyond whitespace and is not
+  a one-pass fixed point. If `--check-formatted` fails immediately after a
+  format, run `mix format --force` again.
+- **Secrets.** Copy `.env.example` to `.env` and export it into your shell —
+  nothing loads it automatically. `.env` is gitignored and excluded from the
+  Docker build context.
+
+### Deployment caveat
+
+`rel/overlays/bin/migrate` runs a migration that executes
+`CREATE EXTENSION vector`, `pg_trgm` and `unaccent`. That needs superuser, or
+those extensions pre-installed as trusted, on the target database. Managed
+Postgres offerings vary in whether `vector` is available at all — check before
+choosing one. All three extensions are created in a single early migration
+specifically so this permission surface is discovered once.
+
 ## Mem0 Summary
 
 Mem0 is a long-term memory store for LLMs so that they can retrieve information

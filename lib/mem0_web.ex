@@ -23,10 +23,11 @@ defmodule Mem0Web do
     quote do
       use Phoenix.Router, helpers: false
 
-      # Import common connection and controller functions to use in pipelines
-      import Plug.Conn
       import Phoenix.Controller
       import Phoenix.LiveView.Router
+
+      # Import common connection and controller functions to use in pipelines
+      import Plug.Conn
     end
   end
 
@@ -39,7 +40,6 @@ defmodule Mem0Web do
   def controller do
     quote do
       use Phoenix.Controller, formats: [:html, :json]
-
       use Gettext, backend: Mem0Web.Gettext
 
       import Plug.Conn
@@ -82,14 +82,15 @@ defmodule Mem0Web do
       # Translation
       use Gettext, backend: Mem0Web.Gettext
 
+      import Mem0Web.CoreComponents
+
       # HTML escaping functionality
       import Phoenix.HTML
       # Core UI components
-      import Mem0Web.CoreComponents
+      alias Mem0Web.Layouts
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
-      alias Mem0Web.Layouts
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

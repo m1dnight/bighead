@@ -2,7 +2,33 @@ This is a web application written using the Phoenix web framework.
 
 ## Project guidelines
 
-- Use `mix precommit` alias when you are done with all changes and fix any pending issues
+- **The database runs in Docker.** `docker compose up -d` is a hard prerequisite for anything
+  touching the database — including `mix setup`, `mix test` and `mix precommit`. There is no local
+  Postgres, and the one in the image is the only place `vector`, `pg_trgm` and `unaccent` exist.
+- Use `mix precommit` alias when you are done with all changes and fix any pending issues. It runs
+  `compile --warnings-as-errors`, `deps.unlock --unused`, `format --force`, `credo --strict` and
+  `test` — in that order, and notably it **does not run dialyzer**. CI does. If you change a spec or
+  a return type, run `mix dialyzer` yourself.
+- **`mix format` rewrites your code beyond whitespace.** Quokka is a formatter plugin, so every
+  `mix format` reorders aliases and directives, rewrites pipelines, and applies the style rules
+  configured in `.credo.exs`. Do not fight it, and do not hand-format around it. Two consequences:
+  Quokka is not a one-pass fixed point (if `mix format --check-formatted` fails right after a
+  format, run `mix format --force` again), and the effective line length is 98, set in `.credo.exs`
+  rather than in `.formatter.exs`.
+- **LLM-derived strings never become atoms.** Entity types and relation labels come from model
+  output; interning them grows the atom table without bound and it is never GC'd.
+  `Credo.Check.Warning.UnsafeToAtom` is enabled to enforce this.
+- **Never log prompts, completions or memory contents.** Telemetry events under `[:mem0, ...]` carry
+  metadata only — latency, token counts, model name, operation counts. Payload logging is behind
+  `config :mem0, :log_llm_payloads`, which defaults to `false` everywhere and is hard-`false` in
+  test.
+- **Tests must not hit the network or spend money.** `config/test.exs` points the LLM and embedder
+  at stub adapters. Tests that genuinely need a live API are tagged `:live`, excluded by default,
+  and run with `mix test.live`.
+- Migrations are generated with `mix ecto.gen.migration`, never hand-created. The extension
+  migration must stay standalone: no migration may bind a `vector` parameter in the same
+  `mix ecto.migrate` run that creates the extension, because Postgrex resolves type OIDs when the
+  connection opens.
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 
 ### Phoenix v1.8 guidelines

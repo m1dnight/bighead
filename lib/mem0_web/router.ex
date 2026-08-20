@@ -1,6 +1,8 @@
 defmodule Mem0Web.Router do
   use Mem0Web, :router
 
+  alias Plug.Swoosh.MailboxPreview
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -38,7 +40,7 @@ defmodule Mem0Web.Router do
       pipe_through :browser
 
       live_dashboard "/dashboard", metrics: Mem0Web.Telemetry
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
+      forward "/mailbox", MailboxPreview
     end
   end
 end

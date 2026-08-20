@@ -19,15 +19,15 @@ defmodule Mem0Web.ConnCase do
 
   using do
     quote do
+      use Mem0Web, :verified_routes
+
+      import Mem0Web.ConnCase
+      import Phoenix.ConnTest
+      import Plug.Conn
       # The default endpoint for testing
       @endpoint Mem0Web.Endpoint
 
-      use Mem0Web, :verified_routes
-
       # Import conveniences for testing with connections
-      import Plug.Conn
-      import Phoenix.ConnTest
-      import Mem0Web.ConnCase
     end
   end
 

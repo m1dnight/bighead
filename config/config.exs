@@ -7,9 +7,35 @@
 # General application configuration
 import Config
 
-config :mem0,
-  ecto_repos: [Mem0.Repo],
-  generators: [timestamp_type: :utc_datetime]
+alias Swoosh.Adapters.Local
+
+# Configure esbuild (the version is required)
+config :esbuild,
+  version: "0.25.4",
+  mem0: [
+    args:
+      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+  ]
+
+# Configure Elixir's Logger
+config :logger, :default_formatter,
+  format: "$time $metadata[$level] $message\n",
+  metadata: [:request_id]
+
+# Configure the mailer
+#
+# By default it uses the "Local" adapter which stores the emails
+# locally. You can see the emails in your browser, at "/dev/mailbox".
+#
+# For production it's recommended to configure a different adapter
+# at the `config/runtime.exs`.
+config :mem0, Mem0.Mailer, adapter: Local
+
+# Merges with the per-environment repo config below. `Mem0.PostgrexTypes` is
+# defined in lib/mem0/postgrex_types.ex and teaches Postgrex the pgvector types.
+config :mem0, Mem0.Repo, types: Mem0.PostgrexTypes
 
 # Configure the endpoint
 config :mem0, Mem0Web.Endpoint,
@@ -22,29 +48,38 @@ config :mem0, Mem0Web.Endpoint,
   pubsub_server: Mem0.PubSub,
   live_view: [signing_salt: "NcYZrUYX"]
 
+config :mem0, :embedder, adapter: nil, model: nil, dimensions: nil, api_key: nil
+
+# --- Ports (Phase 3 fills in values; the keys exist now so later phases add
+# configuration rather than restructure it) ---
+#
+# `config/test.exs` points these at stubs, and `config/runtime.exs` reads the
+# environment for dev and prod.
+config :mem0, :llm, adapter: nil, model: nil, api_key: nil
+
+# --- Redaction policy ---
+#
+# Memory contents are user data and prompts are exactly what you most want to
+# log when debugging, so the default is that neither reaches a log line or a
+# telemetry measurement. Telemetry events carry metadata only: latency, token
+# counts, model name, operation counts.
+#
+# Set this to `true` (or `MEM0_LOG_LLM_PAYLOADS=true` at runtime) to include
+# prompts and completions in `:debug` logs. It is intended for local debugging
+# against throwaway data and should never be true where real memories live.
+config :mem0, :log_llm_payloads, false
+
+config :mem0,
+  ecto_repos: [Mem0.Repo],
+  generators: [timestamp_type: :utc_datetime_usec]
+
+# Use Jason for JSON parsing in Phoenix
+config :phoenix, :json_library, Jason
+
 # Configure LiveView
 config :phoenix_live_view,
   # the attribute set on all root tags. Used for Phoenix.LiveView.ColocatedCSS.
   root_tag_attribute: "phx-r"
-
-# Configure the mailer
-#
-# By default it uses the "Local" adapter which stores the emails
-# locally. You can see the emails in your browser, at "/dev/mailbox".
-#
-# For production it's recommended to configure a different adapter
-# at the `config/runtime.exs`.
-config :mem0, Mem0.Mailer, adapter: Swoosh.Adapters.Local
-
-# Configure esbuild (the version is required)
-config :esbuild,
-  version: "0.25.4",
-  mem0: [
-    args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
-    cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
-  ]
 
 # Configure tailwind (the version is required)
 config :tailwind,
@@ -54,18 +89,10 @@ config :tailwind,
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css
     ),
+    # Import environment specific config. This must remain at the bottom
+    # of this file so it overrides the configuration defined above.
     cd: Path.expand("..", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
-# Configure Elixir's Logger
-config :logger, :default_formatter,
-  format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
-
-# Use Jason for JSON parsing in Phoenix
-config :phoenix, :json_library, Jason
-
-# Import environment specific config. This must remain at the bottom
-# of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

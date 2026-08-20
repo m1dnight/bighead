@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# `MIX_ENV: test` is set at the workflow level so the tree is compiled once
+# rather than once for the dev checks and again for `mix test`, and so that
+# `--warnings-as-errors` actually covers `test/support/`. This is also why
+# `dialyxir` must be available in `:test` — see mix.exs.
+env:
+  MIX_ENV: test
+
+# CI deliberately does NOT call `mix precommit`. That alias rewrites the working
+# tree (`mix format --force`), so running it here could green-light code that a
+# fresh checkout would reject. The steps below check rather than fix.
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        # Same image as docker-compose.yml. The tag pins the Postgres major
+        # only and is rebuilt over time, so dev and CI can drift on the pgvector
+        # patch version. That is accepted; pin by digest here and in compose if
+        # it ever stops being.
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: erlef/setup-beam@v1
+        id: beam
+        with:
+          otp-version: "29.0.3"
+          elixir-version: "1.20.2"
+          # Without `strict`, setup-beam defaults to `loose` and resolves a
+          # version prefix to the newest matching build on builds.hex.pm,
+          # defeating the point of pinning at all.
+          version-type: strict
+
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
+
+      # Kept separate from the deps cache: PLT builds cost minutes and
+      # invalidate on a different schedule than the lockfile.
+      - name: Cache PLTs
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-plt-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-
+
+      # `--check-locked` catches a lockfile that does not satisfy mix.exs;
+      # `--check-unused` catches stale entries. Different failures, both cheap.
+      - run: mix deps.get --check-locked
+      - run: mix deps.unlock --check-unused
+
+      - run: mix format --check-formatted
+      - run: mix compile --warnings-as-errors
+      - run: mix credo --strict
+      - run: mix dialyzer --format github
+      - run: mix test --warnings-as-errors
+
+  image:
+    name: Release image
+    runs-on: ubuntu-latest
+
+    # Without this job the Dockerfile — and `mix assets.deploy`, which only runs
+    # inside it — will be broken by a later phase and nobody will notice until
+    # the surfaces phase. The migrate step is what actually exercises the
+    # `CREATE EXTENSION` permission question against a real database.
+    services:
+      db:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mem0_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build release image
+        run: docker build -t mem0:ci .
+
+      # `--network host` reaches the service container through the port it
+      # published on the runner, which avoids having to join the job's
+      # user-defined network from a plain `docker run`.
+      - name: Run migrations from the release image
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL="ecto://postgres:postgres@localhost/mem0_ci" \
+            -e SECRET_KEY_BASE="$(openssl rand -base64 48)" \
+            mem0:ci /app/bin/migrate
+
+      - name: Assert the extensions were created
+        run: |
+          docker run --rm --network host \
+            -e PGPASSWORD=postgres \
+            pgvector/pgvector:pg18 \
+            psql -h localhost -U postgres -d mem0_ci -tAc \
+            "SELECT count(*) = 3 FROM pg_extension WHERE extname IN ('vector','pg_trgm','unaccent')" \
+            | grep -qx t

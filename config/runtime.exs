@@ -22,6 +22,27 @@ end
 
 config :mem0, Mem0Web.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# --- Ports (Phase 3) ---
+#
+# Read here rather than in config/config.exs so that a release picks up keys
+# from its environment rather than from whatever was set at build time. Values
+# are all nil today; `config/test.exs` overrides the adapters with stubs and is
+# not affected by this block, since `config_env() == :test` is excluded.
+if config_env() != :test do
+  config :mem0, :embedder,
+    adapter: System.get_env("MEM0_EMBEDDER_ADAPTER"),
+    model: System.get_env("MEM0_EMBEDDER_MODEL"),
+    api_key: System.get_env("MEM0_EMBEDDER_API_KEY")
+
+  config :mem0, :llm,
+    adapter: System.get_env("MEM0_LLM_ADAPTER"),
+    model: System.get_env("MEM0_LLM_MODEL"),
+    api_key: System.get_env("MEM0_LLM_API_KEY")
+
+  # See the redaction policy note in config/config.exs.
+  config :mem0, :log_llm_payloads, System.get_env("MEM0_LOG_LLM_PAYLOADS") in ~w(true 1)
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :mem0, Mem0Web.Endpoint,
@@ -49,14 +70,6 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
-  config :mem0, Mem0.Repo,
-    # ssl: true,
-    url: database_url,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-    # For machines with several cores, consider starting multiple pools of `pool_size`
-    # pool_count: 4,
-    socket_options: maybe_ipv6
-
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
   # want to use a different value for prod and you most likely don't want
@@ -71,7 +84,13 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
 
-  config :mem0, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  config :mem0, Mem0.Repo,
+    # ssl: true,
+    url: database_url,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+    # For machines with several cores, consider starting multiple pools of `pool_size`
+    # pool_count: 4,
+    socket_options: maybe_ipv6
 
   config :mem0, Mem0Web.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
@@ -83,6 +102,8 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
     secret_key_base: secret_key_base
+
+  config :mem0, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   # ## SSL Support
   #

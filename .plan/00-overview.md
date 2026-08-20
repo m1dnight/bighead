@@ -26,12 +26,7 @@ The layering follows DFTBLW — **D**ata, **F**unctional core, **T**ests, **B**o
 |---|-------|----------|------|
 | 1 | Scaffolding | Tooling, pgvector dev DB, CI, Dockerfile | [01-scaffolding.md](01-scaffolding.md) |
 | 2 | Domain data | Core structs and their invariants — no persistence | [02-domain-data.md](02-domain-data.md) |
-| 3 | Ports & adapters | LLM / Embedder / Clock behaviours + stubs | _not written yet_ |
-| 4 | Ingestion | Extraction Φ + the ADD/UPDATE/DELETE/NOOP update phase | _not written yet_ |
-| 5 | Retrieval | Hybrid semantic + lexical + entity recall over the NL store | _not written yet_ |
-| 6 | Graph memory | Entity/relation extraction, node resolution, invalidation | _not written yet_ |
-| 7 | Graph retrieval | Entity-centric traversal, triplet search, fusion | _not written yet_ |
-| 8 | Surfaces | `Mem0` API, REST, MCP, Claude Code hooks, inspector | _not written yet_ |
+
 
 Phases 1–3 are infrastructure and can be done back to back. Phase 4 is the first phase that
 produces something demonstrable. Phases 6–7 are the reason this project exists; everything before
@@ -57,21 +52,3 @@ These are settled and should not be relitigated per-phase:
   returns a `Decision` wrapping that operation with the reason it was chosen — the pivot is the
   operation, but the reason cannot be reconstructed after the fact.)*
 - **The core trusts its input; the boundary validates.** One validation point, at the public API.
-
-## Open questions carried across phases
-
-Each is owned by the phase that first cannot proceed without it.
-
-| Question | Owner | Notes |
-|---|---|---|
-| Embedding model and dimension | Phase 3 | Blocks the `vector(N)` column type and index choice in whichever phase owns persistence. **pgvector's HNSW/IVFFlat indexes cap at 2000 dimensions for `vector`** — a 3072-dim model needs `halfvec`. Pick before writing the memories migration. |
-| Which phase owns persistence — schemas, migrations, the store boundary | Phase 3 | Phase 2 is structs only. The natural home is Phase 4, where the boundary performs what the core decides, but that makes Phase 4 large. Decide before Phase 3 defines the ports. |
-| Async execution strategy — `Task` or Oban | Phase 4 | The W in DFTBLW has no owner phase yet, but the paper requires an asynchronously-refreshed summary and a Claude Code hook must return fast. If Oban, its migration has to be ordered against the persistence phase's schemas, and it brings a supervision-tree entry and `testing: :manual`. |
-| Hook transport — HTTP to a local server, or a stdio MCP binary | Phase 8 | Determines whether the Phase 1 release image is even the right artifact. A local coding agent wants a fast-starting process, not a container serving HTTP — unless the hook is an HTTP client to a locally-running server. |
-| Postgres major, and whether to pin pgvector by digest | Phase 1 | `pgvector/pgvector:pg18` pins the Postgres major only; the tag is rebuilt. Choose the major from the deployment target, since `CREATE EXTENSION` needs superuser on most managed offerings. |
-| LLM request/response redaction policy | Phase 1 | Memory contents are user data and prompts are what you most want to log. Decide before debug logging spreads across four phases. |
-| LLM provider and structured-output mechanism | Phase 3 | The paper's four-way operation choice is function calling; the modern equivalent is a strict tool schema or `output_config.format`. |
-| Similarity threshold `t` for node resolution | Phase 6 | The paper leaves it unspecified. Needs a fixture corpus to tune against. |
-| Summary refresh cadence | Phase 4 | Paper says "asynchronously refreshed", no interval. |
-| Traversal depth for entity-centric retrieval | Phase 7 | Start at 1, measure before going to 2. |
-| Whether within-session extraction is worth it at all | Phase 8 | For Claude Code specifically, the session transcript is already in context — memory only buys you *crossing* sessions. |

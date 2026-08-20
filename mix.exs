@@ -5,13 +5,14 @@ defmodule Mem0.MixProject do
     [
       app: :mem0,
       version: "0.1.0",
-      elixir: "~> 1.17",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      dialyzer: dialyzer()
     ]
   end
 
@@ -22,6 +23,18 @@ defmodule Mem0.MixProject do
     [
       mod: {Mem0.Application, []},
       extra_applications: [:logger, :runtime_tools]
+    ]
+  end
+
+  # Dialyzer runs in CI only, not in `precommit` — see the `precommit` alias
+  # below. `:underspecs` stays off: it is noisy on generated code and only
+  # starts earning its keep once the Phase 3 port behaviours land.
+  defp dialyzer do
+    [
+      plt_local_path: "priv/plts",
+      plt_core_path: "priv/plts",
+      plt_add_apps: [:mix, :ex_unit],
+      flags: [:error_handling, :extra_return, :missing_return]
     ]
   end
 
@@ -72,7 +85,16 @@ defmodule Mem0.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:pgvector, "~> 0.4"},
+
+      # Static analysis. All three must include `:test`: `cli/0` below sets
+      # `preferred_envs: [precommit: :test]`, so anything reachable from
+      # `precommit` — or from a CI run with `MIX_ENV=test` — has to exist in
+      # `:test` or the task simply cannot be found.
+      {:quokka, "~> 2.13", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -88,6 +110,9 @@ defmodule Mem0.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      # `:live` tests are excluded by default in test/test_helper.exs because
+      # they talk to real APIs and cost money. This is the way to run them.
+      "test.live": ["ecto.create --quiet", "ecto.migrate --quiet", "test --include live"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind mem0", "esbuild mem0"],
       "assets.deploy": [
@@ -95,7 +120,22 @@ defmodule Mem0.MixProject do
         "esbuild mem0 --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      # `format` rewrites rather than checks, because locally you want it fixed,
+      # and it runs before `credo` because Quokka resolves most of what Credo
+      # would otherwise report. `--force` bypasses the format task's timestamp
+      # cache, which will otherwise skip files whose mtime predates the format
+      # manifest and leave `--check-formatted` failing.
+      #
+      # No `dialyzer` here — see the `dialyzer/0` note above. CI runs it.
+      # CI must NOT call this alias: a step that mutates the working tree can
+      # green-light code that a fresh checkout would reject.
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format --force",
+        "credo --strict",
+        "test"
+      ]
     ]
   end
 end
