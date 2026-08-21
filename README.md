@@ -2,44 +2,6 @@
 
 Implementation of Mem0 in Elixir.
 
-## Getting started
-
-Requires Elixir 1.20.2 / OTP 29.0.3 (see `.tool-versions`) and Docker.
-
-```sh
-docker compose up -d   # Postgres 18 with pgvector — required, there is no local fallback
-mix setup
-mix precommit          # compile, unlock, format, credo, test
-```
-
-`mix dialyzer` is deliberately not part of `precommit`; CI runs it. The
-implementation plan lives in [`.plan/`](.plan/).
-
-### Notes on the setup
-
-- **The `pgvector/pgvector:pg18` tag pins the Postgres major, not the pgvector
-  version, and is rebuilt over time.** Dev and CI can therefore drift on the
-  pgvector patch version. This is accepted rather than overlooked; pin the image
-  by digest in both `docker-compose.yml` and `.github/workflows/ci.yml` if it
-  ever stops being.
-- **Postgres 18+ images require the volume mounted at `/var/lib/postgresql`,**
-  not `/var/lib/postgresql/data`. The entrypoint refuses to start otherwise.
-- **`mix format` runs Quokka**, which rewrites code beyond whitespace and is not
-  a one-pass fixed point. If `--check-formatted` fails immediately after a
-  format, run `mix format --force` again.
-- **Secrets.** Copy `.env.example` to `.env` and export it into your shell —
-  nothing loads it automatically. `.env` is gitignored and excluded from the
-  Docker build context.
-
-### Deployment caveat
-
-`rel/overlays/bin/migrate` runs a migration that executes
-`CREATE EXTENSION vector`, `pg_trgm` and `unaccent`. That needs superuser, or
-those extensions pre-installed as trusted, on the target database. Managed
-Postgres offerings vary in whether `vector` is available at all — check before
-choosing one. All three extensions are created in a single early migration
-specifically so this permission surface is discovered once.
-
 ## Mem0 Summary
 
 Mem0 is a long-term memory store for LLMs so that they can retrieve information
@@ -110,7 +72,7 @@ is augmented with information retrieval in mem0.
 
 1. User types in prompt `m_1`.
 2. Mem0 fetches the last 6 messages that came before `m_1` and adds them as is
-   to the query.
+  to the query.
 3. Mem0 is searched in different ways to fetch relevant memories.
 4. These memories are added to the prompt as plain text.
 5. The prompt is sent to the LLM.
@@ -118,6 +80,6 @@ is augmented with information retrieval in mem0.
 
 ## Improvements
 
- - Improve search (the way mem0 actually does it). Build a separate index for words (e.g., names, tech vocabulary, ..) and then do a word search, meaning search, and name search. This will yield a bigger set of potentially relevant resources.
-
- - Look into how these system prompts can be injected across claude/codex etc. Claude has the option to append system messages, for example.
+- Improve search (the way mem0 actually does it). Build a separate index for words (e.g., names, tech vocabulary, ..) and then do a word search, meaning search, and name search. This will yield a bigger set of potentially relevant resources.
+- Look into how these system prompts can be injected across claude/codex etc. Claude has the option to append system messages, for example.
+- We currently only store facts as memories, and do not store the graph search anymore. Mem0 itself no longer does it, and I have to investigate why. They now do event co-occurency storage or something similar: [https://mem0.ai/blog/introducing-temporal-reasoning-in-mem0](https://mem0.ai/blog/introducing-temporal-reasoning-in-mem0)

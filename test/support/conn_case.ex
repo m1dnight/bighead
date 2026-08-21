@@ -19,11 +19,16 @@ defmodule Mem0Web.ConnCase do
 
   using do
     quote do
+      # See the note in `Mem0.DataCase`: the setup below checks out a sandbox
+      # connection, so these tests need the container too.
       use Mem0Web, :verified_routes
 
       import Mem0Web.ConnCase
       import Phoenix.ConnTest
       import Plug.Conn
+
+      @moduletag :db
+
       # The default endpoint for testing
       @endpoint Mem0Web.Endpoint
 

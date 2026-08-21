@@ -26,9 +26,9 @@ defmodule Mem0.MixProject do
     ]
   end
 
-  # Dialyzer runs in CI only, not in `precommit` — see the `precommit` alias
-  # below. `:underspecs` stays off: it is noisy on generated code and only
-  # starts earning its keep once the Phase 3 port behaviours land.
+  # Dialyzer is part of `precommit` as of Phase 2 — see the alias below.
+  # `:underspecs` stays off: it is noisy on generated code and only starts
+  # earning its keep once the Phase 3 port behaviours land.
   defp dialyzer do
     [
       plt_local_path: "priv/plts",
@@ -40,7 +40,7 @@ defmodule Mem0.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, "test.core": :test]
     ]
   end
 
@@ -88,6 +88,15 @@ defmodule Mem0.MixProject do
       {:bandit, "~> 1.5"},
       {:pgvector, "~> 0.4"},
 
+      # Struct definitions for the functional core (Phase 2). `runtime: false`
+      # because the library is a compile-time code generator: the generated
+      # beam holds no reference back to it.
+      {:typed_struct, "~> 0.3.0", runtime: false},
+
+      # Property-based testing for the interval predicates in `Graph.Relation`.
+      # Needs `:dev` as well as `:test` for the same reason the three below do.
+      {:stream_data, "~> 1.2", only: [:dev, :test]},
+
       # Static analysis. All three must include `:test`: `cli/0` below sets
       # `preferred_envs: [precommit: :test]`, so anything reachable from
       # `precommit` — or from a CI run with `MIX_ENV=test` — has to exist in
@@ -96,6 +105,14 @@ defmodule Mem0.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
+  end
+
+  # See the `test.core` alias. `Mix.Tasks.Test.run/1` rather than
+  # `Mix.Task.run("test", ...)`, because the latter goes back through the alias
+  # table and lands on the `ecto.create`-prefixed `test` alias again.
+  defp run_core_tests(args) do
+    Application.put_env(:mem0, :start_repo, false)
+    Mix.Tasks.Test.run(["--exclude", "db" | args])
   end
 
   # Aliases are shortcuts or tasks specific to the current project.
@@ -113,6 +130,17 @@ defmodule Mem0.MixProject do
       # `:live` tests are excluded by default in test/test_helper.exs because
       # they talk to real APIs and cost money. This is the way to run them.
       "test.live": ["ecto.create --quiet", "ecto.migrate --quiet", "test --include live"],
+      # The functional core needs nothing: no database, no network, no sandbox.
+      # `:db` tags every test that checks out a sandbox connection (see
+      # `Mem0.DataCase` and `Mem0Web.ConnCase`), so excluding it makes that
+      # claim checkable — `mix test.core` passes with the container stopped.
+      #
+      # It cannot be written `["test --exclude db"]`. A task named from inside
+      # an alias is resolved through the alias table, so that spelling picks up
+      # the `ecto.create`/`ecto.migrate` prefix on the `test` alias above and
+      # dies on connection refused — the exact failure this alias exists to
+      # prove does not happen. Invoking the task module bypasses the table.
+      "test.core": [&run_core_tests/1],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind mem0", "esbuild mem0"],
       "assets.deploy": [
@@ -126,7 +154,14 @@ defmodule Mem0.MixProject do
       # cache, which will otherwise skip files whose mtime predates the format
       # manifest and leave `--check-formatted` failing.
       #
-      # No `dialyzer` here — see the `dialyzer/0` note above. CI runs it.
+      # `dialyzer` runs last because it is the slowest step and because the
+      # defects it alone catches are cheap to fix once everything else is
+      # green. It was kept out while there was no domain code for it to
+      # analyse; Phase 2 added one, and with it the failure mode nothing else
+      # sees — a remote type written `Scope.t()` where `Mem0.Core.Scope.t()`
+      # was meant compiles clean, under `--warnings-as-errors`, as a reference
+      # to a module that does not exist.
+      #
       # CI must NOT call this alias: a step that mutates the working tree can
       # green-light code that a fresh checkout would reject.
       precommit: [
@@ -134,7 +169,8 @@ defmodule Mem0.MixProject do
         "deps.unlock --unused",
         "format --force",
         "credo --strict",
-        "test"
+        "test",
+        "dialyzer"
       ]
     ]
   end

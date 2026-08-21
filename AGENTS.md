@@ -6,9 +6,21 @@ This is a web application written using the Phoenix web framework.
   touching the database — including `mix setup`, `mix test` and `mix precommit`. There is no local
   Postgres, and the one in the image is the only place `vector`, `pg_trgm` and `unaccent` exist.
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues. It runs
-  `compile --warnings-as-errors`, `deps.unlock --unused`, `format --force`, `credo --strict` and
-  `test` — in that order, and notably it **does not run dialyzer**. CI does. If you change a spec or
-  a return type, run `mix dialyzer` yourself.
+  `compile --warnings-as-errors`, `deps.unlock --unused`, `format --force`, `credo --strict`,
+  `test` and `dialyzer` — in that order. Dialyzer joined the alias in Phase 2, when a functional
+  core first gave it something to analyse: a remote type written `Scope.t()` where
+  `Mem0.Core.Scope.t()` was meant compiles clean even under `--warnings-as-errors`, and Dialyzer is
+  the only thing that reports it. The first run after a dependency change builds the PLT and is
+  slow; subsequent runs are not.
+- **`mix test.core` runs the functional core alone** — `test --exclude db`, no `ecto.create`, no
+  `ecto.migrate` — and passes with the Postgres container stopped. `Mem0.DataCase` and
+  `Mem0Web.ConnCase` both set `@moduletag :db`, so a test needing the database is tagged by the
+  fact that it uses one of them. It also starts no `Repo` at all (see `Mem0.Application`), so a
+  stopped container produces no connection noise either. Bare `mix test` still runs everything and
+  still needs the container.
+- **Nothing under `lib/mem0/core/` may touch Ecto, `Repo`, a process or an HTTP client, hold an
+  `embedding` field, or read a clock** — time arrives as an argument. `test/mem0/core/layering_test.exs`
+  enforces all three against the BEAM import table, which catches what grep cannot.
 - **`mix format` rewrites your code beyond whitespace.** Quokka is a formatter plugin, so every
   `mix format` reorders aliases and directives, rewrites pipelines, and applies the style rules
   configured in `.credo.exs`. Do not fight it, and do not hand-format around it. Two consequences:

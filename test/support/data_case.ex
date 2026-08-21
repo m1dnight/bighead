@@ -20,12 +20,18 @@ defmodule Mem0.DataCase do
 
   using do
     quote do
+      # Anything using this case checks out a sandbox connection, so it needs
+      # the Postgres container. `mix test.core` excludes `:db` — that is what
+      # makes "the functional core's tests need nothing" a checkable claim
+      # rather than an aspiration.
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
       import Mem0.DataCase
 
       alias Mem0.Repo
+
+      @moduletag :db
     end
   end
 

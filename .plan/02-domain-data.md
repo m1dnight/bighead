@@ -18,20 +18,20 @@ validation point, as the overview settles — and that is not this phase.
 
 The overview's sequencing principle is data before behaviour. Under immutability the wrong shape
 produces compensating code in everything built on top of it, and everything built on top of it —
-ingestion, search, the graph — is almost entirely functions over these structs.
+ingestion and search — is almost entirely functions over these structs.
 
 Wiring schemas and queries in the same breath would make the boundary thick, leave the core
 nonexistent, and commit the project to *domain shape == database shape* before a single decision
-rule has been written. The shapes here are dictated by the paper (notes §2.2, §3.3) — the
-ADD/UPDATE/DELETE/NOOP cascade, node resolution, interval containment. What Postgres wants is a
+rule has been written. The shapes here are dictated by the paper (notes §2.2) — the
+ADD/UPDATE/DELETE/NOOP cascade. What Postgres wants is a
 different question, asked by whoever first needs a fact to survive a restart.
 
 Concretely this buys two things:
 
 - **Ids stay opaque.** The core needs `Memory.id()` to be comparable and printable, nothing more.
-  UUIDv7 or bigserial can then be decided without touching a line of core code.
+UUIDv7 or bigserial can then be decided without touching a line of core code.
 - **The embedding dimension stops blocking anything.** It is a question about the embedder, and
-  with no `vector(N)` column to declare, it stays one.
+with no `vector(N)` column to declare, it stays one.
 
 ---
 
@@ -39,7 +39,6 @@ Concretely this buys two things:
 
 ```
 lib/mem0/core/          pure structs and functions — no Ecto, no Repo, no processes, no IO
-lib/mem0/core/graph/    the Mem0^g half
 ```
 
 Three rules that make the phase checkable rather than aspirational.
@@ -92,20 +91,20 @@ Verified about `typed_struct` 0.3.0: it compiles clean under Elixir 1.20.2 / OTP
 reproduced rather than assumed:
 
 - **It generates no constructor.** Only `__struct__/0,1`. So every module gets a hand-written
-  `new/1` taking a keyword list and delegating to `struct!/2`, with any real construction behaviour
-  — normalising a name, rendering a triplet — living there rather than in the caller.
+`new/1` taking a keyword list and delegating to `struct!/2`, with any real construction behaviour
+— normalising a name, rendering a triplet — living there rather than in the caller.
 - **`struct!/2` does not reject nil values.** `@enforce_keys` checks key *presence*, not value:
-  `struct!(Scope, user_id: nil)` succeeds. Any field where nil is meaningless needs an explicit
-  check in `new/1`. For `Scope.user_id` that is not pedantry — see 2.2.
-- **Optional fields are written `field :app_id, String.t(), enforce: false`**, never
-  `String.t() | nil`. Under a block-level `enforce: true` the library appends the `| nil` itself, and
-  writing both yields `(String.t() | nil) | nil`. Both forms compile clean, so nothing catches it.
-- **A field with a `default:` inside an `enforce: true` block opts out of enforcement and stays
-  non-nullable in the typespec** — which is what `source_message_ids` in 2.4 relies on. Note the
-  runtime gap: `struct!` still accepts an explicit `nil` there, and only Dialyzer objects.
+`struct!(Scope, user_id: nil)` succeeds. Any field where nil is meaningless needs an explicit
+check in `new/1`. For `Scope.user_id` that is not pedantry — see 2.2.
+- **Optional fields are written `field :app_id, String.t(), enforce: false**`, never
+`String.t() | nil`. Under a block-level `enforce: true` the library appends the `| nil` itself, and
+writing both yields `(String.t() | nil) | nil`. Both forms compile clean, so nothing catches it.
+- **A field with a `default:` inside an `enforce: true` block opts out of enforcement and stays**
+**non-nullable in the typespec** — which is what `source_message_ids` in 2.4 relies on. Note the
+runtime gap: `struct!` still accepts an explicit `nil` there, and only Dialyzer objects.
 
 **The alias trap, and why it matters here.** A snippet writing `field :scope, Scope.t()` inside
-`Mem0.Core.Fact` compiles clean *even with `--warnings-as-errors`*, because Elixir does not resolve
+`Mem0.Core.Fact` compiles clean *even with `--warnings-as-errors*`, because Elixir does not resolve
 remote types at compile time. It means `Elixir.Scope.t()`, which does not exist. Only Dialyzer
 catches it, reporting `Unknown types: 'Elixir.Scope':t/0`. Same for a bare local `id()` used as a
 field type — that is a hard compile error unless the module declares `@type id`. Since this phase
@@ -120,27 +119,19 @@ puts Dialyzer on the critical path, both are real defects rather than shorthand.
 
 ### The whole set
 
-| Module                       | Role                                              | Source           |
-| ---------------------------- | ------------------------------------------------- | ---------------- |
-| `Mem0.Core.Scope`            | write address — user / app / run                  | README           |
-| `Mem0.Core.ScopeQuery`       | read filter over the same three levels            | README           |
-| `Mem0.Core.Scored`           | `{score, thing}` — the shape candidates arrive in | notes §2.2, §3.3 |
-| `Mem0.Core.Message`          | one message in a conversation                     | notes §2.1       |
-| `Mem0.Core.Summary`          | `S`, the conversation summary                     | notes §2.1       |
-| `Mem0.Core.Prompt`           | `P = (S, {m_{t-m}..m_{t-2}}, m_{t-1}, m_t)`       | notes §2.1       |
-| `Mem0.Core.Fact`             | a candidate `ω` from `Φ`, not yet reconciled      | notes §2.1       |
-| `Mem0.Core.Extraction`       | `Ω`, the output of one `Φ` call                   | notes §2.1       |
-| `Mem0.Core.Memory`           | a reconciled fact the system holds                | notes §2.2, §2.4 |
-| `Mem0.Core.MemoryOperation`  | ADD / UPDATE / DELETE / NOOP                      | notes §2.2, §2.3 |
-| `Mem0.Core.Decision`         | an operation plus why it was chosen               | notes §7         |
-| `Mem0.Core.Graph.EntityRef`  | an extracted `(name, type)`, unresolved           | notes §3.2       |
-| `Mem0.Core.Graph.Triplet`    | an extracted `(source, label, destination)`       | notes §3.2       |
-| `Mem0.Core.Graph.Extraction` | the output of the two-stage graph extractor       | notes §3.2       |
-| `Mem0.Core.Graph.Entity`     | a resolved node                                   | notes §3.1, §3.3 |
-| `Mem0.Core.Graph.Relation`   | a resolved edge with a validity interval          | notes §3.3, §4.7 |
-| `Mem0.Core.Graph.Resolution` | node resolution's verdict for one `EntityRef`     | notes §3.3       |
-| `Mem0.Core.Graph.Operation`  | add-relation / invalidate / noop                  | notes §3.3       |
-| `Mem0.Core.Graph.Decision`   | a graph operation plus why it was chosen          | notes §4.5       |
+| Seen  | Module                       | Role                                              | Source           |
+| ----- | ---------------------------- | ------------------------------------------------- | ---------------- |
+| - [x] | `Mem0.Core.Scope`            | write address — user / app / run                  | README           |
+| - [x] | `Mem0.Core.ScopeQuery`       | read filter over the same three levels            | README           |
+| - [x] | `Mem0.Core.Scored`           | `{score, thing}` — the shape candidates arrive in | notes §2.2, §3.3 |
+| - [x] | `Mem0.Core.Message`          | one message in a conversation                     | notes §2.1       |
+| - [x] | `Mem0.Core.Summary`          | `S`, the conversation summary                     | notes §2.1       |
+| - [x] | `Mem0.Core.Prompt`           | `P = (S, {m_{t-m}..m_{t-2}}, m_{t-1}, m_t)`       | notes §2.1       |
+| - [x] | `Mem0.Core.Fact`             | a candidate `ω` from `Φ`, not yet reconciled      | notes §2.1       |
+| - [x] | `Mem0.Core.Extraction`       | `Ω`, the output of one `Φ` call                   | notes §2.1       |
+| - [x] | `Mem0.Core.Memory`           | a reconciled fact the system holds                | notes §2.2, §2.4 |
+| - [x] | `Mem0.Core.MemoryOperation`  | ADD / UPDATE / DELETE / NOOP                      | notes §2.2, §2.3 |
+| - [x] | `Mem0.Core.Decision`         | an operation plus why it was chosen               | notes §7         |
 
 ---
 
@@ -164,15 +155,15 @@ end
 **The trap to head off now:** `nil` means two different things depending on direction.
 
 - On **write**, `run_id: nil` means *this fact is not tied to a session* — general knowledge about
-  the user. A real, deliberate value.
+the user. A real, deliberate value.
 - On **read**, `run_id: nil` means *any session*.
 
 Same shape, opposite semantics, one bug away from a session-local scratch note leaking into every
 project the user works on. So there are two types:
 
 - `Mem0.Core.Scope` — a write address. `user_id` required *and non-nil*; nil `app_id`/`run_id` means
-  "general". `user_id: nil` would address every user at once, which is the one value that must be
-  unconstructible, and `struct!/2` will not do that for us.
+"general". `user_id: nil` would address every user at once, which is the one value that must be
+unconstructible, and `struct!/2` will not do that for us.
 - `Mem0.Core.ScopeQuery` — a read filter. `nil` at a level means *any value at that level*.
 
 `Scope.covering/1` takes the concrete address a read happens at and returns `[ScopeQuery.t()]` — the
@@ -261,8 +252,8 @@ end
 **identification**, not persistence — a `Memory` is a fact the system has committed to and can refer
 to by name. That framing is what lets this phase define both without a database.
 
-`@type id :: String.t()`. Opaque **by convention, not by `@opaque`** — `Memory.id()`, `Entity.id()`
-and `Relation.id()` are all `String.t()` and mutually substitutable, so Dialyzer will not catch a
+`@type id :: String.t()`. Opaque **by convention, not by `@opaque**` — every id in the core is a
+`String.t()` and they are mutually substitutable, so Dialyzer will not catch a
 crossed id. *Judgement: `@opaque` would catch it, at the cost of every module that touches an id*
 *needing an accessor. Not worth it at this size; revisit if a crossed id ever actually happens.*
 
@@ -296,13 +287,13 @@ That guard is a pure comparison over two contents, so it belongs in the core. If
 evaluated it, the boundary would be deciding rather than performing, and the overview's settled pivot
 would be broken. `MemoryOperation` therefore takes `richer?/2` as an injectable predicate —
 `(Fact.t(), Memory.t()) -> boolean()` — defaulting to something this phase can test, so an LLM
-judgement can be substituted later without moving the guard. **An `UPDATE` that fails the guard
-degrades to `:noop` inside the core**, so the boundary never receives an operation it should not
+judgement can be substituted later without moving the guard. **An `UPDATE` that fails the guard**
+**degrades to `:noop` inside the core**, so the boundary never receives an operation it should not
 perform.
 
 **`Mem0.Core.Decision`** is a struct wrapping an operation with its audit metadata: `operation`,
-`reason`, `considered_ids`, `decided_at`. **The core's update phase returns `Decision.t()`, not a
-bare `MemoryOperation.t()`** — the overview names the pivot by its most important field; this refines
+`reason`, `considered_ids`, `decided_at`. **The core's update phase returns `Decision.t()`, not a**
+**bare `MemoryOperation.t()**` — the overview names the pivot by its most important field; this refines
 that rather than contradicting it. The boundary performs `decision.operation` and keeps the rest.
 
 The LLM's justification is a property of the *decision*, not of the fact, and it is what makes a
@@ -331,144 +322,16 @@ set is closed and matched literally, never via `String.to_atom/1`.
 
 `Memory` carries four timestamps and only two of them are clocks in the 2.6 sense.
 
-`extracted_at` is inherited from the `Fact` and records which `Φ` call produced the *current
-content*; after an id-preserving UPDATE it names a later pair than `created_at` does, which is
+`extracted_at` is inherited from the `Fact` and records which `Φ` call produced the *current*
+*content*; after an id-preserving UPDATE it names a later pair than `created_at` does, which is
 correct and is the point. `updated_at` is the **recency signal** the answer prompt's "prioritise the
 most recent" rule reads (notes §2.5) — not `created_at`, or an updated memory would lose to a fresh
 one repeating stale information. On ADD they are equal.
 
 `source_message_ids` **accumulates** across UPDATE rather than being replaced. After an update the
 content derives from both pairs, and a provenance list naming only the most recent one cannot explain
-the memory it points at. The field answers notes §7's flagged gap — *"nothing is said about linking a
-memory back to the messages that produced it"* — which is the only reason it exists.
-
----
-
-## 2.5 Graph
-
-The same candidate/identified split, one level richer because resolution sits between the two:
-
-| Candidate (from the LLM)                                                             | Identified                                                                                               |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `Graph.EntityRef` — `name`, `type`                                                   | `Graph.Entity` — `id`, `scope`, `name`, `type`, `aliases`, `event_time`, `event_precision`, `created_at` |
-| `Graph.Triplet` — `source :: EntityRef.t()`, `label`, `destination :: EntityRef.t()` | `Graph.Relation` — resolved ids plus a validity interval                                                 |
-| `Graph.Extraction` — `entities`, `triplets`                                          | —                                                                                                        |
-
-`type` and `label` are `String.t()`, **never atoms** — they come from model output and the atom table
-is never GC'd. Settled in the overview; restated because a `String.to_atom/1` in a JSON decoder is
-precisely how this gets violated by accident.
-
-`Graph.Extraction` exists because extraction is a **two-stage** pipeline (notes §3.2): stage 1
-produces entities with their types, stage 2 derives relations over entity *pairs*. Without a
-container for stage 1's output, the entity types have no path into node resolution, which otherwise
-only ever sees a triplet.
-
-### Entities
-
-The paper uses embeddings for two distinct jobs and the notes are explicit that they must not be
-conflated (§5, principle 5): **node** embeddings drive entity resolution and query anchoring;
-**triplet-text** embeddings drive holistic query matching. Neither vector lives in the core, but both
-need their *input* visible here.
-
-`Entity.name` is the canonical surface form the node embedding is computed over. `Entity.aliases`
-holds the other forms that resolved onto it ("SF", "San Fran") and never re-embed. Keeping the
-distinction explicit is what makes a bad merge debuggable — the failure mode the notes call
-*actively harmful* (§4.5), because it fabricates relationships that were never stated — since
-debugging one means asking which text produced the vector that matched.
-
-`event_time` and `event_precision :: :instant | :day | :month | :year | nil` are nil for ordinary
-entities and populated for **date nodes**. The paper treats dates as entities (notes §3.2, §4.3), and
-a date node whose date lives only in its `name` string is not a date to any function in this system.
-Interval containment — *"was I at Acme when the layoffs happened?"*, the query §4.4 uses to show what
-the graph is *for* — compares a `Relation`'s interval against a date node's instant. Without a parsed
-field, that comparison has to happen at query time by re-parsing LLM-written prose. Precision is not
-optional either: `"Mar 2023"` is a month, and flattening it to `2023-03-01T00:00:00Z` answers a
-containment question wrongly whenever the boundary falls inside March.
-
-`Entity.scope` is where the entity resolution scope question will be settled, and it is left open on
-purpose — see the table at the end. Run-addressed entities make `San Francisco` a new node every
-Claude session, which is the fragmentation failure `t` is tuned against (notes §3.3: *"too high
-fragments them"*). The field exists so that the answer has somewhere to live; this phase does not
-pick it.
-
-### Relations
-
-```elixir
-defmodule Mem0.Core.Graph.Relation do
-  use TypedStruct
-
-  @type id :: String.t()
-
-  typedstruct enforce: true do
-    field :id, id()
-    field :scope, Scope.t()
-    field :source_id, Entity.id()
-    field :label, String.t()
-    field :destination_id, Entity.id()
-    field :valid_from, DateTime.t(), enforce: false
-    field :valid_to, DateTime.t(), enforce: false
-    field :superseded_by_id, id(), enforce: false
-    field :triplet_text, String.t()
-    field :source_message_ids, [Message.id()], default: []
-    field :created_at, DateTime.t()
-  end
-end
-```
-
-Three fields doing specific work, each traceable to a line in the notes:
-
-1. `valid_from` / `valid_to` answers "before", "during" and "as of"; an `is_valid` boolean answers
-   only "now" (§4.7.2). **Both ends are optional, and nil means *unbounded*, not
-   *unknown-so-assume-now*.** Most triplets state no start date — "I work at Acme" gives a `works_at`
-   edge with no `valid_from` — and filling it from the utterance time is exactly the clock collapse
-   2.6 forbids and §4.7.5 warns breaks the answer prompt. It would also corrupt the containment query
-   above: an edge whose `valid_from` really means "we found out on Tuesday" answers "was I at Acme in
-   March?" wrongly. Predicates: `valid_at?/2`, `current?/2`.
-2. `superseded_by_id` is the *dateless ordering signal* — that relation A was replaced by relation B
-   records that A came first even when neither carries a date (§4.3b). It is set during the
-   invalidate step, not at construction, because of the id problem below.
-3. `triplet_text` is the rendered `"Alice lives_in San Francisco"`. Rendering is a pure function
-   (`Relation.render/3` over the two entity names and the label) and belongs here; what later embeds
-   that string does not. Storing the rendered text rather than re-deriving it means the embedding
-   always has visible provenance.
-
-**Relations are never deleted, only invalidated** — settled in the overview. There is no
-`Relation.delete`; the only removal-shaped operation sets `valid_to` and `superseded_by_id`. Base
-memory deletes, the graph invalidates, and that asymmetry *is* the graph's temporal advantage
-(§4.7.1). The type system should make violating it awkward.
-
-### Decision types
-
-- `Graph.Resolution` — `{:existing, Entity.id(), EntityRef.t()} | {:new, EntityRef.t()}`, the pure
-  output of node resolution given scored candidates and threshold `t`.
-  The `:existing` arm carries the candidate ref forward rather than dropping it. The ref's surface
-  form is what `aliases` records, and its `type` is what lets someone notice that this extraction
-  called `Acme` an `Organization` where the stored node says `Company`. The paper does not say what
-  to do about that (notes §7, Mem0^g: node type conflicts), so this phase makes sure the information
-  survives long enough for someone to have the choice. Discarding it at resolution time is a decision
-  made by omission, and it is the same mistake `aliases` exists to avoid one field over.
-- `Graph.Operation` —
-  ```elixir
-  @type superseded_by :: {:existing, Relation.id()} | {:new, Triplet.t()} | :none
-
-  @type t ::
-          {:add_relation, Resolution.t(), String.t(), Resolution.t()}
-          | {:invalidate, Relation.id(), DateTime.t(), superseded_by()}
-          | :noop
-  ```
-  The `{:new, …}` arm is not cosmetic. In the case that motivates the whole mechanism — "I moved to
-  New York" invalidates `lives_in SF` (§4.4) — the superseding edge is created in the *same* decision
-  pass, so its id does not exist when the core decides. A bare `Relation.id()` there is
-  unconstructible; filling it with `nil` silently discards the ordering signal that is
-  `superseded_by_id`'s only reason to exist. The boundary resolves `{:new, triplet}` to the id it
-  just assigned. The core never emits an id it did not receive — the same discipline that makes
-  `{:add, Fact.t()}` carry no id on the base side.
-  `{:add_relation, …}` takes the two resolutions and the label rather than the whole triplet: the
-  resolutions already carry both endpoint refs, so passing the triplet too would be a second copy.
-- `Graph.Decision` mirrors `Decision` for the graph channel, for the same reason and one stronger
-  one: invalidation is an LLM resolver judgement (notes §3.3), a wrongly-invalidated edge is silent
-  where a wrongly-deleted memory is at least missing, and the graph's characteristic failure — a bad
-  node merge — is *actively harmful*. Both channels record why.
+the memory it points at. The field answers notes §7's flagged gap — *"nothing is said about linking a*
+*memory back to the messages that produced it"* — which is the only reason it exists.
 
 ---
 
@@ -478,14 +341,18 @@ The notes (§4.1) are emphatic that collapsing these breaks the answer prompt. W
 
 | Clock                        | Field                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------ |
-| Utterance — when it was said | `Message.said_at`, `Memory.created_at`, `Entity.created_at`              |
-| Event — when it happened     | `Memory.event_time`, `Fact.event_time`, `Entity.event_time` (date nodes) |
-| Validity — when it was true  | `Relation.valid_from` / `valid_to`                                       |
+| Utterance — when it was said | `Message.said_at`, `Memory.created_at`                                   |
+| Event — when it happened     | `Memory.event_time`, `Fact.event_time`                                   |
+| Validity — when it was true  | *no field yet* — see the open question below                            |
 
-All are `DateTime.t()` in UTC, all supplied as input. **A struct carrying two of these must never
-default one from the other.** `event_time` stays nil when the fact states no event time, and nil
-means *unknown*, not *same as utterance time*. The same rule is why `Relation.valid_from` is
-optional.
+All are `DateTime.t()` in UTC, all supplied as input. **A struct carrying two of these must never**
+**default one from the other.** `event_time` stays nil when the fact states no event time, and nil
+means *unknown*, not *same as utterance time*.
+
+Validity had a home on graph edges (`valid_from` / `valid_to`) and lost it when the graph channel
+went to the attic. It needs a new one on `Memory` — an event interval plus supersession, so a
+contradicted memory closes rather than disappearing. That is a real design change to `Memory` and to
+`MemoryOperation`'s cascade, and it is not made here.
 
 `Memory.extracted_at` and `Memory.updated_at` are not clocks in this sense; 2.4 says what each is
 for.
@@ -501,7 +368,7 @@ test checks out a sandbox connection:
 
 - tag the Phase 1 vector round-trip test and the generated Phoenix cases `@tag :db`
 - add `test.core: ["test --exclude db"]`, alongside the `test.live` alias 01 §1.4 already
-  established, and *without* the `ecto.create`/`ecto.migrate` prefix
+established, and *without* the `ecto.create`/`ecto.migrate` prefix
 
 **`mix test.core` passes with the Postgres container stopped.** That is the exit criterion for the
 layering, not a nice-to-have. Bare `mix test` still runs everything and still needs the container.
@@ -509,22 +376,17 @@ layering, not a nice-to-have. Bare `mix test` still runs everything and still ne
 What is worth testing:
 
 - **Constructors enforce.** `new/1` without a required key raises via `struct!/2`.
-  `Scope.new(user_id: nil)` *also* raises — `struct!/2` alone does not do that, so `Scope.new/1`
-  carries an explicit non-nil check. It is the one field where nil is not a narrower address but a
-  wildcard one, which is the failure 2.2 exists to prevent. Normalisation in `new/1` is idempotent.
+`Scope.new(user_id: nil)` *also* raises — `struct!/2` alone does not do that, so `Scope.new/1`
+carries an explicit non-nil check. It is the one field where nil is not a narrower address but a
+wildcard one, which is the failure 2.2 exists to prevent. Normalisation in `new/1` is idempotent.
 - **`Scope.covering/1`** returns the ladder in widening order — run, then app, then user — and drops
-  the rungs a nil `run_id` or `app_id` makes meaningless.
-- **`Relation.valid_at?/2` and `current?/2`** at the interval edges, which are the whole feature:
-  open-start (`valid_from: nil`), open-end, fully open, closed, and a query instant exactly on each
-  boundary.
+the rungs a nil `run_id` or `app_id` makes meaningless.
 - **The UPDATE guard** degrades `{:update, …}` to `:noop` when the candidate is not richer, with
-  `richer?/2` injected.
+`richer?/2` injected.
 - **`MemoryOperation.parse/2`** returns `{:error, _}` rather than raising on malformed model output,
-  including an ordinal outside `1..s`.
+including an ordinal outside `1..s`.
 - **`Summary.stale?/2`** across the threshold.
 - **`Scored.rank/1`** puts the highest score first, and is stable on ties.
-- **`Relation.render/3`** is deterministic — the same triplet always produces the same string, since
-  an embedding will later be keyed on it.
 
 Fixtures go in `test/support/` as plain functions: `*_fields` taking an `overrides` keyword list,
 `Keyword.fetch!` inside so a missing field raises immediately, and a `__using__` that aliases and
@@ -565,16 +427,12 @@ by an omission nobody notices.
 | Question                                                                         | Why not here                                                            | Shape it lands on              |
 | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------ |
 | Persistence — schemas, migrations, the store boundary                            | Naming a table now fixes the domain shape to a database shape           | the opaque `id()` types        |
+| Where validity lives now the graph is gone — event intervals and supersession on `Memory` | It changes `Memory` and the ADD/UPDATE/DELETE/NOOP cascade together     | `Memory`, `MemoryOperation`    |
 | Coordination between the facts of one `Extraction`                               | The paper's update loop is per-fact with no coordination at all         | `Extraction`                   |
 | What `InformationContent` measures                                               | Never defined; token count and an LLM judgement behave differently      | `richer?/2`                    |
 | Summary refresh cadence                                                          | "Periodically"; needs a running pipeline to tune against                | `Summary.stale?/2`             |
 | `s`, and the `SemanticallySimilar` cutoff                                        | Tuning, and it needs a real embedder to tune with                       | `Scored.above/2`               |
-| Node resolution threshold `t`                                                    | Same — too low merges distinct entities, too high fragments them        | `Scored.above/2`               |
-| Entity resolution scope — user/app vs run                                        | Run-addressing fragments the graph, but the call wants measurement      | `Entity.scope`                 |
-| Which relations are single-valued (`lives_in` supersedes, `visited` accumulates) | Nothing in the paper distinguishes them                                 | `Graph.Operation`              |
-| Conflict-detection scope — which edges are even candidates for invalidation      | The paper describes the resolver, not how candidates are found          | `Graph.Operation`              |
-| Node type conflicts                                                              | Unaddressed by the paper; the information at least survives resolution  | `Resolution`'s `:existing` arm |
-| Retrieval result structs — fusing semantic, lexical and entity-centric channels  | The shape is discovered by building the channels, not by guessing early | —                              |
+| Retrieval result structs — fusing the semantic and lexical channels              | The shape is discovered by building the channels, not by guessing early | —                              |
 
 The last row is deferred for a different reason than the rest. The others have a shape and lack a
 value; that one lacks a shape entirely. Inventing one now would mean guessing at a merge policy the

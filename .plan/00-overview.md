@@ -13,10 +13,10 @@ The layering follows DFTBLW — **D**ata, **F**unctional core, **T**ests, **B**o
 2. **Ports before pipelines.** The LLM and embedder behaviours land in Phase 3 so that phases 4–7
    are testable with stub adapters and no network. Without this, every later phase drags a live
    API dependency into its test suite.
-3. **Base Mem0 fully working before the graph.** The graph is not an alternative write path — it
-   is a second one that runs alongside. Building it on an unproven base doubles the surface under
-   debug. The paper's own results back this ordering: base Mem0 wins single-hop and multi-hop; the
-   graph only adds temporal and open-domain.
+3. **One memory channel, not two.** The paper's `Mem0^g` graph channel is dropped — see
+   [attic/graph-channel.md](attic/graph-channel.md) for the design and why. Temporal reasoning lives
+   on memories themselves (event intervals, supersession) rather than on graph edges, which is the
+   direction upstream mem0 itself took.
 4. **Surfaces last.** REST, MCP and the Claude Code hooks are thin wrappers over a
    `Mem0` boundary module. They are cheap once the boundary is right and worthless before.
 
@@ -36,16 +36,13 @@ them is the substrate they need.
 
 These are settled and should not be relitigated per-phase:
 
-- **Postgres + pgvector, not Neo4j.** All three graph access patterns the paper needs — entity
-  resolution (vector nearest-neighbour), semantic triplet retrieval (vector query), entity-centric
-  retrieval (1–2 hops from an anchor) — are covered by Postgres. A second datastore would buy
-  traversal depth we have no evidence we need, and cost us the single transaction that keeps the
-  NL store and the graph consistent with each other.
-- **Relations are append-only.** `valid_from` / `valid_to` / `superseded_by`, never a hard delete.
-  This is a deliberate upgrade over the paper's boolean invalidation flag: it is what makes
-  interval-containment questions ("was I at Acme when the layoffs happened?") answerable.
-- **LLM-derived labels are strings, never atoms.** Entity `type` and relation `label` come from
-  model output. Interning them would grow the atom table without bound; it is never GC'd.
+- **Postgres + pgvector, and no second datastore.** Vector search and every filter the system needs
+  are covered by Postgres, and one store is what keeps a write atomic.
+- **Memories are append-mostly.** Validity intervals and supersession, never a hard delete. This is
+  a deliberate upgrade over the paper's `DELETE`, which removes the row and with it both the audit
+  trail and the ordering signal: a superseded memory knows it came before the one replacing it.
+- **LLM-derived labels are strings, never atoms.** Anything that comes back from a model and gets
+  stored stays a binary. Interning would grow the atom table without bound; it is never GC'd.
 - **`MemoryOperation` is the purity pivot.** The core decides *what* to do and returns
   `{:add, Fact.t()} | {:update, id, Fact.t()} | {:delete, id} | :noop`. The boundary performs it.
   Every decision rule is therefore testable without a database. *(Phase 2 refines this: the core

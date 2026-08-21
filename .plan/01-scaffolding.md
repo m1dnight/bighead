@@ -133,8 +133,8 @@ backfills or seeds an embedding.
 whole seconds. Change it to `:utc_datetime_usec`.
 
 This is a one-line change now and a migration across every table later. It matters more here than
-in a normal app: ingestion is per message pair, and the whole point of the graph variant is keeping
-three clocks distinct. Two pairs ingested in the same second would get identical `inserted_at`,
+in a normal app: ingestion is per message pair, and keeping the three clocks distinct is the whole
+point of the temporal design. Two pairs ingested in the same second would get identical `inserted_at`,
 which breaks recency-ordered conflict resolution and supersession ordering.
 
 ### Exit check
