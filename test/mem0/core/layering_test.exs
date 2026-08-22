@@ -1,12 +1,15 @@
 defmodule Mem0.Core.LayeringTest do
   @moduledoc """
-  Turns the three rules of Phase 2 into a CI failure rather than a habit.
+  Turns the layering rules into a CI failure rather than a habit.
 
   Grep would miss `apply/3`, aliased calls and macro-generated references. The
   BEAM import table does not: every external call a module makes is in there,
   fully qualified, whatever it looked like in source.
   """
   use ExUnit.Case, async: true
+
+  alias Mem0.Embedder.Ollama
+  alias Mem0.LLM.Anthropic
 
   @forbidden_modules [
     Ecto,
@@ -20,6 +23,12 @@ defmodule Mem0.Core.LayeringTest do
   ]
 
   @forbidden_prefixes ["Elixir.Ecto.", "Elixir.Phoenix.", "Elixir.Req.", "Elixir.Swoosh."]
+
+  # Phase 3's rule: the ports are behaviours, and the adapters behind them are
+  # the only modules allowed to speak HTTP. Anything else appearing in the list
+  # below means an adapter's job leaked into one of its callers. `Mem0.ReqEcho`
+  # is test support — a `Req` adapter that answers without a socket.
+  @http_adapters [Ollama, Anthropic, Mem0.ReqEcho]
 
   # Time arrives as an argument. This is what makes the interval and staleness
   # predicates testable without `Process.sleep`, and it is the precondition for
@@ -79,6 +88,19 @@ defmodule Mem0.Core.LayeringTest do
           do: module
 
     assert [] == offenders
+  end
+
+  test "the adapters are the only modules that reach an HTTP client" do
+    {:ok, modules} = :application.get_key(:mem0, :modules)
+
+    offenders =
+      for module <- modules,
+          module not in @http_adapters,
+          {called, _function, _arity} <- external_calls(module),
+          String.starts_with?(Atom.to_string(called), "Elixir.Req"),
+          do: module
+
+    assert [] == Enum.uniq(offenders)
   end
 
   defp external_calls(module) do

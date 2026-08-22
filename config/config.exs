@@ -48,14 +48,12 @@ config :mem0, Mem0Web.Endpoint,
   pubsub_server: Mem0.PubSub,
   live_view: [signing_salt: "NcYZrUYX"]
 
-config :mem0, :embedder, adapter: nil, model: nil, dimensions: nil, api_key: nil
-
-# --- Ports (Phase 3 fills in values; the keys exist now so later phases add
-# configuration rather than restructure it) ---
-#
-# `config/test.exs` points these at stubs, and `config/runtime.exs` reads the
-# environment for dev and prod.
-config :mem0, :llm, adapter: nil, model: nil, api_key: nil
+# Placeholders only. `config/runtime.exs` fills these from the environment for
+# dev and prod, and `config/test.exs` pins the adapters at stubs. They are
+# declared here so that every environment sees the same key set and a missing
+# key is a `KeyError` naming the setting rather than a silent `nil`.
+config :mem0, :embedder, adapter: nil, base_url: nil, model: nil, dimensions: nil
+config :mem0, :llm, adapter: nil, model: nil, max_tokens: nil, api_key: nil
 
 # --- Redaction policy ---
 #

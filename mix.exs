@@ -40,7 +40,7 @@ defmodule Mem0.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test, "test.core": :test]
+      preferred_envs: [precommit: :test, "test.core": :test, "test.live": :test]
     ]
   end
 
@@ -87,6 +87,13 @@ defmodule Mem0.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:pgvector, "~> 0.4"},
+
+      # Declarative reading, validation and casting of environment variables in
+      # `config/runtime.exs` (Phase 3). Not `runtime: false`: `runtime.exs` is
+      # evaluated at boot inside a release, and a `runtime: false` dependency is
+      # not shipped in one — the omission only shows up as an undefined-module
+      # crash on the first release boot.
+      {:env_guard, "~> 2.0"},
 
       # Struct definitions for the functional core (Phase 2). `runtime: false`
       # because the library is a compile-time code generator: the generated

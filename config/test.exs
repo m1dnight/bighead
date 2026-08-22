@@ -30,12 +30,13 @@ config :mem0, Mem0Web.Endpoint,
   secret_key_base: "49T/GmlzBIVSwIRnLQ1UDyQecA0TwBFFEXS+WEoaIGPqj3Sp+86hZCm6KIHndTrh",
   server: false
 
-config :mem0, :embedder, adapter: Stub
-
-# Tests must not hit the network or spend money. These modules arrive in
-# Phase 3; the config keys pointing at them exist now so that no test suite can
-# ever silently fall back to a live adapter.
-config :mem0, :llm, adapter: Mem0.LLM.Stub
+# Tests must not hit the network or spend money, so both ports are pinned at
+# their stubs here. `config/runtime.exs` is evaluated after this file and
+# deliberately writes no `:adapter` under `MIX_ENV=test` — the live credentials
+# it does read land under `:live_llm` / `:live_embedder`, which only `@tag :live`
+# tests touch.
+config :mem0, :embedder, adapter: Stub, dimensions: 768
+config :mem0, :llm, adapter: Mem0.LLM.Stub, model: "stub-model", max_tokens: 1024
 
 # Never log payloads under test, whatever the environment says.
 config :mem0, :log_llm_payloads, false

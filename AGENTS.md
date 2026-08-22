@@ -41,6 +41,14 @@ This is a web application written using the Phoenix web framework.
   migration must stay standalone: no migration may bind a `vector` parameter in the same
   `mix ecto.migrate` run that creates the extension, because Postgrex resolves type OIDs when the
   connection opens.
+- **`config/runtime.exs` is the only place that reads the environment.** Every adapter takes its
+  configuration as a keyword list, which is what makes adapters testable without a live provider,
+  and `.env.example` lists every variable the application reads. The provider variables
+  (`MEM0_LLM_PROVIDER`, `MEM0_EMBEDDER_PROVIDER`) raise on an unrecognised value rather than
+  falling back, because a typo that boots on the stub fails at the first call instead of at boot.
+- **Only `Mem0.LLM.Anthropic` and `Mem0.Embedder.Ollama` may speak HTTP.** They are the adapters
+  behind the `Mem0.LLM` and `Mem0.Embedder` behaviours; everything else goes through the port.
+  `test/mem0/core/layering_test.exs` enforces this against the BEAM import table.
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 
 ### Phoenix v1.8 guidelines

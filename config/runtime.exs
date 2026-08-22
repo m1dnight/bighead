@@ -16,31 +16,73 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
+alias Mem0.Embedder.Ollama
+alias Mem0.LLM.Anthropic
+alias Mem0.LLM.Stub
+
 if System.get_env("PHX_SERVER") do
   config :mem0, Mem0Web.Endpoint, server: true
 end
 
+# Which LLM adapter to use for extraction.
+llm_adapter =
+  case EnvGuard.optional("MEM0_LLM_PROVIDER", {:enum, ["stub", "anthropic"]}, "stub") do
+    "anthropic" ->
+      Anthropic
+
+    "stub" ->
+      Stub
+  end
+
+embedder_adapter =
+  case EnvGuard.optional("MEM0_EMBEDDER_PROVIDER", {:enum, ["stub", "ollama"]}, "stub") do
+    "ollama" -> Ollama
+    "stub" -> Mem0.Embedder.Stub
+  end
+
+# `ANTHROPIC_API_KEY` is required only when the provider is `anthropic`. Making
+# it unconditional would break the property the `stub` default exists for: a
+# clean checkout with no `.env` and no key boots, and `mix test` passes.
+llm_api_key =
+  if llm_adapter == Anthropic,
+    do: EnvGuard.required("ANTHROPIC_API_KEY", :string, min_length: 1)
+
+llm_settings = [
+  model: EnvGuard.optional("MEM0_LLM_MODEL", :string, "claude-opus-5"),
+  max_tokens: EnvGuard.optional("MEM0_LLM_MAX_TOKENS", :integer, 16_000, min: 1),
+  api_key: llm_api_key
+]
+
+# `MEM0_EMBEDDING_DIMENSIONS` is not decoration: it is the width the `vector(N)`
+# column will have to declare. A mismatch between the configured model and the
+# migrated column is otherwise a runtime error at insert time; naming it here
+# makes it a boot-time value that one place owns.
+embedder_settings = [
+  base_url: EnvGuard.optional("OLLAMA_BASE_URL", :string, "http://localhost:11434"),
+  model: EnvGuard.optional("MEM0_EMBEDDING_MODEL", :string, "nomic-embed-text"),
+  dimensions: EnvGuard.optional("MEM0_EMBEDDING_DIMENSIONS", :integer, 768, min: 1)
+]
+
 config :mem0, Mem0Web.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
-# --- Ports (Phase 3) ---
-#
-# Read here rather than in config/config.exs so that a release picks up keys
-# from its environment rather than from whatever was set at build time. Values
-# are all nil today; `config/test.exs` overrides the adapters with stubs and is
-# not affected by this block, since `config_env() == :test` is excluded.
-if config_env() != :test do
-  config :mem0, :embedder,
-    adapter: System.get_env("MEM0_EMBEDDER_ADAPTER"),
-    model: System.get_env("MEM0_EMBEDDER_MODEL"),
-    api_key: System.get_env("MEM0_EMBEDDER_API_KEY")
+if config_env() == :test do
+  # `config/test.exs` pins both adapters at their stubs, and nothing here may
+  # undo that — `runtime.exs` is evaluated last, so writing `:adapter` in this
+  # branch is the one edit that could put a live provider behind `mix test`.
+  # `mix test.live` still needs real credentials, so they land under separate
+  # keys that only `@tag :live` tests read.
+  config :mem0, :live_embedder, [{:adapter, Ollama} | embedder_settings]
 
-  config :mem0, :llm,
-    adapter: System.get_env("MEM0_LLM_ADAPTER"),
-    model: System.get_env("MEM0_LLM_MODEL"),
-    api_key: System.get_env("MEM0_LLM_API_KEY")
+  config :mem0, :live_llm, [
+    {:adapter, Anthropic},
+    {:api_key, System.get_env("ANTHROPIC_API_KEY")} | llm_settings
+  ]
+else
+  config :mem0, :embedder, [{:adapter, embedder_adapter} | embedder_settings]
+  config :mem0, :llm, [{:adapter, llm_adapter} | llm_settings]
 
   # See the redaction policy note in config/config.exs.
-  config :mem0, :log_llm_payloads, System.get_env("MEM0_LOG_LLM_PAYLOADS") in ~w(true 1)
+  config :mem0, :log_llm_payloads, EnvGuard.optional("MEM0_LOG_LLM_PAYLOADS", :boolean, false)
 end
 
 if config_env() == :dev do
