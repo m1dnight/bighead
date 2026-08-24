@@ -3,13 +3,6 @@ import Config
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
-# Configure your database
-# For development, we disable any cache and enable
-# debugging and code reloading.
-#
-# The watchers configuration can be used to run external
-# watchers to your application. For example, we can use it
-# to bundle .js and .css sources.
 config :mem0, Mem0.Repo,
   username: "postgres",
   password: "postgres",
@@ -29,16 +22,13 @@ config :mem0, Mem0Web.Endpoint,
   secret_key_base: "cn/O2NwxTOW1Y1C9xd6Y/Pcb7yu1qpkfo/XwsNoCDUhr+HkCBZhpFBcIFuPCvOg0",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:mem0, ~w(--sourcemap=inline --watch)]},
+    # Print the telemetry metrics defined in `Mem0Web.Telemetry.metrics/0` to the
+    # console. None of the mem0 events fire yet — this is here so that the ones
+    # added from Phase 3 onward are visible without further wiring.
     tailwind: {Tailwind, :install_and_run, [:mem0, ~w(--watch)]}
   ]
 
-# Print the telemetry metrics defined in `Mem0Web.Telemetry.metrics/0` to the
-# console. None of the mem0 events fire yet — this is here so that the ones
-# added from Phase 3 onward are visible without further wiring.
 config :mem0, :telemetry_console_reporter, false
-
-# ## SSL Support
-#
 
 # Enable dev routes for dashboard and mailbox
 # In order to use HTTPS in development, a self-signed
@@ -46,6 +36,10 @@ config :mem0, :telemetry_console_reporter, false
 # Mix task:
 #
 config :mem0, dev_routes: true
+
+# Deliberately empty, overriding `config/config.exs`: in dev you want to read
+# the hook payloads. Nowhere else.
+config :phoenix, :filter_parameters, []
 
 # Initialize plugs at runtime for faster development compilation
 #     mix phx.gen.cert
@@ -58,7 +52,10 @@ config :phoenix, :plug_init_mode, :runtime
 # in production as building large stacktraces may be expensive.
 # The `http:` config above can be replaced with:
 #
+# ## SSL Support
 #     https: [
+#
+
 config :phoenix, :stacktrace_depth, 20
 
 config :phoenix_live_view,
@@ -77,7 +74,7 @@ config :phoenix_live_view,
   # configured to run both http and https servers on
   enable_expensive_runtime_checks: true
 
+config :swoosh, :api_client, false
+
 # Disable swoosh api client as it is only required for production adapters.
 # different ports.
-
-config :swoosh, :api_client, false

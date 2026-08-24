@@ -5,12 +5,21 @@
 # messages themselves.
 #
 # `Stop` fires once, when a turn is finished — so unlike `MessageDisplay` this
-# is not a hot path, and it runs at the one moment when the turn is complete on
-# disk: the assistant's final entry has landed in the transcript by now, which
-# is why the tail sent from here is whole rather than missing the answer. The
-# payload also carries `last_assistant_message`, that answer as plain text.
+# is not a hot path.
 #
-# Usage: stop.sh [LIMIT]   — last LIMIT transcript lines, default 100.
+# **The transcript is not complete when this runs, and that is measured.** The
+# assistant's final entry is flushed to the JSONL *after* the hook returns: on a
+# real turn the entry was stamped 15:12:55.966, the hook started ~15:12:55.99
+# and ran 63ms, and the file it read still ended one entry short. The stamp is
+# message-completion time; the write is end-of-turn bookkeeping that happens
+# after hooks. Every earlier entry is there — only the answer this turn just
+# produced is missing.
+#
+# The payload closes that gap itself: `last_assistant_message` is exactly the
+# text of the entry that has not landed. mem0 reconstructs a message from it,
+# which is why `hook_at` below is sent.
+#
+# Usage: stop.sh [LIMIT]   — last LIMIT transcript lines, default 300.
 #
 # Two invariants, both load-bearing:
 #
@@ -27,7 +36,7 @@
 
 set -uo pipefail
 
-limit="${1:-100}"
+limit="${1:-500}"
 
 payload=$(cat)
 transcript=$(jq -r '.transcript_path' <<<"$payload" 2>/dev/null)
@@ -41,8 +50,13 @@ transcript=$(jq -r '.transcript_path' <<<"$payload" 2>/dev/null)
 # with the rest, and mem0's normaliser already drops what it does not
 # recognise.
 lines=$(tail -n "$limit" "$transcript" 2>/dev/null) || lines=""
-total=$(wc -l "$transcript" 2>/dev/null | awk '{print $1}') || total=0
-total=${total//[^0-9]/}
+
+# Both counts must define "line" the same way, or the offset the receiver
+# derives from them is wrong by one. `wc -l` counts newlines and `grep -c ''`
+# counts lines including an unterminated last one — and the last line of a
+# transcript being appended to right now is exactly the unterminated case. So
+# both use `grep -c ''`.
+total=$(grep -c '' "$transcript" 2>/dev/null) || total=0
 sent=$(printf '%s' "$lines" | grep -c '')
 
 # The two counts are what let the receiver number this batch absolutely: it is
@@ -57,6 +71,15 @@ sent=$(printf '%s' "$lines" | grep -c '')
 # receiver drops what it cannot read and never fails the request.
 entries=$(printf '%s' "$lines" | tr '\n' ',')
 
+# The moment the hook fired, and the only honest date for the answer that
+# `last_assistant_message` carries: that entry is not in the file yet, so
+# nothing in the batch witnesses when it was said. This is measured rather than
+# invented — the message completed within ~100ms of this line running. Second
+# precision, because BSD `date` has no sub-second format; `seq` is what orders
+# messages anyway. If it is missing or unreadable mem0 drops the answer rather
+# than dating it wrongly, and the next turn's tail carries it instead.
+hook_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
 # Textual splice onto the payload object rather than a re-encode: the payload
 # is already JSON. A payload that is not an object is posted unchanged.
 head=${payload%\}}
@@ -65,7 +88,7 @@ if [ "$head" = "$payload" ]; then
 else
   sep=,
   [ "${head: -1}" = "{" ] && sep=""
-  body="${head}${sep}\"total_transcript_length\":${total:-0},\"transcript_length\":${sent},\"entries\":[${entries}]}"
+  body="${head}${sep}\"total_transcript_length\":${total:-0},\"transcript_length\":${sent},\"hook_at\":\"${hook_at}\",\"entries\":[${entries}]}"
 fi
 
 curl -sS --max-time 5 -X POST http://localhost:4001/hooks/stop \

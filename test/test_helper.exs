@@ -1,6 +1,10 @@
 # Tests tagged `:live` talk to real LLM/embedder APIs and cost money. They are
 # excluded by default; run them with `mix test.live`.
-ExUnit.configure(exclude: [:live])
+#
+# `:corpus` is excluded for a different reason: those tests read the Claude Code
+# transcripts in `~/.claude/projects`, so they pass or fail on what a particular
+# machine happens to hold. Run them with `mix test --include corpus`.
+ExUnit.configure(exclude: [:live, :corpus])
 ExUnit.start()
 
 # `mix test.core` runs the functional core alone and starts no Repo, so there is

@@ -53,6 +53,8 @@ config :mem0, Mem0Web.Endpoint,
 # declared here so that every environment sees the same key set and a missing
 # key is a `KeyError` naming the setting rather than a silent `nil`.
 config :mem0, :embedder, adapter: nil, base_url: nil, model: nil, dimensions: nil
+# the default user id for a user. We will not support users right now, so all the same.
+config :mem0, :hook, default_user_id: "local"
 config :mem0, :llm, adapter: nil, model: nil, max_tokens: nil, api_key: nil
 
 # --- Redaction policy ---
@@ -70,6 +72,18 @@ config :mem0, :log_llm_payloads, false
 config :mem0,
   ecto_repos: [Mem0.Repo],
   generators: [timestamp_type: :utc_datetime_usec]
+
+# Phoenix's own request logger prints `Parameters: %{...}` for every request, so
+# without this the transcript reaches the log through the router whatever mem0
+# itself logs. These keys cover both hook bodies: the spliced transcript, the
+# prompt, and the answer that rides along on `Stop`.
+#
+# `config/dev.exs` deliberately sets this back to `[]`. Dev is where you are
+# reading payloads on purpose, and it is imported after this file so it wins.
+# Every other environment keeps the filter.
+config :phoenix,
+       :filter_parameters,
+       ~w(password entries prompt content message last_assistant_message)
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

@@ -22,6 +22,17 @@ defmodule Mem0Web.Router do
     get "/", PageController, :home
   end
 
+  # Bound to loopback in dev (see `config/dev.exs`), and that matters more now
+  # than it will later: this accepts conversation transcripts and, until bearer
+  # tokens land, no credentials at all. It should not be reachable off-box by
+  # accident.
+  scope "/hooks", Mem0Web do
+    pipe_through :api
+
+    post "/user-prompt-submit", HooksController, :user_prompt_submit
+    post "/stop", HooksController, :stop
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", Mem0Web do
   #   pipe_through :api

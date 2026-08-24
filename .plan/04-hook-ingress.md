@@ -86,9 +86,22 @@ Confidence in these is not uniform, and the implementer should know which is whi
 | `origin.kind`, and its correlation with human authorship | **measured** — see the table in 4.3 |
 | `toolUseResult`, `isSidechain` | **measured** |
 | `isMeta` | **measured** — 73 conversation entries carry it, none human-authored |
-| compaction markers | **absent** — no such key anywhere in the local corpus |
+| compaction markers | **measured** — a manual `/compact` was captured after the fact; see below |
 
 The assumed rows are exactly where a wrong guess costs a real message, so verify them first.
+
+> **Compaction, measured after implementation.** A `/compact` was run deliberately and captured as
+> `test/support/fixtures/transcripts/compacted.jsonl`. The guess held: the summary is a `type: "user"`
+> entry carrying `isCompactSummary: true` (and `isVisibleInTranscriptOnly: true`), preceded by a
+> `type: "system"`, `subtype: "compact_boundary"` entry whose `compactMetadata` names the preserved
+> segment. Rule 2 drops the summary as `:meta` and rule 1 drops the boundary, both without change.
+>
+> It surfaced one thing the rules did *not* cover: a slash command reaches the transcript twice, and
+> the second copy is the raw text the user typed — no wrapper, and on v2.1.241 no `origin` key
+> either, so neither of rule 4's two tests fired and `/compact` was ingested as a message. Measured
+> across the corpus that was one entry in 169 kept user messages, with no false positive. Rule 4 now
+> has a third test: content that is exactly one `/token`. `\w` excludes `/`, so `/dev/ingest` and any
+> sentence merely opening with a slash are still kept.
 
 ---
 
@@ -419,8 +432,17 @@ Two routes through the `:api` pipeline, with different jobs and different respon
 **`MessageDisplay` was the original ingest point and has been removed** — route, action and script.
 It fires per flush of the stream, and the message being flushed has not landed in the transcript
 yet, so reconstructing a turn there meant accumulating `delta`s keyed by message id: per-message
-state this boundary refuses to hold (4.6). `Stop` fires once, after the entry has landed, and needs
+state this boundary refuses to hold (4.6). `Stop` fires once, at the end of the turn, and needs
 none of it.
+
+> **Correction, measured after implementation.** This section assumed the transcript is complete
+> when `Stop` runs. It is not: Claude Code flushes the turn's final assistant entry *after* the hook
+> returns. On a real turn the entry was stamped `15:12:55.966`, the hook started `~15:12:55.99` and
+> ran 63ms, and the file it read still ended one entry short — every earlier entry present, only the
+> answer just produced missing. Overlap recovers it on the next turn, but the last answer of a
+> session never would, and recall would lag a turn behind. `Mem0.Ingest` therefore rebuilds that one
+> message from the payload's own `last_assistant_message`, dated by a `hook_at` stamp the script
+> adds; see that module's docs for what makes it safe and what it costs in dedup.
 
 **The response contract gets a type.** Both shapes are camelCase keys that form a contract with an
 external tool, and a typo in `hookSpecificOutput` fails silently — the hook simply has no effect,

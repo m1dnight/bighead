@@ -116,6 +116,29 @@ defmodule Mem0Web.Telemetry do
         tags: [:model],
         description: "Texts submitted for embedding"
       ),
+      # Hook ingress (Phase 4). Not a span: parsing a batch is one traversal
+      # with no failure mode of its own, so there is a single event with the
+      # counts on it. `drops` in the metadata carries the same total broken out
+      # by reason — an aggregate would bury a new entry type under the
+      # known-constant majority the type rule rejects on every batch. With no
+      # dev LiveView any more, this is the only thing that says a batch landed.
+      summary("mem0.ingest.received.duration",
+        tags: [:hook_event],
+        unit: {:microsecond, :millisecond},
+        description: "Wall time of one transcript normalisation"
+      ),
+      sum("mem0.ingest.received.entries",
+        tags: [:hook_event],
+        description: "Transcript entries offered by a hook"
+      ),
+      sum("mem0.ingest.received.messages",
+        tags: [:hook_event],
+        description: "Entries that became messages"
+      ),
+      sum("mem0.ingest.received.dropped",
+        tags: [:hook_event],
+        description: "Entries the normaliser could not use"
+      ),
       summary("mem0.ingest.stop.duration",
         unit: {:native, :millisecond},
         description: "Wall time of one ingestion, extraction through update"
