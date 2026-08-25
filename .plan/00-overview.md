@@ -28,6 +28,7 @@ The layering follows DFTBLW — **D**ata, **F**unctional core, **T**ests, **B**o
 | 2 | Domain data | Core structs and their invariants — no persistence | [02-domain-data.md](02-domain-data.md) |
 | 3 | Ports | LLM + embedder behaviours, config from env, stub and real adapters | [03-ports.md](03-ports.md) |
 | 4 | Hook ingress | A Claude Code session posts its transcript; mem0 normalises it to `Message`s | [04-hook-ingress.md](04-hook-ingress.md) |
+| 5 | Fact extraction | `Message`s in, candidate `Fact`s out, in one LLM call — not wired to anything | [05-fact-extraction.md](05-fact-extraction.md) |
 
 
 Phases 1–3 are infrastructure and can be done back to back. Phase 4 is the first phase that
