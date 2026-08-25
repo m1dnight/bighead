@@ -10,7 +10,8 @@ defmodule Mem0.Core.LayeringTest do
 
   alias Mem0.Embedder.Ollama
   alias Mem0.LLM.Anthropic
-  alias Mem0.Messages.Row
+  alias Mem0.Messages
+  alias Mem0.Summaries
 
   @forbidden_modules [
     Ecto,
@@ -104,22 +105,42 @@ defmodule Mem0.Core.LayeringTest do
     assert [] == Enum.uniq(offenders)
   end
 
-  # Phase 6's rule: the messages table belongs to `Mem0.Messages` alone. `Row`
-  # is a table shape rather than a second domain type, and `Repo` is how it
-  # reaches the table — a module that names either has grown a persistence
-  # dependency it was supposed to be spared. `Mem0.Repo` is its own caller
-  # through the functions `use Ecto.Repo` generates.
-  @persistence [Mem0.Repo, Row]
-  @persistence_owners [Mem0.Messages, Mem0.Repo]
+  # Phase 6's rule, reshaped when Phase 7 added a second table: each table
+  # belongs to exactly one store. Its old form — one flat list of persistence
+  # modules, one flat list of owners — was exact while there was one store,
+  # but adding a second to both lists would have quietly permitted
+  # `Mem0.Messages` to reference `Mem0.Summaries.Row` and the reverse. A `Row`
+  # is a table shape rather than a second domain type, and a module that names
+  # one it does not own has grown a persistence dependency it was supposed to
+  # be spared — per table, not per layer.
+  @table_owners %{Messages.Row => Messages, Summaries.Row => Summaries}
 
-  test "only Mem0.Messages reaches the messages table" do
+  test "each table's Row is named only by the store that owns it" do
     {:ok, modules} = :application.get_key(:mem0, :modules)
 
     offenders =
       for module <- modules,
-          module not in @persistence_owners,
           {called, _function, _arity} <- external_calls(module),
-          called in @persistence,
+          owner = @table_owners[called],
+          module != owner,
+          do: {module, called}
+
+    assert [] == Enum.uniq(offenders)
+  end
+
+  # `Repo` is how a store reaches its table, so it is reachable from the
+  # stores alone. `Mem0.Repo` is its own caller through the functions
+  # `use Ecto.Repo` generates.
+  @repo_callers [Messages, Summaries, Mem0.Repo]
+
+  test "the stores are the only modules that reach the Repo" do
+    {:ok, modules} = :application.get_key(:mem0, :modules)
+
+    offenders =
+      for module <- modules,
+          module not in @repo_callers,
+          {called, _function, _arity} <- external_calls(module),
+          called == Mem0.Repo,
           do: module
 
     assert [] == Enum.uniq(offenders)
