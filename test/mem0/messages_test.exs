@@ -168,6 +168,42 @@ defmodule Mem0.MessagesTest do
     end
   end
 
+  describe "count_since/2" do
+    test "counts stored messages past the watermark, not seq distance" do
+      scope = scope()
+
+      assert {:ok, 3} =
+               Messages.put(
+                 for seq <- [3, 17, 40], do: message(id: "msg-#{seq}", scope: scope, seq: seq)
+               )
+
+      assert Messages.count_since(scope) == 3
+      assert Messages.count_since(scope, nil) == 3
+      assert Messages.count_since(scope, 3) == 2
+      assert Messages.count_since(scope, 39) == 1
+      assert Messages.count_since(scope, 40) == 0
+    end
+
+    test "an empty run pends nothing" do
+      assert Messages.count_since(scope()) == 0
+    end
+
+    test "another run in the same app is invisible" do
+      assert {:ok, 1} = Messages.put([message(scope: scope(run_id: "other-run"))])
+
+      assert Messages.count_since(scope()) == 0
+    end
+
+    test "a nil app and run is its own address, not a wildcard" do
+      bare = scope(app_id: nil, run_id: nil)
+
+      assert {:ok, 1} = Messages.put([message(id: "msg-bare", scope: bare)])
+      assert {:ok, 1} = Messages.put([message(id: "msg-run", scope: scope())])
+
+      assert Messages.count_since(bare) == 1
+    end
+  end
+
   @doc false
   def send_query_event(_event, _measurements, _metadata, pid), do: send(pid, :repo_query)
 

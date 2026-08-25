@@ -6,10 +6,8 @@ defmodule Mem0.Messages do
   grows an Ecto dependency. `Mem0.Messages.Row` is the only thing that knows
   there is a table, and this is the only module allowed to know `Row` exists.
 
-  Nothing calls this yet. Where the write is triggered from — `Mem0.Ingest`,
-  the controller, or somewhere else — is a separate decision, and the
-  overlapping-tail question it raises is better answered against a table that
-  already exists.
+  The backfill route drives the writes; `Mem0.Summarize.refresh/2` reads back
+  through `for_run/1` and `count_since/2`.
   """
 
   import Ecto.Query
@@ -84,6 +82,32 @@ defmodule Mem0.Messages do
       nil -> 0
       seq when is_integer(seq) -> seq + 1
     end
+  end
+
+  @doc """
+  How many of this run's stored messages sit after `seq`; with no `seq` — or
+  an explicit `nil`, "no watermark" — the whole run.
+
+  This is the pending count `Mem0.Core.Summary.stale?/2` compares — stored
+  messages, not transcript lines — and it rides the `(user_id, app_id,
+  run_id, seq)` index as a range scan. Recomputed on every ask and never
+  stored, so a backfill that rewrites history corrects the answer instead of
+  drifting from it.
+  """
+  @spec count_since(Scope.t(), integer() | nil) :: non_neg_integer()
+  def count_since(scope, seq \\ nil)
+
+  def count_since(%Scope{} = scope, nil) do
+    scope
+    |> for_scope()
+    |> Repo.aggregate(:count)
+  end
+
+  def count_since(%Scope{} = scope, seq) when is_integer(seq) do
+    scope
+    |> for_scope()
+    |> where([row], row.seq > ^seq)
+    |> Repo.aggregate(:count)
   end
 
   # The scope is matched exactly, `nil`s included — one run's own transcript,

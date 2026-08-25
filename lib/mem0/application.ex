@@ -5,14 +5,18 @@ defmodule Mem0.Application do
 
   use Application
 
+  alias Mem0.Summarize.TaskSupervisor
+
   @impl true
   def start(_type, _args) do
     children = [
       Mem0Web.Telemetry,
       {DNSCluster, query: Application.get_env(:mem0, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Mem0.PubSub},
-      # Start a worker by calling: Mem0.Worker.start_link(arg)
-      # {Mem0.Worker, arg},
+      # Runs `Mem0.Summarize.refresh/2` off the hook request path. Tasks are
+      # `:temporary` (the default): restarting a failed LLM call helps nobody,
+      # and the next turn's pulse is the retry.
+      {Task.Supervisor, name: TaskSupervisor},
       # Start to serve requests, typically the last entry
       Mem0Web.Endpoint
     ]

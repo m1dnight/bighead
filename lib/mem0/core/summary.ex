@@ -13,7 +13,7 @@ defmodule Mem0.Core.Summary do
   alias Mem0.Core.Message
   alias Mem0.Core.Scope
 
-  @typedoc "How many messages `S` may fall behind the head before it needs redoing."
+  @typedoc "How many stored messages `S` may fall behind the head before it needs redoing."
   @type max_lag :: non_neg_integer()
 
   # A placeholder, not a tuned value — see the module doc. It lives here rather
@@ -79,17 +79,14 @@ defmodule Mem0.Core.Summary do
   def new(fields), do: struct!(__MODULE__, fields)
 
   @doc """
-  Whether the summary has fallen more than `max_lag` messages behind the
-  conversation head.
-
-  Takes the head `seq` rather than reading a clock, so the refresh policy is
-  testable without a running pipeline. A summary that is level with the head, or
-  ahead of it, is never stale.
+  A summary is considered stale if there are more than `max_lag` pending
+  messages. A pending message is a message that was not used to generate the
+  summary.
   """
-  @spec stale?(t(), non_neg_integer(), max_lag()) :: boolean()
-  def stale?(%__MODULE__{} = summary, head_seq, max_lag \\ @default_max_lag)
-      when is_integer(head_seq) and is_integer(max_lag) do
-    head_seq - summary.through_seq > max_lag
+  @spec stale?(non_neg_integer(), max_lag()) :: boolean()
+  def stale?(pending, max_lag \\ @default_max_lag)
+      when is_integer(pending) and is_integer(max_lag) do
+    pending > max_lag
   end
 
   @doc """

@@ -1,34 +1,12 @@
 defmodule Mem0Web.HooksController do
   @moduledoc """
   Controller for the Claude Code hooks mem0 listens on.
-
-  Two events, with disjoint jobs and different response contracts:
-
-    * `UserPromptSubmit` — recall. The prompt is augmented with facts fetched
-      from the database. We append the facts at the bottom of the prompt to make
-      sure we do not invalidate the cache.
-
-    * `Stop` — ingest. Fires when the agent has finished responding to the user.
-      This means we have a clean cutoff of the transcript and we can extract
-      facts from this.
-
-  And two routes that are mem0's own rather than Claude Code's, used by the
-  `Stop` sender in `scripts/hooks/stop.py`:
-
-    * `lines_seen` — how much of a run mem0 already has, so the sender can skip
-      it instead of re-posting a whole transcript every turn.
-
-    * `backfill` — stores the slice the sender decided was missing.
-
-  Both answer 200 unconditionally, including on a parse that produced nothing.
-  `UserPromptSubmit` blocks the session that fired it, so that route must never
-  be why a turn stalls, and `Stop`'s body is inert by construction.
   """
   use Mem0Web, :controller
 
-  alias Mem0.Core.Summary
   alias Mem0.Ingest
   alias Mem0.Messages
+  alias Mem0.Summarize
   alias Mem0Web.HookResponse
 
   # Recall lands here. Empty until there is something to recall.
@@ -45,8 +23,7 @@ defmodule Mem0Web.HooksController do
   end
 
   @doc """
-  `Stop` is called when the agent was done replying. We currently do not ingest
-  any data here, since it will be done by backfill.
+  `Stop` is called when the agent was done replying.
 
   When the hook calls this endpoint, it means the LLM replied. We have to check
   if the summary needs to be updated.
@@ -70,7 +47,11 @@ defmodule Mem0Web.HooksController do
   ```
   """
   @spec stop(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def stop(conn, _params) do
+  def stop(conn, params) do
+    params
+    |> Ingest.scope(Ingest.default_user_id())
+    |> Summarize.refresh_async()
+
     json(conn, HookResponse.stop())
   end
 

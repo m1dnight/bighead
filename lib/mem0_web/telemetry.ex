@@ -139,6 +139,16 @@ defmodule Mem0Web.Telemetry do
         tags: [:hook_event],
         description: "Entries the normaliser could not use"
       ),
+      # Summary refresh (Phase 8). Not a span, for the ingest event's
+      # reason: one check, one outcome. The refresh is fire-and-forget off
+      # the Stop pulse, which makes this its only failure surface — and the
+      # `:fresh`/`:regenerated` ratio per turn is the cadence-versus-cost
+      # curve `max_lag` gets retuned against.
+      summary("mem0.summarize.refresh.duration",
+        tags: [:outcome],
+        unit: {:microsecond, :millisecond},
+        description: "Wall time of one summary freshness check, by outcome"
+      ),
       summary("mem0.ingest.stop.duration",
         unit: {:native, :millisecond},
         description: "Wall time of one ingestion, extraction through update"

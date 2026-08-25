@@ -6,28 +6,40 @@ defmodule Mem0Web.HooksControllerTest do
   so a failure here stalls a real session.
 
   These use `Mem0Web.ConnCase`, which sets `@moduletag :db` and checks out a
-  sandbox connection. `backfill` and `lines_seen` need one for real; the two hook
-  events are along for the ride.
+  sandbox connection. `backfill` and `lines_seen` need one for real;
+  `user_prompt_submit` is along for the ride.
+
+  `async: false`, unlike the store suites: every `POST /hooks/stop` spawns a
+  refresh task under the application's `Task.Supervisor`, and only the
+  sandbox's shared mode lets that process query. Each stop test then waits
+  for its task's telemetry before ending, so the sandbox owner outlives the
+  task's use of the connection.
   """
-  use Mem0Web.ConnCase, async: true
+  use Mem0Web.ConnCase, async: false
+  use Mem0.CoreFixtures
 
   import Mem0.TranscriptFixtures
 
-  alias Mem0.Core.Scope
   alias Mem0.Ingest
+  alias Mem0.LLM
   alias Mem0.Messages
+  alias Mem0.Summaries
 
-  # `Stop` reads no part of its body — it answers, and that is all. These guard
-  # the response contract, which is the only thing it still has: the identity
-  # rule that used to be checked here moved to `backfill`, the route that now
-  # resolves `user_id`.
+  # `Stop` answers the same inert body whatever arrives — the refresh it
+  # fires reports through the store and telemetry, never through the
+  # response. Every test that reaches the controller drains that telemetry,
+  # so the spawned task is done with the shared sandbox connection before the
+  # test lets go of it.
   describe "POST /hooks/stop" do
+    setup :forward_refresh_telemetry
+
     test "answers with the exact key names Claude Code reads", %{conn: conn} do
       body = "plain_exchange" |> entries() |> stop_payload()
 
       conn = post(conn, ~p"/hooks/stop", body)
 
       assert json_response(conn, 200) == %{"hookSpecificOutput" => %{"hookEventName" => "Stop"}}
+      await_refresh(1)
     end
 
     test "no decision field: it would send Claude back to work", %{conn: conn} do
@@ -36,24 +48,64 @@ defmodule Mem0Web.HooksControllerTest do
       conn = post(conn, ~p"/hooks/stop", body)
 
       refute Map.has_key?(json_response(conn, 200), "decision")
+      await_refresh(1)
+    end
+
+    test "a settled run past max_lag grows a summary", %{conn: conn} do
+      LLM.Stub.start!(reply: {:ok, LLM.Stub.response(~s({"summary": "A short session."}))})
+      scope = posted_scope("stop-summary")
+
+      assert {:ok, 11} =
+               Messages.put(
+                 for seq <- 1..11, do: message(id: "msg-#{seq}", scope: scope, seq: seq)
+               )
+
+      body = %{"session_id" => "stop-summary", "cwd" => "/Users/example/Code/widget"}
+
+      assert conn |> post(~p"/hooks/stop", body) |> json_response(200)
+
+      await_refresh(1)
+
+      assert %Summary{through_seq: 11, text: "A short session."} = Summaries.latest(scope)
+    end
+
+    test "a quiet follow-up pulse regenerates nothing", %{conn: conn} do
+      scope = posted_scope("stop-quiet")
+
+      assert {:ok, 3} =
+               Messages.put(
+                 for seq <- 1..3, do: message(id: "msg-#{seq}", scope: scope, seq: seq)
+               )
+
+      body = %{"session_id" => "stop-quiet", "cwd" => "/Users/example/Code/widget"}
+
+      assert conn |> post(~p"/hooks/stop", body) |> json_response(200)
+
+      assert [:fresh] = await_refresh(1)
+      assert Summaries.latest(scope) == nil
     end
 
     test "200 on a body of garbage", %{conn: conn} do
-      for body <- [
-            %{},
-            %{"entries" => "not a list"},
-            %{"entries" => [nil, 1, "two"], "transcript_length" => 3},
-            %{"entries" => [%{"type" => "user"}], "transcript_length" => 99},
-            %{"hook_event_name" => "Stop", "cwd" => 42, "session_id" => %{"a" => 1}}
-          ] do
+      bodies = [
+        %{},
+        %{"entries" => "not a list"},
+        %{"entries" => [nil, 1, "two"], "transcript_length" => 3},
+        %{"entries" => [%{"type" => "user"}], "transcript_length" => 99},
+        %{"hook_event_name" => "Stop", "cwd" => 42, "session_id" => %{"a" => 1}}
+      ]
+
+      for body <- bodies do
         assert conn |> post(~p"/hooks/stop", body) |> json_response(200)
       end
+
+      await_refresh(length(bodies))
     end
 
     test "200 on a batch that produced nothing", %{conn: conn} do
       body = stop_payload([])
 
       assert conn |> post(~p"/hooks/stop", body) |> json_response(200)
+      await_refresh(1)
     end
 
     test "a body that is not JSON at all is a 400, never a 5xx", %{conn: conn} do
@@ -62,6 +114,8 @@ defmodule Mem0Web.HooksControllerTest do
         |> put_req_header("content-type", "application/json")
         |> post(~p"/hooks/stop", "{not json")
       end
+
+      # The parser raised before the router; no refresh was fired.
     end
   end
 
@@ -231,5 +285,34 @@ defmodule Mem0Web.HooksControllerTest do
     on_exit(fn -> :telemetry.detach({__MODULE__, ref}) end)
 
     ref
+  end
+
+  @doc false
+  def send_refresh_event(_event, _measurements, metadata, pid),
+    do: send(pid, {:refreshed, metadata.outcome})
+
+  # An external capture rather than a local one, for `Mem0.MessagesTest`'s
+  # reason: `:telemetry` warns about local-function handlers.
+  defp forward_refresh_telemetry(_context) do
+    handler_id = {__MODULE__, self()}
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:mem0, :summarize, :refresh],
+        &__MODULE__.send_refresh_event/4,
+        self()
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    :ok
+  end
+
+  defp await_refresh(count) do
+    for _ <- 1..count do
+      assert_receive {:refreshed, outcome}, 1_000
+      outcome
+    end
   end
 end

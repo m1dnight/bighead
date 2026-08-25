@@ -84,3 +84,5 @@ is augmented with information retrieval in mem0.
 - Look into how these system prompts can be injected across claude/codex etc. Claude has the option to append system messages, for example.
 - We currently only store facts as memories, and do not store the graph search anymore. Mem0 itself no longer does it, and I have to investigate why. They now do event co-occurency storage or something similar: [https://mem0.ai/blog/introducing-temporal-reasoning-in-mem0](https://mem0.ai/blog/introducing-temporal-reasoning-in-mem0)
 - Currently we don't take branching of conversations into account. We assume the conversation is one long list.
+- Work out a nice macro to measure the execution of function calls
+- Maybe track the total token usage and actual USD cost as reported by the LLM.
