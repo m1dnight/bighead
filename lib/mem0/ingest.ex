@@ -106,7 +106,15 @@ defmodule Mem0.Ingest do
 
   defp offset(_payload), do: {:error, :missing_transcript_length}
 
-  defp scope(payload, user_id) do
+  @doc """
+  The address a hook payload writes to, for the given server-side `user_id`.
+
+  Public because a payload's scope is needed without ingesting it: a sender
+  asking where its stored copy ends is addressing the same run, and deriving
+  that address a second way is how the two drift apart.
+  """
+  @spec scope(payload :: map(), user_id :: String.t()) :: Scope.t()
+  def scope(payload, user_id) when is_map(payload) and is_binary(user_id) do
     Scope.new(user_id: user_id, app_id: app_id(payload), run_id: run_id(payload))
   end
 

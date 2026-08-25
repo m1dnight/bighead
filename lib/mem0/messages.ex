@@ -54,21 +54,45 @@ defmodule Mem0.Messages do
   @doc """
   This run's messages, ordered by `seq`.
 
-  The scope is matched exactly, `nil`s included — this is the run's own
-  transcript, not the widening ladder `Mem0.Core.Scope.covering/1` describes.
-
   No `log: false` here: the parameters are scope ids, and Ecto does not log
   result rows.
   """
   @spec for_run(Scope.t()) :: [Message.t()]
   def for_run(%Scope{} = scope) do
+    scope
+    |> for_scope()
+    |> order_by([row], asc: row.seq)
+    |> Repo.all()
+    |> Enum.map(&Row.to_message/1)
+  end
+
+  @doc """
+  How many of this run's transcript lines mem0's copy already accounts for.
+
+  This is required for backfilling. When a Stop hook is called, it needs to know
+  which lines of the transcript that need to be submitted still.
+  """
+  @spec lines_seen(Scope.t()) :: non_neg_integer()
+  def lines_seen(%Scope{} = scope) do
+    scope
+    |> for_scope()
+    |> order_by([row], desc: row.seq)
+    |> limit(1)
+    |> select([row], row.seq)
+    |> Repo.one()
+    |> case do
+      nil -> 0
+      seq when is_integer(seq) -> seq + 1
+    end
+  end
+
+  # The scope is matched exactly, `nil`s included — one run's own transcript,
+  # not the widening ladder `Mem0.Core.Scope.covering/1` describes.
+  defp for_scope(%Scope{} = scope) do
     Row
     |> where([row], row.user_id == ^scope.user_id)
     |> narrow(:app_id, scope.app_id)
     |> narrow(:run_id, scope.run_id)
-    |> order_by([row], asc: row.seq)
-    |> Repo.all()
-    |> Enum.map(&Row.to_message/1)
   end
 
   # `field == ^nil` is never true in SQL, and Ecto refuses to build it. A nil

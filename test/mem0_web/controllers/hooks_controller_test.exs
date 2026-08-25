@@ -6,14 +6,21 @@ defmodule Mem0Web.HooksControllerTest do
   so a failure here stalls a real session.
 
   These use `Mem0Web.ConnCase`, which sets `@moduletag :db` and checks out a
-  sandbox connection even though nothing below touches the database. That is
-  accepted rather than worked around: a repo-less conn case is a second thing to
-  keep in step with the first, for tests that `mix test` runs anyway.
+  sandbox connection. `backfill` and `lines_seen` need one for real; the two hook
+  events are along for the ride.
   """
   use Mem0Web.ConnCase, async: true
 
   import Mem0.TranscriptFixtures
 
+  alias Mem0.Core.Scope
+  alias Mem0.Ingest
+  alias Mem0.Messages
+
+  # `Stop` reads no part of its body — it answers, and that is all. These guard
+  # the response contract, which is the only thing it still has: the identity
+  # rule that used to be checked here moved to `backfill`, the route that now
+  # resolves `user_id`.
   describe "POST /hooks/stop" do
     test "answers with the exact key names Claude Code reads", %{conn: conn} do
       body = "plain_exchange" |> entries() |> stop_payload()
@@ -29,26 +36,6 @@ defmodule Mem0Web.HooksControllerTest do
       conn = post(conn, ~p"/hooks/stop", body)
 
       refute Map.has_key?(json_response(conn, 200), "decision")
-    end
-
-    # The route is the only place that resolves `user_id`, so the exit criterion
-    # is checked here rather than only in `Mem0.IngestTest`. Telemetry is the
-    # observation seam: the controller discards the parse result.
-    test "user_id cannot be set from the request body", %{conn: conn} do
-      handler = attach(&(&1.run_id == "route-identity"))
-
-      body =
-        "plain_exchange"
-        |> entries()
-        |> stop_payload(session_id: "route-identity")
-        |> Map.put("user_id", "someone-else")
-
-      post(conn, ~p"/hooks/stop", body)
-
-      assert_receive {^handler, measurements, metadata}
-      assert measurements.messages == 4
-      assert metadata.user_id == Mem0.Ingest.default_user_id()
-      refute metadata.user_id == "someone-else"
     end
 
     test "200 on a body of garbage", %{conn: conn} do
@@ -75,6 +62,100 @@ defmodule Mem0Web.HooksControllerTest do
         |> put_req_header("content-type", "application/json")
         |> post(~p"/hooks/stop", "{not json")
       end
+    end
+  end
+
+  # `stop_payload/2` defaults `cwd` to ".../Code/widget", and the routes take the
+  # app id from its basename.
+  defp posted_scope(run_id) do
+    Scope.new(user_id: Ingest.default_user_id(), app_id: "widget", run_id: run_id)
+  end
+
+  describe "POST /hooks/backfill" do
+    test "the messages it parsed are readable afterwards", %{conn: conn} do
+      body = "plain_exchange" |> entries() |> stop_payload(session_id: "backfill-1")
+
+      assert %{"stored" => 4} = conn |> post(~p"/hooks/backfill", body) |> json_response(200)
+
+      stored = Messages.for_run(posted_scope("backfill-1"))
+
+      assert [:user, :assistant, :user, :assistant] == Enum.map(stored, & &1.role)
+      assert stored == Enum.sort_by(stored, & &1.seq)
+    end
+
+    test "posting the same slice again stores nothing and is not an error", %{conn: conn} do
+      body = "plain_exchange" |> entries() |> stop_payload(session_id: "backfill-2")
+
+      post(conn, ~p"/hooks/backfill", body)
+      after_first = Messages.for_run(posted_scope("backfill-2"))
+
+      assert %{"stored" => 0} = conn |> post(~p"/hooks/backfill", body) |> json_response(200)
+      assert Messages.for_run(posted_scope("backfill-2")) == after_first
+    end
+
+    test "a slice is numbered from where it sits in the file, not from zero", %{conn: conn} do
+      body =
+        "plain_exchange" |> entries() |> stop_payload(session_id: "backfill-4", offset: 100)
+
+      post(conn, ~p"/hooks/backfill", body)
+
+      assert [100, 101, 102, 103] ==
+               "backfill-4" |> posted_scope() |> Messages.for_run() |> Enum.map(& &1.seq)
+    end
+
+    test "200 with nothing stored on a payload it cannot parse", %{conn: conn} do
+      for body <- [%{}, %{"entries" => "not a list"}, stop_payload([])] do
+        assert %{"stored" => 0} = conn |> post(~p"/hooks/backfill", body) |> json_response(200)
+      end
+    end
+
+    test "user_id cannot be set from the request body", %{conn: conn} do
+      body =
+        "plain_exchange"
+        |> entries()
+        |> stop_payload(session_id: "backfill-5")
+        |> Map.put("user_id", "someone-else")
+
+      post(conn, ~p"/hooks/backfill", body)
+
+      assert 4 == length(Messages.for_run(posted_scope("backfill-5")))
+
+      assert [] ==
+               Messages.for_run(
+                 Scope.new(user_id: "someone-else", app_id: "widget", run_id: "backfill-5")
+               )
+    end
+  end
+
+  describe "GET /hooks/lines-seen" do
+    test "a run nothing was stored for has seen no lines", %{conn: conn} do
+      conn =
+        get(conn, ~p"/hooks/lines-seen", session_id: "seen-1", cwd: "/Users/example/Code/widget")
+
+      assert %{"lines_seen" => 0} == json_response(conn, 200)
+    end
+
+    test "after a backfill it counts every line up to the last stored", %{conn: conn} do
+      body = "plain_exchange" |> entries() |> stop_payload(session_id: "seen-2", offset: 40)
+
+      post(conn, ~p"/hooks/backfill", body)
+
+      conn =
+        get(conn, ~p"/hooks/lines-seen", session_id: "seen-2", cwd: "/Users/example/Code/widget")
+
+      # The slice sat at lines 40..43, so lines 0..43 are accounted for.
+      assert %{"lines_seen" => 44} == json_response(conn, 200)
+    end
+
+    test "another run's messages do not raise this run's count", %{conn: conn} do
+      body = "plain_exchange" |> entries() |> stop_payload(session_id: "seen-3")
+
+      post(conn, ~p"/hooks/backfill", body)
+
+      conn =
+        get(conn, ~p"/hooks/lines-seen", session_id: "seen-4", cwd: "/Users/example/Code/widget")
+
+      assert %{"lines_seen" => 0} == json_response(conn, 200)
     end
   end
 

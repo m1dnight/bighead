@@ -130,6 +130,44 @@ defmodule Mem0.MessagesTest do
     end
   end
 
+  describe "lines_seen/1" do
+    test "a run nothing was stored for has seen nothing" do
+      assert 0 == Messages.lines_seen(scope())
+    end
+
+    test "counts every line up to the last one stored, gaps included" do
+      scope = scope()
+
+      Messages.put([
+        message(id: "msg-40", scope: scope, seq: 40),
+        message(id: "msg-42", scope: scope, seq: 42)
+      ])
+
+      # Lines 0..42 are accounted for, whether or not each one became a message.
+      assert 43 == Messages.lines_seen(scope)
+    end
+
+    test "it follows the highest seq, not the last row inserted" do
+      scope = scope()
+
+      Messages.put([
+        message(id: "msg-9", scope: scope, seq: 9),
+        message(id: "msg-1", scope: scope, seq: 1)
+      ])
+
+      assert 10 == Messages.lines_seen(scope)
+    end
+
+    test "another run in the same app does not raise this run's count" do
+      mine = scope(run_id: "session-1")
+      theirs = scope(run_id: "session-2")
+
+      Messages.put([message(id: "msg-theirs", scope: theirs, seq: 99)])
+
+      assert 0 == Messages.lines_seen(mine)
+    end
+  end
+
   @doc false
   def send_query_event(_event, _measurements, _metadata, pid), do: send(pid, :repo_query)
 

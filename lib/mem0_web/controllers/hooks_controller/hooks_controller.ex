@@ -12,6 +12,14 @@ defmodule Mem0Web.HooksController do
       This means we have a clean cutoff of the transcript and we can extract
       facts from this.
 
+  And two routes that are mem0's own rather than Claude Code's, used by the
+  `Stop` sender in `scripts/hooks/stop.py`:
+
+    * `lines_seen` — how much of a run mem0 already has, so the sender can skip
+      it instead of re-posting a whole transcript every turn.
+
+    * `backfill` — stores the slice the sender decided was missing.
+
   Both answer 200 unconditionally, including on a parse that produced nothing.
   `UserPromptSubmit` blocks the session that fired it, so that route must never
   be why a turn stalls, and `Stop`'s body is inert by construction.
@@ -19,6 +27,7 @@ defmodule Mem0Web.HooksController do
   use Mem0Web, :controller
 
   alias Mem0.Ingest
+  alias Mem0.Messages
   alias Mem0Web.HookResponse
 
   # Recall lands here. Empty until there is something to recall.
@@ -35,14 +44,55 @@ defmodule Mem0Web.HooksController do
   end
 
   @doc """
-  `Stop`. Ingests the posted transcript tail and answers.
+  `Stop` is called when the agent was done replying. We currently do not ingest
+  any data here, since it will be done by backfill. We leave it here for when we
+  want to trigger summaries later, perhaps.
   """
   @spec stop(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def stop(conn, params) do
-    _result = Ingest.receive(params, Ingest.default_user_id())
-
+  def stop(conn, _params) do
     json(conn, HookResponse.stop())
   end
+
+  @doc """
+  A hook file can read a whole transcript and backfill the lines here in chunks.
+
+  When the script is called, the script could be several hundred lines, and we
+  want to avoid POSTing a huge file each time.
+  """
+  @spec backfill(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def backfill(conn, params) do
+    stored =
+      params
+      |> Ingest.receive(Ingest.default_user_id())
+      |> store()
+
+    json(conn, %{stored: stored})
+  end
+
+  @doc """
+  If a hook wants to backfill, it needs to know how many lines of the transcript
+  have already been written.  This endpoint returns how many lines for a given
+  scope have already been ingested so the hook script can pick up where it left
+  off.
+  """
+  @spec lines_seen(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def lines_seen(conn, params) do
+    count =
+      params
+      |> Ingest.scope(Ingest.default_user_id())
+      |> Messages.lines_seen()
+
+    json(conn, %{lines_seen: count})
+  end
+
+  defp store({:ok, messages, _drops}) do
+    case Messages.put(messages) do
+      {:ok, count} -> count
+      {:error, _exception} -> 0
+    end
+  end
+
+  defp store({:error, _reason}), do: 0
 
   # Claude Code renames the session to whatever comes back here, so the prompt's
   # first line is the cheapest thing that distinguishes one session from

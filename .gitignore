@@ -44,3 +44,6 @@ npm-debug.log
 
 # Dialyzer PLTs (see the `dialyzer:` block in mix.exs).
 /priv/plts/
+
+
+__pycache__/
