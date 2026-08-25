@@ -15,9 +15,11 @@
 # after hooks. Every earlier entry is there — only the answer this turn just
 # produced is missing.
 #
-# The payload closes that gap itself: `last_assistant_message` is exactly the
-# text of the entry that has not landed. mem0 reconstructs a message from it,
-# which is why `hook_at` below is sent.
+# Nothing is done about it here. Overlap recovers that entry on the next turn,
+# when it is in the file with its real uuid and its real position. The one case
+# overlap does not cover is a session's very last answer, which no later `Stop`
+# ever re-sends — accepted, deliberately, over reconstructing a message from
+# `last_assistant_message` under an id no transcript will ever agree with.
 #
 # Usage: stop.sh [LIMIT]   — last LIMIT transcript lines, default 300.
 #
@@ -71,15 +73,6 @@ sent=$(printf '%s' "$lines" | grep -c '')
 # receiver drops what it cannot read and never fails the request.
 entries=$(printf '%s' "$lines" | tr '\n' ',')
 
-# The moment the hook fired, and the only honest date for the answer that
-# `last_assistant_message` carries: that entry is not in the file yet, so
-# nothing in the batch witnesses when it was said. This is measured rather than
-# invented — the message completed within ~100ms of this line running. Second
-# precision, because BSD `date` has no sub-second format; `seq` is what orders
-# messages anyway. If it is missing or unreadable mem0 drops the answer rather
-# than dating it wrongly, and the next turn's tail carries it instead.
-hook_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
 # Textual splice onto the payload object rather than a re-encode: the payload
 # is already JSON. A payload that is not an object is posted unchanged.
 head=${payload%\}}
@@ -88,7 +81,7 @@ if [ "$head" = "$payload" ]; then
 else
   sep=,
   [ "${head: -1}" = "{" ] && sep=""
-  body="${head}${sep}\"total_transcript_length\":${total:-0},\"transcript_length\":${sent},\"hook_at\":\"${hook_at}\",\"entries\":[${entries}]}"
+  body="${head}${sep}\"total_transcript_length\":${total:-0},\"transcript_length\":${sent},\"entries\":[${entries}]}"
 fi
 
 curl -sS --max-time 5 -X POST http://localhost:4001/hooks/stop \

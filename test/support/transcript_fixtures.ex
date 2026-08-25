@@ -35,11 +35,6 @@ defmodule Mem0.TranscriptFixtures do
 
   `offset` is how many transcript lines precede this batch, so the payload's two
   counts are consistent with a tail slice taken that far into a run.
-
-  `last_assistant_message`, `prompt_id` and `hook_at` are what the boundary
-  rebuilds the turn's answer from — the entry Claude Code has not flushed yet.
-  They default to absent, because most tests are about the transcript rather
-  than about that reconstruction; pass them to exercise it.
   """
   @spec stop_payload([map()], keyword()) :: map()
   def stop_payload(entries, opts \\ []) do
@@ -56,11 +51,5 @@ defmodule Mem0.TranscriptFixtures do
       "transcript_length" => length(entries),
       "total_transcript_length" => offset + length(entries)
     }
-    |> put_present("last_assistant_message", Keyword.get(opts, :last_assistant_message))
-    |> put_present("prompt_id", Keyword.get(opts, :prompt_id, "prompt-1"))
-    |> put_present("hook_at", Keyword.get(opts, :hook_at, "2026-08-24T15:12:56Z"))
   end
-
-  defp put_present(payload, _key, nil), do: payload
-  defp put_present(payload, key, value), do: Map.put(payload, key, value)
 end

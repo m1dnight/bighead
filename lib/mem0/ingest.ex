@@ -71,8 +71,6 @@ defmodule Mem0.Ingest do
       {duration, {messages, drops}} =
         :timer.tc(ClaudeCode, :messages, [entries, scope, offset])
 
-      messages = messages ++ pending_answer(payload, scope, messages, offset + length(entries))
-
       measure(payload, scope, length(entries), messages, drops, duration)
 
       {:ok, messages, drops}
@@ -114,62 +112,6 @@ defmodule Mem0.Ingest do
 
   defp hook_event(%{"hook_event_name" => name}) when is_binary(name), do: name
   defp hook_event(_payload), do: "unknown"
-
-  # When Claude calls
-  defp pending_answer(payload, scope, messages, seq) do
-    with {:ok, content} <- answer(payload),
-         {:ok, id} <- answer_id(payload),
-         {:ok, said_at} <- hook_at(payload),
-         false <- landed?(messages, content) do
-      [
-        Message.new(
-          id: id,
-          scope: scope,
-          role: :assistant,
-          content: content,
-          said_at: said_at,
-          seq: seq
-        )
-      ]
-    else
-      _already_there_or_undatable -> []
-    end
-  end
-
-  defp answer(%{"last_assistant_message" => text}) when is_binary(text) do
-    case String.trim(text) do
-      "" -> :error
-      content -> {:ok, content}
-    end
-  end
-
-  defp answer(_payload), do: :error
-
-  # `prompt_id` is the `promptId` of the user entry that opened the turn, so one
-  # turn yields one answer id, whatever a retried `Stop` does.
-  defp answer_id(%{"prompt_id" => prompt_id}) when is_binary(prompt_id) do
-    case String.trim(prompt_id) do
-      "" -> :error
-      trimmed -> {:ok, "pending:" <> trimmed}
-    end
-  end
-
-  defp answer_id(_payload), do: :error
-
-  defp hook_at(%{"hook_at" => stamped}) when is_binary(stamped) do
-    case DateTime.from_iso8601(stamped) do
-      {:ok, said_at, _offset} -> {:ok, said_at}
-      {:error, _reason} -> :error
-    end
-  end
-
-  defp hook_at(_payload), do: :error
-
-  # A `Stop` that read the file late enough, or a re-send of a turn already
-  # ingested, needs no reconstruction.
-  defp landed?(messages, content) do
-    Enum.any?(messages, &(&1.role == :assistant and &1.content == content))
-  end
 
   # Counts and identifiers, no content — the same rule the LLM telemetry
   # follows. See the redaction policy in `config/config.exs`.
