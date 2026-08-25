@@ -33,7 +33,6 @@ defmodule Mem0.Extract do
     request = Extraction.request(messages)
 
     with {:ok, response} <- LLM.complete(request, opts) do
-      IO.inspect response, label: "llm response"
       Extraction.decode(response.content, scope, at, Enum.map(messages, & &1.id))
     end
   end

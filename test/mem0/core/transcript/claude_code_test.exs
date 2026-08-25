@@ -227,9 +227,13 @@ defmodule Mem0.Core.Transcript.ClaudeCodeTest do
       assert {[], [:unparseable_timestamp]} = ClaudeCode.messages([entry], scope())
     end
 
-    test "said_at is the entry's own instant" do
+    test "said_at is the entry's own instant, at microsecond precision" do
       assert {[message], []} = ClaudeCode.messages([entry("user", "hello")], scope())
-      assert message.said_at == ~U[2026-08-24 09:00:00.000Z]
+
+      # Claude Code stamps milliseconds; `Message.new/1` raises the precision
+      # without moving the instant, so both of these hold.
+      assert message.said_at == ~U[2026-08-24 09:00:00.000000Z]
+      assert :eq == DateTime.compare(message.said_at, ~U[2026-08-24 09:00:00.000Z])
     end
   end
 

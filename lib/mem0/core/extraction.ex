@@ -141,7 +141,8 @@ defmodule Mem0.Core.Extraction do
   @doc """
   Turns the model's `reply` into an extraction in `scope`, stamped at `at`.
   """
-  @spec decode(String.t(), Scope.t(), DateTime.t(), [Message.id()]) ::  {:ok, t()} | {:error, :malformed_facts}
+  @spec decode(String.t(), Scope.t(), DateTime.t(), [Message.id()]) ::
+          {:ok, t()} | {:error, :malformed_facts}
   def decode(reply, %Scope{} = scope, %DateTime{} = at, source_message_ids) do
     case Jason.decode(reply) do
       {:ok, %{"facts" => facts}} -> build(facts, scope, at, source_message_ids)

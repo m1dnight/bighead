@@ -10,6 +10,7 @@ defmodule Mem0.Core.LayeringTest do
 
   alias Mem0.Embedder.Ollama
   alias Mem0.LLM.Anthropic
+  alias Mem0.Messages.Row
 
   @forbidden_modules [
     Ecto,
@@ -98,6 +99,27 @@ defmodule Mem0.Core.LayeringTest do
           module not in @http_adapters,
           {called, _function, _arity} <- external_calls(module),
           String.starts_with?(Atom.to_string(called), "Elixir.Req"),
+          do: module
+
+    assert [] == Enum.uniq(offenders)
+  end
+
+  # Phase 6's rule: the messages table belongs to `Mem0.Messages` alone. `Row`
+  # is a table shape rather than a second domain type, and `Repo` is how it
+  # reaches the table — a module that names either has grown a persistence
+  # dependency it was supposed to be spared. `Mem0.Repo` is its own caller
+  # through the functions `use Ecto.Repo` generates.
+  @persistence [Mem0.Repo, Row]
+  @persistence_owners [Mem0.Messages, Mem0.Repo]
+
+  test "only Mem0.Messages reaches the messages table" do
+    {:ok, modules} = :application.get_key(:mem0, :modules)
+
+    offenders =
+      for module <- modules,
+          module not in @persistence_owners,
+          {called, _function, _arity} <- external_calls(module),
+          called in @persistence,
           do: module
 
     assert [] == Enum.uniq(offenders)

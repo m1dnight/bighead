@@ -30,7 +30,16 @@ defmodule Mem0.Core.Message do
     field :seq, non_neg_integer()
   end
 
-  @doc "Builds a message. Every field is required."
+  @doc """
+  Builds a message. Every field is required.
+
+  `said_at` is normalised to microsecond precision, and `new/1` is therefore
+  idempotent over its own output the way `Mem0.Core.Scope.new/1` is.
+  """
   @spec new(keyword()) :: t()
-  def new(fields), do: struct!(__MODULE__, fields)
+  def new(fields) do
+    message = struct!(__MODULE__, fields)
+
+    %{message | said_at: DateTime.add(message.said_at, 0, :microsecond)}
+  end
 end

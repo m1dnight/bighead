@@ -71,7 +71,7 @@ schema "messages" do
 end
 ```
 
-- **`to_row(message, inserted_at)`** returns a plain map, not a `%Row{}`: `Repo.insert_all/3` takes
+- **`from_message(message, inserted_at)`** returns a plain map, not a `%Row{}`: `Repo.insert_all/3` takes
   maps, and it does **not** fill timestamps for you — hence `inserted_at` as an argument rather
   than a clock read inside the mapper. `embedding` is simply absent from the map, which is what
   leaves the column NULL.
