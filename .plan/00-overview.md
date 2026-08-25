@@ -32,6 +32,7 @@ The layering follows DFTBLW — **D**ata, **F**unctional core, **T**ests, **B**o
 | 6 | Message storage | The `messages` table and its store — `Message`s in, the same `Message`s out | [06-message-storage.md](06-message-storage.md) |
 | 7 | Summaries | The running summary `S` — regenerated from the run's stored messages, wired to nothing | [07-summaries.md](07-summaries.md) |
 | 8 | Summary wiring | The `Stop` pulse — `S` regenerated when stale, off the request path; nothing reads it yet | [08-summary-wiring.md](08-summary-wiring.md) |
+| 9 | Extraction context | φ(P) — extraction reads `P = (S, recent, new)` assembled from the stores; still wired to no trigger | [09-extraction-context.md](09-extraction-context.md) |
 
 
 Phases 1–3 are infrastructure and can be done back to back. Phase 4 is the first phase that
