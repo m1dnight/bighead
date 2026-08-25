@@ -440,9 +440,15 @@ none of it.
 > returns. On a real turn the entry was stamped `15:12:55.966`, the hook started `~15:12:55.99` and
 > ran 63ms, and the file it read still ended one entry short — every earlier entry present, only the
 > answer just produced missing. Overlap recovers it on the next turn, but the last answer of a
-> session never would, and recall would lag a turn behind. `Mem0.Ingest` therefore rebuilds that one
-> message from the payload's own `last_assistant_message`, dated by a `hook_at` stamp the script
-> adds; see that module's docs for what makes it safe and what it costs in dedup.
+> session never would, and recall would lag a turn behind.
+>
+> **Reverted in Phase 6.** `Mem0.Ingest` did rebuild that message from the payload's own
+> `last_assistant_message`, under the id `"pending:" <> prompt_id`. It was removed: that id is one
+> no transcript will ever agree with, so the real entry arriving on the next turn is a second row
+> with the same words and a different identity — a duplicate no primary key can catch and every
+> consumer downstream has to know about. The measurement above stands; the cost of living with it
+> is one assistant message per *session*, the last one, and mid-session nothing is lost because
+> overlap carries the entry a turn later with its real uuid.
 
 **The response contract gets a type.** Both shapes are camelCase keys that form a contract with an
 external tool, and a typo in `hookSpecificOutput` fails silently — the hook simply has no effect,
