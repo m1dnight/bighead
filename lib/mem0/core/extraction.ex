@@ -2,22 +2,16 @@ defmodule Mem0.Core.Extraction do
   @moduledoc """
   An extraction (Ω) is a set of facts (ω) extracted from a prompt.
 
-  An extraction is built by a prompt in a specific scope, and that scope's
-  messages.
-
-  The prompt that produces one lives here too, with the two pure halves of the
-  call around it: `request/1` builds what the model is asked, and `decode/4`
-  turns what it answers into facts. The call in between is `Mem0.Extract`'s job,
-  because it is the only part that needs a clock and a network — which is what
-  lets the prompt be iterated against fixture transcripts with no API key and no
-  session in the loop.
+  An extraction is built from a `Mem0.Core.Prompt`: `P = (S, recent, new)`
   """
 
   use TypedStruct
 
   alias Mem0.Core.Fact
   alias Mem0.Core.Message
+  alias Mem0.Core.Prompt
   alias Mem0.Core.Scope
+  alias Mem0.Core.Summary
 
   typedstruct enforce: true do
     field :scope, Scope.t()
@@ -29,12 +23,22 @@ defmodule Mem0.Core.Extraction do
   # Caps rather than configuration: they move when the prompt moves, and a knob
   # nobody turns is a knob that rots. Phase 4 measured a 0.45 MB worst-case
   # batch, so without a bound one tool-heavy turn is a six-figure-token call.
+  #
+  # `@max_messages` denominates the *context* window — `recent` — which is what
+  # it was always sized for. `new` is count-uncapped: every message in the
+  # exchange is an extraction target, and nothing is ever silently excluded
+  # from the extractor's view of the exchange. The char cap trims every
+  # message in every section.
   @max_messages 20
   @max_chars 2_000
 
   @system_prompt """
   You extract durable facts about a developer from their conversation with a
   coding agent.
+
+  The prompt may open with a conversation summary and earlier messages. They
+  are context for resolving references — "it", "there", "that approach" —
+  never a source of facts. Extract only from the new messages.
 
   Extract a fact only if it would still be true, and still worth knowing, in a
   different session on a different project:
@@ -55,13 +59,15 @@ defmodule Mem0.Core.Extraction do
     failing, a command just run
   - contents of files, code, logs or command output
   - a restatement of what the conversation was about
+  - anything stated only in the summary or the earlier messages
 
   Rules:
 
   - Base facts on what the user said. Assistant turns are context for reading
     the user, never a source of facts about them.
   - One self-contained statement per fact, short and in the third person, so it
-    still reads correctly with no conversation around it.
+    still reads correctly with no conversation around it. Use the context to
+    resolve what a reference points at, and name the referent in the fact.
   - Do not infer past what was said, and do not invent detail.
   - Write each fact in the language the user used.
   - Most turns hold no durable fact. An empty list is the right answer far more
@@ -92,26 +98,27 @@ defmodule Mem0.Core.Extraction do
   def system_prompt, do: @system_prompt
 
   @doc """
-  The completion request that extracts facts from `messages`.
+  The completion request that extracts facts from `prompt`'s new exchange.
 
   One place builds it, so the live test and the boundary send the same bytes.
   """
-  @spec request([Message.t()]) :: Mem0.LLM.request()
-  def request(messages) do
+  @spec request(Prompt.t()) :: Mem0.LLM.request()
+  def request(%Prompt{} = prompt) do
     %{
-      messages: [%{role: :user, content: render(messages)}],
+      messages: [%{role: :user, content: render(prompt)}],
       schema: @response_schema,
       system: @system_prompt
     }
   end
 
   @doc """
-  Renders `messages` as the transcript the model reads.
+  Renders `prompt` as the sectioned user content the model reads.
 
-  Ordered by `seq` and bounded on both axes: the last #{@max_messages} messages,
-  each truncated at #{@max_chars} characters. The sort is not redundant with
-  `Mem0.Ingest` — this is a pure function and its output should not depend on
-  what order a caller happened to hold a list in.
+  The prompp consists of the following:
+
+   - The generic prompt
+   - Earlier messages (the fixed # of messages to always add)
+   - New messages to extract facts from.
 
   ## Examples
 
@@ -126,16 +133,24 @@ defmodule Mem0.Core.Extraction do
       ...>     seq: seq
       ...>   )
       ...> end
-      iex> Extraction.render([message.(:assistant, "Noted.", 2), message.(:user, "I use Elixir.", 1)])
-      "user: I use Elixir.\\n\\nassistant: Noted."
+      iex> prompt = Mem0.Core.Prompt.new(
+      ...>   scope: scope,
+      ...>   recent: [],
+      ...>   new: [message.(:assistant, "Noted.", 2), message.(:user, "I use Elixir.", 1)]
+      ...> )
+      iex> Extraction.render(prompt)
+      "# New messages (extract from these only)\\nuser: I use Elixir.\\n\\nassistant: Noted."
 
   """
-  @spec render([Message.t()]) :: String.t()
-  def render(messages) do
-    messages
-    |> Enum.sort_by(& &1.seq)
-    |> Enum.take(-@max_messages)
-    |> Enum.map_join("\n\n", &"#{&1.role}: #{truncate(&1.content)}")
+  @spec render(Prompt.t()) :: String.t()
+  def render(%Prompt{} = prompt) do
+    [
+      summary_section(prompt.summary),
+      section("# Earlier messages (context)", recent_window(prompt.recent)),
+      section("# New messages (extract from these only)", sorted(prompt.new))
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join("\n\n")
   end
 
   @doc """
@@ -149,6 +164,19 @@ defmodule Mem0.Core.Extraction do
       _not_an_extraction -> {:error, :malformed_facts}
     end
   end
+
+  defp summary_section(nil), do: nil
+  defp summary_section(%Summary{text: text}), do: "# Conversation summary\n" <> text
+
+  defp section(_header, []), do: nil
+
+  defp section(header, messages) do
+    header <> "\n" <> Enum.map_join(messages, "\n\n", &"#{&1.role}: #{truncate(&1.content)}")
+  end
+
+  defp recent_window(recent), do: recent |> sorted() |> Enum.take(-@max_messages)
+
+  defp sorted(messages), do: Enum.sort_by(messages, & &1.seq)
 
   defp build(facts, scope, at, source_message_ids) when is_list(facts) do
     if Enum.all?(facts, &is_binary/1) do

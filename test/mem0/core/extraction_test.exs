@@ -12,61 +12,133 @@ defmodule Mem0.Core.ExtractionTest do
   doctest Extraction
 
   describe "render/1" do
-    test "prefixes each message with its role, blank line between" do
-      messages = [
-        message(id: "m-1", role: :user, content: "I use Elixir.", seq: 1),
-        message(id: "m-2", role: :assistant, content: "Noted.", seq: 2)
-      ]
+    test "sections the prompt: summary, then context, then the new exchange" do
+      prompt =
+        prompt(
+          summary: summary(text: "The user uses Elixir."),
+          recent: [message(id: "m-1", content: "Earlier remark.", seq: 1)],
+          new: [
+            message(id: "m-2", content: "I use tabs.", seq: 2),
+            message(id: "m-3", role: :assistant, content: "Noted.", seq: 3)
+          ]
+        )
 
-      assert Extraction.render(messages) == "user: I use Elixir.\n\nassistant: Noted."
+      assert Extraction.render(prompt) == """
+             # Conversation summary
+             The user uses Elixir.
+
+             # Earlier messages (context)
+             user: Earlier remark.
+
+             # New messages (extract from these only)
+             user: I use tabs.
+
+             assistant: Noted.\
+             """
     end
 
-    test "orders by seq, not by the order it was handed" do
-      messages = [
-        message(id: "m-2", content: "second", seq: 2),
-        message(id: "m-1", content: "first", seq: 1)
-      ]
+    test "no summary means no summary section, not an empty ceremony one" do
+      rendered = Extraction.render(prompt(summary: nil))
 
-      assert Extraction.render(messages) == "user: first\n\nuser: second"
+      refute rendered =~ "# Conversation summary"
+      assert rendered =~ "# Earlier messages (context)"
     end
 
-    test "keeps the last 20 messages and drops the older ones" do
-      messages = for seq <- 1..25, do: message(id: "m-#{seq}", content: "line #{seq}", seq: seq)
+    test "no recent context drops its section the same way" do
+      rendered = Extraction.render(prompt(summary: nil, recent: []))
 
-      rendered = Extraction.render(messages)
+      refute rendered =~ "# Earlier"
+
+      assert rendered ==
+               "# New messages (extract from these only)\n" <>
+                 "user: I live in San Francisco.\n\nassistant: I live in San Francisco."
+    end
+
+    test "orders each section by seq, not by the order it was handed" do
+      prompt =
+        prompt(
+          summary: nil,
+          recent: [
+            message(id: "m-2", content: "second", seq: 2),
+            message(id: "m-1", content: "first", seq: 1)
+          ],
+          new: [
+            message(id: "m-4", content: "fourth", seq: 4),
+            message(id: "m-3", content: "third", seq: 3)
+          ]
+        )
+
+      assert Extraction.render(prompt) == """
+             # Earlier messages (context)
+             user: first
+
+             user: second
+
+             # New messages (extract from these only)
+             user: third
+
+             user: fourth\
+             """
+    end
+
+    test "keeps the last 20 recent messages and drops the older ones" do
+      recent = for seq <- 1..25, do: message(id: "m-#{seq}", content: "line #{seq}", seq: seq)
+      new = [message(id: "m-26", content: "the exchange", seq: 26)]
+
+      rendered = Extraction.render(prompt(summary: nil, recent: recent, new: new))
 
       refute rendered =~ "line 5\n"
       assert rendered =~ "line 6"
       assert rendered =~ "line 25"
-      assert length(String.split(rendered, "\n\n")) == 20
     end
 
-    test "truncates a long message and says so" do
+    test "a new exchange past 20 messages comes through whole" do
+      new = for seq <- 1..25, do: message(id: "m-#{seq}", content: "line #{seq}", seq: seq)
+
+      rendered = Extraction.render(prompt(summary: nil, recent: [], new: new))
+
+      assert rendered =~ "line 1\n"
+      assert rendered =~ "line 25"
+    end
+
+    test "truncates a long message in either section and says so" do
       long = String.duplicate("a", 2_500)
 
-      rendered = Extraction.render([message(content: long)])
+      rendered =
+        Extraction.render(
+          prompt(
+            summary: nil,
+            recent: [message(id: "m-1", content: long, seq: 1)],
+            new: [message(id: "m-2", content: long, seq: 2)]
+          )
+        )
 
-      assert String.ends_with?(rendered, "…")
-      assert String.length(rendered) == String.length("user: ") + 2_000 + 1
+      assert length(String.split(rendered, "…")) == 3
+      refute rendered =~ String.duplicate("a", 2_001)
     end
 
     test "leaves a message at the cap alone" do
       exact = String.duplicate("a", 2_000)
 
-      refute Extraction.render([message(content: exact)]) =~ "…"
-    end
-
-    test "is empty for no messages" do
-      assert Extraction.render([]) == ""
+      refute Extraction.render(prompt(new: [message(content: exact)])) =~ "…"
     end
   end
 
   describe "request/1" do
-    test "carries the system prompt, the transcript and the reply schema" do
-      request = Extraction.request([message(content: "I use Elixir.")])
+    test "carries the system prompt, the rendered prompt and the reply schema" do
+      prompt = prompt(summary: nil, recent: [], new: [message(content: "I use Elixir.")])
+
+      request = Extraction.request(prompt)
 
       assert request.system == Extraction.system_prompt()
-      assert request.messages == [%{role: :user, content: "user: I use Elixir."}]
+
+      assert request.messages == [
+               %{
+                 role: :user,
+                 content: "# New messages (extract from these only)\nuser: I use Elixir."
+               }
+             ]
+
       assert request.schema["required"] == ["facts"]
       assert request.schema["properties"]["facts"]["items"]["type"] == "string"
       assert request.schema["additionalProperties"] == false

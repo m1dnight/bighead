@@ -113,8 +113,9 @@ defmodule Mem0.Core.Summary do
   Renders `messages` as the history the model reads.
 
   Ordered by `seq`, each message truncated at #{@max_chars} characters, and —
-  unlike `Mem0.Core.Extraction.render/1` — with no message-count cap: the
-  render grows with the session, and every message it is handed comes through.
+  unlike the context window in `Mem0.Core.Extraction.render/1` — with no
+  message-count cap: the render grows with the session, and every message it
+  is handed comes through.
   The sort is not redundant with the store's ordered read — this is a pure
   function and its output should not depend on what order a caller happened to
   hold a list in.

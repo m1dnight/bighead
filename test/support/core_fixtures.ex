@@ -119,8 +119,7 @@ defmodule Mem0.CoreFixtures do
         scope: scope(),
         summary: summary(),
         recent: [message(id: "msg-1", seq: 1)],
-        pair: {message(id: "msg-2", seq: 2), message(id: "msg-3", role: :assistant, seq: 3)},
-        at: at(10)
+        new: [message(id: "msg-2", seq: 2), message(id: "msg-3", role: :assistant, seq: 3)]
       ],
       overrides
     )
@@ -133,8 +132,7 @@ defmodule Mem0.CoreFixtures do
       scope: Keyword.fetch!(fields, :scope),
       summary: Keyword.fetch!(fields, :summary),
       recent: Keyword.fetch!(fields, :recent),
-      pair: Keyword.fetch!(fields, :pair),
-      at: Keyword.fetch!(fields, :at)
+      new: Keyword.fetch!(fields, :new)
     )
   end
 
