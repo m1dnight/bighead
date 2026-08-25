@@ -21,16 +21,19 @@ Two invariants, both load-bearing:
     stderr as the reason. mem0 being down must not break a session.
 
 The transcript is not complete when this runs: the assistant's final entry is
-flushed to the JSONL *after* hooks return. The next turn's post carries it, at
-its real uuid and its real position. A session's very last answer is the one
-case that never arrives, and that is accepted.
+flushed to the JSONL after the answer itself completes. This waits briefly for
+that write rather than accepting the gap — see `FLUSH_WAIT_SECONDS`. If it does
+not land in time the transcript is sent one entry short, which is what happened
+unconditionally before, and the next turn carries the entry anyway.
 """
 
 import json
 import os
 import sys
+import time
 import urllib.parse
 import urllib.request
+import time
 
 BASE_URL = os.environ.get("MEM0_URL", "http://localhost:4001")
 TIMEOUT_SECONDS = 5
@@ -41,6 +44,19 @@ TIMEOUT_SECONDS = 5
 # hundreds. Each chunk is stored before the next is sent, so a chunk that fails
 # leaves every chunk before it stored and the next turn resumes from there.
 CHUNK_LINES = 100
+
+# How long to wait for the answer this turn just produced to reach the file.
+# It is written after the answer completes rather than with it: on a measured
+# turn the entry was stamped 15:12:55.966, this hook started ~15:12:55.99, and
+# the file it read still ended one entry short. Waiting is what lets mem0 have
+# that entry with its real uuid at its real position — the thing a message
+# rebuilt from `last_assistant_message` could not do, which is why rebuilding
+# one was reverted (.plan/04-hook-ingress.md).
+#
+# Mid-session the wait is a convenience, because the next turn carries the entry
+# anyway. For a session's *last* answer it is the only chance there will be.
+FLUSH_WAIT_SECONDS = 2.0
+FLUSH_POLL_SECONDS = 0.05
 
 
 def decode(line):
@@ -56,6 +72,48 @@ def decode(line):
         return json.loads(line)
     except ValueError:
         return None
+
+
+def read_entries(path):
+    """Every line of the transcript as JSON, position preserved."""
+    with open(path, encoding="utf-8") as transcript:
+        return [decode(line) for line in transcript.read().splitlines()]
+
+
+def holds(entries, message):
+    """Has `message` reached one of these entries?
+
+    Both sides are re-encoded before comparing, because inside an entry the
+    answer is JSON — its newlines are two characters and its quotes are escaped
+    — while `last_assistant_message` arrives as ordinary text. Encoding the
+    needle the same way is what makes a substring search correct without
+    walking each entry's content blocks to find the assistant's text.
+
+    Comparing against the parsed entry rather than the raw file also means a
+    line still mid-write does not count as arrived: it can already carry the
+    answer without being valid JSON yet, and `decode` has turned those into
+    None.
+    """
+    needle = json.dumps(message, ensure_ascii=False)[1:-1]
+
+    return any(needle in json.dumps(entry, ensure_ascii=False) for entry in entries if entry)
+
+
+def await_flush(path, message):
+    """The transcript, having waited a moment for `message` to appear in it.
+
+    Gives up at `FLUSH_WAIT_SECONDS` and returns what is there. The turn should
+    not be held open on mem0's account, and the file is correct either way —
+    just one entry short, the way it was before this waited at all.
+    """
+    deadline = time.monotonic() + FLUSH_WAIT_SECONDS
+    entries = read_entries(path)
+
+    while message and not holds(entries, message) and time.monotonic() < deadline:
+        time.sleep(FLUSH_POLL_SECONDS)
+        entries = read_entries(path)
+
+    return entries
 
 
 def get(path, params):
@@ -98,8 +156,9 @@ def send(payload, entries, index):
 def main():
     payload = json.load(sys.stdin)
 
-    with open(payload["transcript_path"], encoding="utf-8") as transcript:
-        entries = [decode(line) for line in transcript.read().splitlines()]
+    entries = await_flush(
+        payload["transcript_path"], payload.get("last_assistant_message")
+    )
 
     seen = get(
         "/hooks/lines-seen",
@@ -111,6 +170,7 @@ def main():
 
 if __name__ == "__main__":
     try:
+        time.sleep(1)
         main()
     except Exception:  # noqa: BLE001 - see "Always exit 0" above
         pass
