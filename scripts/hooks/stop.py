@@ -146,11 +146,12 @@ def send(payload, entries, index):
     """
     chunk = entries[index : index + CHUNK_LINES]
 
-    payload["entries"] = chunk
-    payload["transcript_length"] = len(chunk)
-    payload["total_transcript_length"] = index + len(chunk)
+    body = dict(payload)
+    body["entries"] = chunk
+    body["transcript_length"] = len(chunk)
+    body["total_transcript_length"] = index + len(chunk)
 
-    post("/hooks/backfill", payload)
+    post("/hooks/backfill", body)
 
 
 def main():
@@ -167,6 +168,11 @@ def main():
 
     for index in range(seen, len(entries), CHUNK_LINES):
         send(payload, entries, index)
+
+    # The Stop event itself, verbatim. Sent after backfill so that by the time
+    # the server acts on it — checking whether the summary needs updating — the
+    # messages of this turn are already stored.
+    post("/hooks/stop", payload)
 
 if __name__ == "__main__":
     try:

@@ -26,6 +26,7 @@ defmodule Mem0Web.HooksController do
   """
   use Mem0Web, :controller
 
+  alias Mem0.Core.Summary
   alias Mem0.Ingest
   alias Mem0.Messages
   alias Mem0Web.HookResponse
@@ -45,8 +46,28 @@ defmodule Mem0Web.HooksController do
 
   @doc """
   `Stop` is called when the agent was done replying. We currently do not ingest
-  any data here, since it will be done by backfill. We leave it here for when we
-  want to trigger summaries later, perhaps.
+  any data here, since it will be done by backfill.
+
+  When the hook calls this endpoint, it means the LLM replied. We have to check
+  if the summary needs to be updated.
+
+  Example payload:
+
+  ```
+    %{
+      "background_tasks" => [],
+      "cwd" => "/path/to/dir",
+      "effort" => %{"level" => "low"},
+      "hook_event_name" => "Stop",
+      "last_assistant_message" => "I'm Claude.",
+      "permission_mode" => "auto",
+      "prompt_id" => "f92a0650-4680-43e3-84e5-227ccd1e680a",
+      "session_crons" => [],
+      "session_id" => "875d9818-ab37-4aaf-aeac-0a2846670fd2",
+      "stop_hook_active" => false,
+      "transcript_path" => "/transcript/path/file.jsonl"
+    }
+  ```
   """
   @spec stop(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def stop(conn, _params) do
