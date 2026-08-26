@@ -16,13 +16,29 @@ defmodule Mem0.LLM do
   `:max_tokens` overrides the configured default for one call. It caps thinking
   *plus* response text together on a thinking model, so it is a budget rather
   than a length.
+
+  `:effort` overrides the configured reasoning effort for one call — one of
+  `t:effort/0`, spending a larger or smaller share of the `:max_tokens` budget
+  on thinking. An adapter with no effort mechanism ignores it; today only
+  `Mem0.LLM.OpenRouter` reads it.
   """
   @type request :: %{
           required(:messages) => [message()],
           optional(:system) => String.t(),
           optional(:schema) => map(),
-          optional(:max_tokens) => pos_integer()
+          optional(:max_tokens) => pos_integer(),
+          optional(:effort) => effort()
         }
+
+  @typedoc """
+  A reasoning-effort level, highest to lowest; `"none"` disables reasoning.
+
+  OpenRouter's vocabulary, kept as strings because that is how the value
+  arrives from configuration and leaves on the wire. Effort-based models take
+  it natively; budget-based models (Claude, Gemini thinking) have it mapped
+  onto a share of `max_tokens` by the provider.
+  """
+  @type effort :: String.t()
 
   @typedoc "Token counts for one call. Metadata only — never the payload."
   @type usage :: %{input_tokens: non_neg_integer(), output_tokens: non_neg_integer()}

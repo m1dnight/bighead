@@ -50,7 +50,8 @@ defmodule Mem0Web.TranscriptController do
   end
 
   defp ingest_transcript(conn, raw, params) do
-    with {:ok, scope, messages, drops} <-  Ingest.receive_transcript(raw, params, Ingest.default_user_id()),
+    with {:ok, scope, messages, drops} <-
+           Ingest.receive_transcript(raw, params, Ingest.default_user_id()),
          {:ok, stored} <- Messages.put(messages) do
       Summarize.refresh_async(scope)
       result = Reconcile.pulse(scope)

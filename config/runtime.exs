@@ -18,6 +18,7 @@ import Config
 # script that automatically sets the env var above.
 alias Mem0.Embedder.Ollama
 alias Mem0.LLM.Anthropic
+alias Mem0.LLM.OpenRouter
 alias Mem0.LLM.Stub
 
 if System.get_env("PHX_SERVER") do
@@ -26,9 +27,16 @@ end
 
 # Which LLM adapter to use for extraction.
 llm_adapter =
-  case EnvGuard.optional("MEM0_LLM_PROVIDER", {:enum, ["stub", "anthropic"]}, "stub") do
+  case EnvGuard.optional(
+         "MEM0_LLM_PROVIDER",
+         {:enum, ["stub", "anthropic", "openrouter"]},
+         "stub"
+       ) do
     "anthropic" ->
       Anthropic
+
+    "openrouter" ->
+      OpenRouter
 
     "stub" ->
       Stub
@@ -40,16 +48,40 @@ embedder_adapter =
     "stub" -> Mem0.Embedder.Stub
   end
 
-# `ANTHROPIC_API_KEY` is required only when the provider is `anthropic`. Making
-# it unconditional would break the property the `stub` default exists for: a
-# clean checkout with no `.env` and no key boots, and `mix test` passes.
+# Each provider's key is required only when that provider is selected. Making
+# either unconditional would break the property the `stub` default exists for:
+# a clean checkout with no `.env` and no key boots, and `mix test` passes.
 llm_api_key =
-  if llm_adapter == Anthropic,
-    do: EnvGuard.required("ANTHROPIC_API_KEY", :string, min_length: 1)
+  case llm_adapter do
+    Anthropic -> EnvGuard.required("ANTHROPIC_API_KEY", :string, min_length: 1)
+    OpenRouter -> EnvGuard.required("OPENROUTER_API_KEY", :string, min_length: 1)
+    Stub -> nil
+  end
+
+# The endpoint and the model name are provider-shaped: OpenRouter speaks
+# chat-completions at its own host and namespaces models as `vendor/model`,
+# while Anthropic's Messages API takes the bare model id. The env vars
+# override either; the defaults just have to be usable per provider — a
+# single default here is a URL or a slug that is wrong for the other one.
+{default_llm_base_url, default_llm_model} =
+  case llm_adapter do
+    OpenRouter -> {"https://openrouter.ai/api/v1/chat/completions", "anthropic/claude-opus-5"}
+    _anthropic_or_stub -> {"https://api.anthropic.com/v1/messages", "claude-opus-5"}
+  end
 
 llm_settings = [
-  model: EnvGuard.optional("MEM0_LLM_MODEL", :string, "claude-opus-5"),
+  base_url: EnvGuard.optional("MEM0_LLM_BASE_URL", :string, default_llm_base_url),
+  model: EnvGuard.optional("MEM0_LLM_MODEL", :string, default_llm_model),
   max_tokens: EnvGuard.optional("MEM0_LLM_MAX_TOKENS", :integer, 16_000, min: 1),
+  # Reasoning effort, OpenRouter's vocabulary; the Anthropic adapter has no
+  # effort mechanism and ignores it. `nil` means "not sent" — the model's own
+  # default stands — which is not the same request as an explicit `none`.
+  effort:
+    EnvGuard.optional(
+      "MEM0_LLM_EFFORT",
+      {:enum, ["max", "xhigh", "high", "medium", "low", "minimal", "none"]},
+      nil
+    ),
   api_key: llm_api_key
 ]
 

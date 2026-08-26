@@ -11,6 +11,7 @@ defmodule Mem0.Core.LayeringTest do
   alias Mem0.Embedder.Ollama
   alias Mem0.ExtractionState
   alias Mem0.LLM.Anthropic
+  alias Mem0.LLM.OpenRouter
   alias Mem0.Memories
   alias Mem0.Messages
   alias Mem0.Summaries
@@ -32,7 +33,7 @@ defmodule Mem0.Core.LayeringTest do
   # the only modules allowed to speak HTTP. Anything else appearing in the list
   # below means an adapter's job leaked into one of its callers. `Mem0.ReqEcho`
   # is test support — a `Req` adapter that answers without a socket.
-  @http_adapters [Ollama, Anthropic, Mem0.ReqEcho]
+  @http_adapters [Ollama, Anthropic, OpenRouter, Mem0.ReqEcho]
 
   # Time arrives as an argument. This is what makes the interval and staleness
   # predicates testable without `Process.sleep`, and it is the precondition for
