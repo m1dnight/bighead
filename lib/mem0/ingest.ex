@@ -79,6 +79,75 @@ defmodule Mem0.Ingest do
 
   def receive(_payload, _user_id), do: {:error, :invalid_payload}
 
+  @doc """
+  Ingests a whole transcript file, as the raw JSON Lines it sits on disk as.
+
+  Each line is decoded and the result rides the same path a hook batch does —
+  same length checks, same normaliser, same telemetry — as a whole-file batch:
+  the counts say "all of it", so messages are numbered from line zero, exactly
+  where `lines_seen/1`'s convention puts them.
+
+  The scope is read from the transcript itself — every Claude Code entry
+  carries `sessionId` and `cwd` — with `overrides` (string keys, as they
+  arrive from a query string) winning when present. Returned alongside the
+  messages so the caller addresses the same run this ingested into, rather
+  than deriving the address a second way.
+
+  A line that does not decode is `{:error, {:invalid_line, number}}`, first
+  failure wins — a transcript file is machine-written, so a broken line means
+  the wrong file, not a lenient client.
+  """
+  @spec receive_transcript(String.t(), map(), String.t()) ::
+          {:ok, Scope.t(), [Message.t()], [ClaudeCode.drop()]} | {:error, term()}
+  def receive_transcript(raw, overrides, user_id)
+      when is_binary(raw) and is_map(overrides) and is_binary(user_id) do
+    with {:ok, entries} <- decode_lines(raw) do
+      payload = transcript_payload(entries, overrides)
+
+      with {:ok, messages, drops} <- receive(payload, user_id) do
+        {:ok, scope(payload, user_id), messages, drops}
+      end
+    end
+  end
+
+  defp decode_lines(raw) do
+    raw
+    |> String.split("\n", trim: true)
+    |> Enum.with_index(1)
+    |> Enum.reduce_while({:ok, []}, fn {line, number}, {:ok, entries} ->
+      case Jason.decode(line) do
+        # Any decoded JSON passes; a line holding something that is not an
+        # entry is the normaliser's to drop and tally, same as over the hook.
+        {:ok, entry} -> {:cont, {:ok, [entry | entries]}}
+        {:error, _undecodable} -> {:halt, {:error, {:invalid_line, number}}}
+      end
+    end)
+    |> case do
+      {:ok, entries} -> {:ok, Enum.reverse(entries)}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp transcript_payload(entries, overrides) do
+    %{
+      "hook_event_name" => "TranscriptBackfill",
+      "session_id" => Map.get(overrides, "session_id") || first_field(entries, "sessionId"),
+      "cwd" => Map.get(overrides, "cwd") || first_field(entries, "cwd"),
+      "entries" => entries,
+      "transcript_length" => length(entries),
+      "total_transcript_length" => length(entries)
+    }
+  end
+
+  # The first entry naming the field, not the first entry: line one of a real
+  # file is sometimes a summary record with no session identity on it.
+  defp first_field(entries, key) do
+    Enum.find_value(entries, fn
+      %{^key => value} when is_binary(value) -> value
+      _other -> nil
+    end)
+  end
+
   defp entries(%{"entries" => entries}) when is_list(entries), do: {:ok, entries}
   defp entries(%{"entries" => _not_a_list}), do: {:error, :invalid_entries}
   defp entries(_payload), do: {:error, :no_entries}

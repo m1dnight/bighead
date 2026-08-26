@@ -38,6 +38,15 @@ defmodule Mem0Web.Router do
     post "/backfill", HooksController, :backfill
   end
 
+  # An operator's tool, not hook machinery: a whole session file as raw JSON
+  # Lines, and the full write path — messages stored, facts extracted and
+  # reconciled — runs in one request. Same no-credentials caveat as `/hooks`.
+  scope "/", Mem0Web do
+    pipe_through :api
+
+    post "/transcripts", TranscriptController, :create
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", Mem0Web do
   #   pipe_through :api
