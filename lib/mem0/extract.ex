@@ -62,7 +62,19 @@ defmodule Mem0.Extract do
     request = Extraction.request(prompt)
 
     with {:ok, response} <- LLM.complete(request, opts) do
-      Extraction.decode(response.content, prompt.scope, at, Enum.map(prompt.new, & &1.id))
+      Extraction.decode(
+        response.content,
+        prompt.scope,
+        at,
+        Enum.map(prompt.new, & &1.id),
+        through_seq(prompt)
+      )
     end
+  end
+
+  # The extraction's extent: the seq of the last message in the new slice.
+  # `new` is non-empty here — the empty case was refused above.
+  defp through_seq(%Prompt{new: new_messages}) do
+    new_messages |> Enum.map(& &1.seq) |> Enum.max()
   end
 end

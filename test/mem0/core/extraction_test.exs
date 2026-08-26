@@ -145,7 +145,7 @@ defmodule Mem0.Core.ExtractionTest do
     end
   end
 
-  describe "decode/4" do
+  describe "decode/5" do
     test "builds a fact per string, in the scope and at the instant given" do
       scope = scope(app_id: "widget")
 
@@ -154,12 +154,14 @@ defmodule Mem0.Core.ExtractionTest do
                  ~s({"facts": ["Uses Elixir", "Runs tests before pushing"]}),
                  scope,
                  at(10),
-                 ["m-1", "m-2"]
+                 ["m-1", "m-2"],
+                 7
                )
 
       assert extraction.scope == scope
       assert extraction.prompt_at == at(10)
       assert extraction.source_message_ids == ["m-1", "m-2"]
+      assert extraction.through_seq == 7
 
       assert Enum.map(extraction.facts, & &1.content) == [
                "Uses Elixir",
@@ -173,22 +175,25 @@ defmodule Mem0.Core.ExtractionTest do
     end
 
     test "no facts is a valid extraction, not a failure" do
-      assert {:ok, extraction} = Extraction.decode(~s({"facts": []}), scope(), at(0), ["m-1"])
+      assert {:ok, extraction} = Extraction.decode(~s({"facts": []}), scope(), at(0), ["m-1"], 1)
       assert extraction.facts == []
       assert extraction.source_message_ids == ["m-1"]
+      # The extraction still names its extent: the messages were considered,
+      # even though nothing came out.
+      assert extraction.through_seq == 1
     end
 
     test "trims, and drops what is blank once trimmed" do
       reply = ~s({"facts": ["  Uses Elixir  ", "", "   "]})
 
-      assert {:ok, extraction} = Extraction.decode(reply, scope(), at(0), [])
+      assert {:ok, extraction} = Extraction.decode(reply, scope(), at(0), [], 1)
       assert Enum.map(extraction.facts, & &1.content) == ["Uses Elixir"]
     end
 
     test "collapses a fact the model said twice" do
       reply = ~s({"facts": ["Uses Elixir", "Uses Elixir", " Uses Elixir "]})
 
-      assert {:ok, extraction} = Extraction.decode(reply, scope(), at(0), [])
+      assert {:ok, extraction} = Extraction.decode(reply, scope(), at(0), [], 1)
       assert Enum.map(extraction.facts, & &1.content) == ["Uses Elixir"]
     end
 
@@ -204,7 +209,7 @@ defmodule Mem0.Core.ExtractionTest do
           {"an empty reply", ""}
         ] do
       test "#{name} is malformed rather than a raise" do
-        assert Extraction.decode(unquote(reply), scope(), at(0), ["m-1"]) ==
+        assert Extraction.decode(unquote(reply), scope(), at(0), ["m-1"], 1) ==
                  {:error, :malformed_facts}
       end
     end

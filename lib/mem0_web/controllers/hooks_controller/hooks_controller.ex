@@ -6,6 +6,7 @@ defmodule Mem0Web.HooksController do
 
   alias Mem0.Ingest
   alias Mem0.Messages
+  alias Mem0.Reconcile
   alias Mem0.Summarize
   alias Mem0Web.HookResponse
 
@@ -48,9 +49,14 @@ defmodule Mem0Web.HooksController do
   """
   @spec stop(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def stop(conn, params) do
-    params
-    |> Ingest.scope(Ingest.default_user_id())
-    |> Summarize.refresh_async()
+    scope = Ingest.scope(params, Ingest.default_user_id())
+
+    # Both run off the request path — Claude Code is blocked on this reply.
+    # Their race is benign: if the refresh and the pulse interleave,
+    # extraction reads the previous summary, which is context, not
+    # provenance, and the new messages are in the prompt regardless.
+    Summarize.refresh_async(scope)
+    Reconcile.pulse_async(scope)
 
     json(conn, HookResponse.stop())
   end

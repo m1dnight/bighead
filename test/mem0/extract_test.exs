@@ -154,8 +154,16 @@ defmodule Mem0.ExtractTest do
         summary: summary
       )
 
+    %Message{seq: through_seq} = Enum.max_by(prompt.new, & &1.seq)
+
     with {:ok, response} <- Anthropic.complete(Extraction.request(prompt), config) do
-      Extraction.decode(response.content, prompt.scope, at(0), Enum.map(prompt.new, & &1.id))
+      Extraction.decode(
+        response.content,
+        prompt.scope,
+        at(0),
+        Enum.map(prompt.new, & &1.id),
+        through_seq
+      )
     end
   end
 

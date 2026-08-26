@@ -1,24 +1,24 @@
 defmodule Mem0.Core.MemoryOperation do
   @moduledoc """
-  A memory operation is what the update phase decided to do with a given fact. A
-  fact can be updated, deleted, added, or ignored.
-
-
-
-  What the update phase decided to do with one candidate fact: the
-  ADD/UPDATE/DELETE/NOOP cascade of Algorithm 1 (notes §2.2, §2.3).
+  A memory operation is what the update phase decided to do with a given fact:
+  the ADD/UPDATE/DELETE/NOOP cascade of Algorithm 1 (notes §2.2, §2.3).
 
   `{:update, id, fact}` reads exactly as the algorithm specifies — the id
   survives, the content is replaced. Both `UPDATE` and `DELETE` carry an id
   because the algorithm resolves each against a *specific* one of the `s`
   retrieved candidates, not against the store at large.
 
+  This module holds both halves of the conversation: `request/2` asks the
+  question, `parse/4` and `decode/4` read the answer. Request and parse are
+  two halves of one protocol, and splitting them invites drift.
+
   ## Ids are never shown to the model
 
-  The update phase presents the `s` retrieved candidates as `1..s` and the model
-  answers with an ordinal. `parse/4` maps that ordinal back to an id, given the
-  ordered list the boundary retrieved. The mapping is a pure list lookup, so it
-  stays in the core; the boundary supplies the list and performs the result.
+  `request/2` presents the `s` retrieved candidates as `1..s`, contents only,
+  and the model answers with an ordinal. `parse/4` maps that ordinal back to
+  an id, given the ordered list the boundary retrieved. The mapping is a pure
+  list lookup, so it stays in the core; the boundary supplies the list and
+  performs the result.
 
   ## Reading model output is the one place the core distrusts its input
 
@@ -31,8 +31,52 @@ defmodule Mem0.Core.MemoryOperation do
   `String.to_atom/1`.
   """
 
+  alias Mem0.Core.Decision
   alias Mem0.Core.Fact
   alias Mem0.Core.Memory
+
+  # Algorithm 1's cascade, stated *in its order* — the notes' §2.3 warning:
+  # contradiction is checked before augmentation, so a fact that both
+  # contradicts one memory and augments another resolves as the contradiction.
+  @system_prompt """
+  You maintain the durable memories a system keeps about a developer. Given
+  one candidate fact and the stored memories retrieved as most similar to it,
+  decide what the memory store should do with the fact.
+
+  Apply these rules in order, and act on the first that matches:
+
+  1. If no listed memory covers what the fact states, answer ADD.
+  2. If the fact contradicts a listed memory, answer DELETE with that
+     memory's number.
+  3. If the fact augments a listed memory — the same subject, carrying more
+     or newer detail — answer UPDATE with that memory's number.
+  4. Otherwise the fact is already present or adds nothing: answer NOOP.
+
+  The order matters: a fact that both contradicts one memory and augments
+  another resolves as the contradiction.
+
+  Rules:
+
+  - Refer to a memory only by its number in the list.
+  - UPDATE and DELETE must carry "id"; ADD and NOOP must not.
+  - When no memories are listed, the only possible answers are ADD and NOOP.
+  - "reason" states, in one sentence, why the rule you chose matched.
+  """
+
+  # The reply shape `decode/4` expects, stated to the provider rather than
+  # begged for in prose. The schema cannot express "id required when
+  # UPDATE/DELETE" — the prose above carries that, and `parse/4` returns
+  # `:missing_ordinal` when a model ignores it.
+  @response_schema %{
+    "additionalProperties" => false,
+    "properties" => %{
+      "event" => %{"enum" => ["ADD", "UPDATE", "DELETE", "NOOP"], "type" => "string"},
+      "id" => %{"minimum" => 1, "type" => "integer"},
+      "reason" => %{"type" => "string"}
+    },
+    "required" => ["event", "reason"],
+    "type" => "object"
+  }
 
   @type t ::
           {:add, Fact.t()}
@@ -77,6 +121,102 @@ defmodule Mem0.Core.MemoryOperation do
           | {:malformed_ordinal, term()}
           | {:ordinal_out_of_range, integer()}
           | {:malformed_output, term()}
+
+  @doc """
+  The instructions the model is given.
+
+  Public because it is the thing most worth diffing between iterations, and
+  because a test asserting it was sent should not have to restate it.
+  """
+  @spec system_prompt() :: String.t()
+  def system_prompt, do: @system_prompt
+
+  @doc """
+  The completion request that resolves `fact` against `candidates`.
+
+  One place builds it, so the live test and the boundary send the same bytes.
+  The candidates are rendered as ordinals `1..s`, contents only — the
+  module-doc promise that ids never reach the model, enforced by construction.
+  """
+  @spec request(Fact.t(), [Memory.t()]) :: Mem0.LLM.request()
+  def request(%Fact{} = fact, candidates) when is_list(candidates) do
+    %{
+      messages: [%{role: :user, content: render(fact, candidates)}],
+      schema: @response_schema,
+      system: @system_prompt
+    }
+  end
+
+  @doc """
+  Renders `fact` and `candidates` as the sectioned user content the model
+  reads.
+
+  An empty candidate list renders as an explicitly empty section rather than
+  no section: the model must see that nothing was retrieved, not wonder
+  whether the list was cut off.
+
+  ## Examples
+
+      iex> fact = Mem0.Core.Fact.new(
+      ...>   content: "User lives in San Francisco",
+      ...>   scope: Mem0.Core.Scope.new(user_id: "christophe"),
+      ...>   extracted_at: ~U[2026-01-01 00:00:00Z]
+      ...> )
+      iex> MemoryOperation.render(fact, [])
+      "# Candidate fact\\nUser lives in San Francisco\\n\\n# Retrieved memories\\n(none)"
+
+  """
+  @spec render(Fact.t(), [Memory.t()]) :: String.t()
+  def render(%Fact{} = fact, candidates) when is_list(candidates) do
+    "# Candidate fact\n" <> fact.content <> "\n\n# Retrieved memories\n" <> numbered(candidates)
+  end
+
+  @doc """
+  Turns the model's `reply` into a `Mem0.Core.Decision`: `Jason.decode/1`,
+  then `parse/4`, then the wrap into the struct the boundary performs.
+
+  `considered_ids` is the candidates' ids in presentation order; `reason` is
+  the model's, stored verbatim — it is why `Decision` exists; `decided_at` is
+  the pulse instant, passed in — the core still reads no clock. An empty
+  candidate list is legal and expected: the model saw no numbered memories,
+  and `parse/4` already guarantees the only in-range answers are ADD and NOOP
+  because any ordinal is out of range against `[]`.
+  """
+  @spec decode(String.t(), Fact.t(), [Memory.t()], DateTime.t()) ::
+          {:ok, Decision.t()} | {:error, reason()}
+  def decode(reply, %Fact{} = fact, candidates, %DateTime{} = decided_at)
+      when is_list(candidates) do
+    case Jason.decode(reply) do
+      {:ok, verdict} -> decision(verdict, fact, candidates, decided_at)
+      {:error, _undecodable} -> {:error, {:malformed_output, reply}}
+    end
+  end
+
+  defp decision(verdict, fact, candidates, decided_at) do
+    with {:ok, operation} <- parse(verdict, fact, candidates) do
+      {:ok,
+       Decision.new(
+         operation: operation,
+         reason: reason(verdict),
+         considered_ids: Enum.map(candidates, & &1.id),
+         decided_at: decided_at
+       )}
+    end
+  end
+
+  # Verbatim, before `sanitize/1` folds its casing. A reply the schema should
+  # have forced a reason onto but did not still decodes — a missing
+  # explanation is not worth killing a parseable verdict over.
+  defp reason(%{"reason" => reason}) when is_binary(reason), do: reason
+  defp reason(_verdict), do: ""
+
+  defp numbered([]), do: "(none)"
+
+  defp numbered(candidates) do
+    candidates
+    |> Enum.with_index(1)
+    |> Enum.map_join("\n", fn {memory, ordinal} -> "#{ordinal}. #{memory.content}" end)
+  end
 
   @doc """
   Takes in the output of an update call to the LLM and parses its result.

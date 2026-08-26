@@ -18,6 +18,12 @@ defmodule Mem0.Core.Extraction do
     field :prompt_at, DateTime.t()
     field :facts, [Fact.t()], default: []
     field :source_message_ids, [Message.id()], default: []
+    # The seq of the last message this extraction consumed — the extraction
+    # names its own extent, as a `Summary` does, rather than a caller
+    # reconstructing it from message ids. Present even when `facts` is empty:
+    # the messages were considered, and the update phase's cursor advances on
+    # consideration, not on yield.
+    field :through_seq, non_neg_integer()
   end
 
   # Caps rather than configuration: they move when the prompt moves, and a knob
@@ -84,7 +90,10 @@ defmodule Mem0.Core.Extraction do
     "type" => "object"
   }
 
-  @doc "Builds an extraction. `facts` and `source_message_ids` default to `[]`."
+  @doc """
+  Builds an extraction. `facts` and `source_message_ids` default to `[]`;
+  `through_seq` is required.
+  """
   @spec new(keyword()) :: t()
   def new(fields), do: struct!(__MODULE__, fields)
 
@@ -154,13 +163,16 @@ defmodule Mem0.Core.Extraction do
   end
 
   @doc """
-  Turns the model's `reply` into an extraction in `scope`, stamped at `at`.
+  Turns the model's `reply` into an extraction in `scope`, stamped at `at` and
+  extending through `through_seq` — the seq of the last message the prompt's
+  new slice held.
   """
-  @spec decode(String.t(), Scope.t(), DateTime.t(), [Message.id()]) ::
+  @spec decode(String.t(), Scope.t(), DateTime.t(), [Message.id()], non_neg_integer()) ::
           {:ok, t()} | {:error, :malformed_facts}
-  def decode(reply, %Scope{} = scope, %DateTime{} = at, source_message_ids) do
+  def decode(reply, %Scope{} = scope, %DateTime{} = at, source_message_ids, through_seq)
+      when is_integer(through_seq) do
     case Jason.decode(reply) do
-      {:ok, %{"facts" => facts}} -> build(facts, scope, at, source_message_ids)
+      {:ok, %{"facts" => facts}} -> build(facts, scope, at, source_message_ids, through_seq)
       _not_an_extraction -> {:error, :malformed_facts}
     end
   end
@@ -178,21 +190,23 @@ defmodule Mem0.Core.Extraction do
 
   defp sorted(messages), do: Enum.sort_by(messages, & &1.seq)
 
-  defp build(facts, scope, at, source_message_ids) when is_list(facts) do
+  defp build(facts, scope, at, source_message_ids, through_seq) when is_list(facts) do
     if Enum.all?(facts, &is_binary/1) do
       {:ok,
        new(
          scope: scope,
          prompt_at: at,
          facts: Enum.map(contents(facts), &fact(&1, scope, at, source_message_ids)),
-         source_message_ids: source_message_ids
+         source_message_ids: source_message_ids,
+         through_seq: through_seq
        )}
     else
       {:error, :malformed_facts}
     end
   end
 
-  defp build(_facts, _scope, _at, _source_message_ids), do: {:error, :malformed_facts}
+  defp build(_facts, _scope, _at, _source_message_ids, _through_seq),
+    do: {:error, :malformed_facts}
 
   defp contents(facts) do
     facts

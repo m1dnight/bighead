@@ -52,7 +52,7 @@ defmodule Mem0.Core.ConstructorsTest do
                Fact.new(content: "c", scope: scope(), extracted_at: at(0))
 
       assert %Extraction{facts: [], source_message_ids: []} =
-               Extraction.new(scope: scope(), prompt_at: at(0))
+               Extraction.new(scope: scope(), prompt_at: at(0), through_seq: 1)
     end
   end
 

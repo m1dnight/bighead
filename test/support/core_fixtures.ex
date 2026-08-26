@@ -167,7 +167,8 @@ defmodule Mem0.CoreFixtures do
         scope: scope(),
         prompt_at: at(10),
         facts: [fact()],
-        source_message_ids: ["msg-2", "msg-3"]
+        source_message_ids: ["msg-2", "msg-3"],
+        through_seq: 3
       ],
       overrides
     )
@@ -180,7 +181,8 @@ defmodule Mem0.CoreFixtures do
       scope: Keyword.fetch!(fields, :scope),
       prompt_at: Keyword.fetch!(fields, :prompt_at),
       facts: Keyword.fetch!(fields, :facts),
-      source_message_ids: Keyword.fetch!(fields, :source_message_ids)
+      source_message_ids: Keyword.fetch!(fields, :source_message_ids),
+      through_seq: Keyword.fetch!(fields, :through_seq)
     )
   end
 

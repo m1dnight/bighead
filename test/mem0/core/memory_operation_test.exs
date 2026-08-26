@@ -6,11 +6,123 @@ defmodule Mem0.Core.MemoryOperationTest do
   use ExUnit.Case, async: true
   use Mem0.CoreFixtures
 
+  doctest MemoryOperation
+
   setup do
     %{
       fact: fact(content: "User lives in San Francisco, in the Mission"),
       candidates: [memory(id: "mem-1"), memory(id: "mem-2", content: "User likes tea")]
     }
+  end
+
+  describe "request/2" do
+    test "presents the fact and the candidates as ordinals, contents only", %{
+      fact: fact,
+      candidates: candidates
+    } do
+      request = MemoryOperation.request(fact, candidates)
+
+      assert [%{role: :user, content: content}] = request.messages
+      assert content =~ "# Candidate fact\nUser lives in San Francisco, in the Mission"
+      assert content =~ "1. User lives in San Francisco"
+      assert content =~ "2. User likes tea"
+    end
+
+    test "ids never reach the model", %{fact: fact, candidates: candidates} do
+      request = MemoryOperation.request(fact, candidates)
+
+      assert [%{content: content}] = request.messages
+      refute content =~ "mem-1"
+      refute content =~ "mem-2"
+    end
+
+    test "carries the cascade as the system prompt and pins the reply shape", %{
+      fact: fact,
+      candidates: candidates
+    } do
+      request = MemoryOperation.request(fact, candidates)
+
+      assert request.system == MemoryOperation.system_prompt()
+      assert request.schema["required"] == ["event", "reason"]
+      assert request.schema["additionalProperties"] == false
+      assert request.schema["properties"]["event"]["enum"] == ["ADD", "UPDATE", "DELETE", "NOOP"]
+    end
+
+    test "an empty candidate list is an explicitly empty section, not a missing one", %{
+      fact: fact
+    } do
+      assert [%{content: content}] = MemoryOperation.request(fact, []).messages
+      assert content =~ "# Retrieved memories\n(none)"
+    end
+  end
+
+  describe "decode/4" do
+    test "builds a Decision carrying the reason, considered ids in order, and the instant", %{
+      fact: fact,
+      candidates: candidates
+    } do
+      reply = ~s({"event": "UPDATE", "id": 2, "reason": "Adds The Neighbourhood."})
+
+      assert {:ok, decision} = MemoryOperation.decode(reply, fact, candidates, at(11))
+      assert decision.operation == {:update, "mem-2", fact}
+      assert decision.reason == "Adds The Neighbourhood."
+      assert decision.considered_ids == ["mem-1", "mem-2"]
+      assert decision.decided_at == at(11)
+    end
+
+    test "the reason survives verbatim, not sanitized", %{fact: fact, candidates: candidates} do
+      reply = ~s({"event": "ADD", "reason": "  Nothing Covers WHERE the user lives.  "})
+
+      assert {:ok, decision} = MemoryOperation.decode(reply, fact, candidates, at(0))
+      assert decision.reason == "  Nothing Covers WHERE the user lives.  "
+    end
+
+    test "an empty candidate list decodes ADD and NOOP", %{fact: fact} do
+      add = ~s({"event": "ADD", "reason": "New information."})
+      noop = ~s({"event": "NOOP", "reason": "Nothing to do."})
+
+      assert {:ok, %Decision{operation: {:add, ^fact}, considered_ids: []}} =
+               MemoryOperation.decode(add, fact, [], at(0))
+
+      assert {:ok, %Decision{operation: :noop}} = MemoryOperation.decode(noop, fact, [], at(0))
+    end
+
+    test "an empty candidate list refuses any ordinal", %{fact: fact} do
+      reply = ~s({"event": "UPDATE", "id": 1, "reason": "Augments memory 1."})
+
+      assert {:error, {:ordinal_out_of_range, 1}} = MemoryOperation.decode(reply, fact, [], at(0))
+    end
+
+    test "the information-gain guard degrades through decode too", %{candidates: candidates} do
+      no_gain = fact(content: "User likes tea")
+      reply = ~s({"event": "UPDATE", "id": 2, "reason": "Same fact restated."})
+
+      assert {:ok, %Decision{operation: :noop}} =
+               MemoryOperation.decode(reply, no_gain, candidates, at(0))
+    end
+
+    test "a reply that is not JSON is malformed output, not a raise", %{
+      fact: fact,
+      candidates: candidates
+    } do
+      assert {:error, {:malformed_output, "Sure! I would ADD this."}} =
+               MemoryOperation.decode("Sure! I would ADD this.", fact, candidates, at(0))
+    end
+
+    test "a parse failure surfaces as its own reason", %{fact: fact, candidates: candidates} do
+      reply = ~s({"event": "MERGE", "reason": "Blend them."})
+
+      assert {:error, {:unknown_event, "merge"}} =
+               MemoryOperation.decode(reply, fact, candidates, at(0))
+    end
+
+    test "a reply missing its reason still decodes, with an empty one", %{
+      fact: fact,
+      candidates: candidates
+    } do
+      assert {:ok, %Decision{reason: ""}} =
+               MemoryOperation.decode(~s({"event": "NOOP"}), fact, candidates, at(0))
+    end
   end
 
   describe "parse/4 — the happy cascade" do

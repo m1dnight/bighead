@@ -9,6 +9,7 @@ defmodule Mem0.Core.LayeringTest do
   use ExUnit.Case, async: true
 
   alias Mem0.Embedder.Ollama
+  alias Mem0.ExtractionState
   alias Mem0.LLM.Anthropic
   alias Mem0.Memories
   alias Mem0.Messages
@@ -114,7 +115,12 @@ defmodule Mem0.Core.LayeringTest do
   # is a table shape rather than a second domain type, and a module that names
   # one it does not own has grown a persistence dependency it was supposed to
   # be spared — per table, not per layer.
-  @table_owners %{Memories.Row => Memories, Messages.Row => Messages, Summaries.Row => Summaries}
+  @table_owners %{
+    ExtractionState.Row => ExtractionState,
+    Memories.Row => Memories,
+    Messages.Row => Messages,
+    Summaries.Row => Summaries
+  }
 
   test "each table's Row is named only by the store that owns it" do
     {:ok, modules} = :application.get_key(:mem0, :modules)
@@ -132,7 +138,7 @@ defmodule Mem0.Core.LayeringTest do
   # `Repo` is how a store reaches its table, so it is reachable from the
   # stores alone. `Mem0.Repo` is its own caller through the functions
   # `use Ecto.Repo` generates.
-  @repo_callers [Memories, Messages, Summaries, Mem0.Repo]
+  @repo_callers [ExtractionState, Memories, Messages, Summaries, Mem0.Repo]
 
   test "the stores are the only modules that reach the Repo" do
     {:ok, modules} = :application.get_key(:mem0, :modules)

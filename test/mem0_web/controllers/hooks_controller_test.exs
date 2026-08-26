@@ -20,18 +20,23 @@ defmodule Mem0Web.HooksControllerTest do
 
   import Mem0.TranscriptFixtures
 
+  alias Mem0.Embedder
+  alias Mem0.ExtractionState
   alias Mem0.Ingest
   alias Mem0.LLM
+  alias Mem0.Memories
   alias Mem0.Messages
   alias Mem0.Summaries
 
-  # `Stop` answers the same inert body whatever arrives — the refresh it
-  # fires reports through the store and telemetry, never through the
-  # response. Every test that reaches the controller drains that telemetry,
-  # so the spawned task is done with the shared sandbox connection before the
-  # test lets go of it.
+  # `Stop` answers the same inert body whatever arrives — the refresh and the
+  # pulse it fires report through the stores and telemetry, never through the
+  # response. Every test that reaches the controller drains both events, so
+  # the spawned tasks are done with the shared sandbox connection before the
+  # test lets go of it. Both stubs start in setup because every `Stop` now
+  # pulses: a pulse that finds messages reaches the LLM port whatever the
+  # test is about.
   describe "POST /hooks/stop" do
-    setup :forward_refresh_telemetry
+    setup [:forward_refresh_telemetry, :forward_pulse_telemetry, :start_stubs]
 
     test "answers with the exact key names Claude Code reads", %{conn: conn} do
       body = "plain_exchange" |> entries() |> stop_payload()
@@ -40,6 +45,7 @@ defmodule Mem0Web.HooksControllerTest do
 
       assert json_response(conn, 200) == %{"hookSpecificOutput" => %{"hookEventName" => "Stop"}}
       await_refresh(1)
+      await_pulse(1)
     end
 
     test "no decision field: it would send Claude back to work", %{conn: conn} do
@@ -49,10 +55,43 @@ defmodule Mem0Web.HooksControllerTest do
 
       refute Map.has_key?(json_response(conn, 200), "decision")
       await_refresh(1)
+      await_pulse(1)
+    end
+
+    test "a Stop pulse turns the fresh exchange into a memory and advances the cursor", %{
+      conn: conn
+    } do
+      scope = posted_scope("stop-memory")
+
+      assert {:ok, 2} =
+               Messages.put([
+                 message(id: "msg-1", scope: scope, content: "I use Elixir daily.", seq: 1),
+                 message(id: "msg-2", scope: scope, role: :assistant, content: "Noted.", seq: 2)
+               ])
+
+      LLM.Stub.set(fn request, _opts ->
+        if request.system == Extraction.system_prompt() do
+          {:ok, LLM.Stub.response(~s({"facts": ["User uses Elixir"]}))}
+        else
+          {:ok, LLM.Stub.response(~s({"event": "ADD", "reason": "Nothing covers this."}))}
+        end
+      end)
+
+      body = %{"session_id" => "stop-memory", "cwd" => "/Users/example/Code/widget"}
+
+      assert conn |> post(~p"/hooks/stop", body) |> json_response(200)
+
+      await_refresh(1)
+      assert [:reconciled] = await_pulse(1)
+
+      assert [%Memory{content: "User uses Elixir"}] =
+               Memories.active(ScopeQuery.new(user_id: Ingest.default_user_id()))
+
+      assert ExtractionState.through_seq(scope) == 2
     end
 
     test "a settled run past max_lag grows a summary", %{conn: conn} do
-      LLM.Stub.start!(reply: {:ok, LLM.Stub.response(~s({"summary": "A short session."}))})
+      LLM.Stub.set({:ok, LLM.Stub.response(~s({"summary": "A short session."}))})
       scope = posted_scope("stop-summary")
 
       assert {:ok, 11} =
@@ -65,6 +104,7 @@ defmodule Mem0Web.HooksControllerTest do
       assert conn |> post(~p"/hooks/stop", body) |> json_response(200)
 
       await_refresh(1)
+      await_pulse(1)
 
       assert %Summary{through_seq: 11, text: "A short session."} = Summaries.latest(scope)
     end
@@ -82,6 +122,7 @@ defmodule Mem0Web.HooksControllerTest do
       assert conn |> post(~p"/hooks/stop", body) |> json_response(200)
 
       assert [:fresh] = await_refresh(1)
+      await_pulse(1)
       assert Summaries.latest(scope) == nil
     end
 
@@ -99,6 +140,7 @@ defmodule Mem0Web.HooksControllerTest do
       end
 
       await_refresh(length(bodies))
+      await_pulse(length(bodies))
     end
 
     test "200 on a batch that produced nothing", %{conn: conn} do
@@ -106,6 +148,7 @@ defmodule Mem0Web.HooksControllerTest do
 
       assert conn |> post(~p"/hooks/stop", body) |> json_response(200)
       await_refresh(1)
+      await_pulse(1)
     end
 
     test "a body that is not JSON at all is a 400, never a 5xx", %{conn: conn} do
@@ -115,7 +158,7 @@ defmodule Mem0Web.HooksControllerTest do
         |> post(~p"/hooks/stop", "{not json")
       end
 
-      # The parser raised before the router; no refresh was fired.
+      # The parser raised before the router; no refresh or pulse was fired.
     end
   end
 
@@ -291,6 +334,10 @@ defmodule Mem0Web.HooksControllerTest do
   def send_refresh_event(_event, _measurements, metadata, pid),
     do: send(pid, {:refreshed, metadata.outcome})
 
+  @doc false
+  def send_pulse_event(_event, _measurements, metadata, pid),
+    do: send(pid, {:pulsed, metadata.outcome})
+
   # An external capture rather than a local one, for `Mem0.MessagesTest`'s
   # reason: `:telemetry` warns about local-function handlers.
   defp forward_refresh_telemetry(_context) do
@@ -309,9 +356,38 @@ defmodule Mem0Web.HooksControllerTest do
     :ok
   end
 
+  defp forward_pulse_telemetry(_context) do
+    handler_id = {__MODULE__, :pulse, self()}
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:mem0, :reconcile, :pulse],
+        &__MODULE__.send_pulse_event/4,
+        self()
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    :ok
+  end
+
+  defp start_stubs(_context) do
+    LLM.Stub.start!()
+    Embedder.Stub.start!()
+    :ok
+  end
+
   defp await_refresh(count) do
     for _ <- 1..count do
       assert_receive {:refreshed, outcome}, 1_000
+      outcome
+    end
+  end
+
+  defp await_pulse(count) do
+    for _ <- 1..count do
+      assert_receive {:pulsed, outcome}, 1_000
       outcome
     end
   end
