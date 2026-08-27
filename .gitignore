@@ -47,3 +47,5 @@ npm-debug.log
 
 
 __pycache__/
+
+.transcripts/

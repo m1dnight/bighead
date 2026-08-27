@@ -22,7 +22,7 @@ defmodule Mem0.MixProject do
   def application do
     [
       mod: {Mem0.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :xmerl]
     ]
   end
 

@@ -10,6 +10,14 @@ defmodule Mem0.TranscriptFixtures do
 
   @dir Path.join(__DIR__, "fixtures/transcripts")
 
+  @doc "A fixture as the raw JSON Lines string it sits on disk as."
+  @spec raw(String.t()) :: String.t()
+  def raw(name) do
+    @dir
+    |> Path.join(name <> ".jsonl")
+    |> File.read!()
+  end
+
   @doc "Every entry of a fixture, decoded, in file order."
   @spec entries(String.t()) :: [map()]
   def entries(name) do
