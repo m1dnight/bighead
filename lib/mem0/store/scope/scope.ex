@@ -3,6 +3,8 @@ defmodule Mem0.Store.Scope do
 
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   @primary_key {:id, :string, autogenerate: false}
   schema "scopes" do
     field :user, :string
