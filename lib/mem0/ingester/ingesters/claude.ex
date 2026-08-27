@@ -83,7 +83,7 @@ defmodule Mem0.Ingester.Claude do
         {:error, :no_project}
 
       %{} ->
-        {:error, :session}
+        {:error, :no_session}
     end
   end
 end

@@ -22,8 +22,9 @@ defmodule Mem0.Ingester do
   This function assumes that all the given entries belong to a single
   transcript, and it only expects to return a single scope.
   """
-  @callback scope(entries :: [map()]) :: map()
+  @callback scope(entries :: [map()]) :: {:ok, map()} | {:error, term()}
 
+  @spec decode_transcript(String.t(), module()) :: {:ok, map(), [Message.t()]} | {:error, term()}
   def decode_transcript(content, ingester) do
     with {:ok, entries} <- decode_lines(content),
          {:ok, scope} <- ingester.scope(entries),

@@ -2,7 +2,7 @@ defmodule Mem0.Ingester.Decoder do
   @moduledoc """
   Decodes strings from the transcripts into plain strings.
   """
-  @spec decode_contents([map()]) :: String.t()
+  @spec decode_contents([map()] | String.t()) :: String.t()
   def decode_contents(content) when is_binary(content) do
     decode_contents([content])
   end
@@ -14,7 +14,11 @@ defmodule Mem0.Ingester.Decoder do
     |> Enum.join("\n")
   end
 
-  @spec decode_content(map()) :: String.t()
+  @spec decode_content(map() | String.t()) :: String.t()
+  defp decode_content(text) when is_binary(text) do
+    String.trim(text)
+  end
+
   defp decode_content(%{"text" => text}) do
     text
     |> String.trim()
