@@ -13,7 +13,7 @@ defmodule Mem0.Embeddings do
     facts
     |> Stream.reject(&(&1.embedding_768 != nil))
     |> Stream.chunk_every(5)
-    |> Enum.each(fn facts ->
+    |> Enum.map(fn facts ->
       contents = Enum.map(facts, & &1.fact)
 
       with {:ok, embeddings} <- Embedder.embed(contents) do

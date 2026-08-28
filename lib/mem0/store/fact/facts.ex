@@ -3,6 +3,9 @@ defmodule Mem0.Store.Facts do
   Context module to retrieve/update/store facts in the database.
   """
 
+  import Ecto.Query
+  import Pgvector.Ecto.Query
+
   alias Mem0.Repo
   alias Mem0.Store.Fact
 
@@ -51,6 +54,26 @@ defmodule Mem0.Store.Facts do
   def get!(id), do: Repo.get!(Fact, id)
 
   @doc """
+  Returns the `n` facts most similar to `embedding`, most similar first.
+
+  Each entry is a `{similarity, fact}` tuple where similarity is
+  `1 - cosine_distance`, so higher is closer. Facts whose embedding has not
+  been computed yet are skipped. Thresholding is the caller's job.
+  """
+  @spec most_similar([float()], pos_integer()) :: [{float(), Fact.t()}]
+  def most_similar(embedding, n) when is_list(embedding) and is_integer(n) and n > 0 do
+    vector = Pgvector.new(embedding)
+
+    Fact
+    |> where([f], not is_nil(f.embedding_768))
+    |> order_by([f], asc: cosine_distance(f.embedding_768, ^vector))
+    |> limit(^n)
+    |> select([f], {cosine_distance(f.embedding_768, ^vector), f})
+    |> Repo.all()
+    |> Enum.map(fn {distance, fact} -> {1.0 - distance, fact} end)
+  end
+
+  @doc """
   Updates an existing fact.
   """
   @spec update(Fact.t(), map()) :: {:ok, Fact.t()} | {:error, Ecto.Changeset.t()}
@@ -58,5 +81,15 @@ defmodule Mem0.Store.Facts do
     fact
     |> Fact.changeset(attrs)
     |> Repo.update()
+  end
+
+  @doc """
+  Deletes an existing fact.
+
+  Returns `{:error, changeset}` when the fact was already deleted (stale).
+  """
+  @spec delete(Fact.t()) :: {:ok, Fact.t()} | {:error, Ecto.Changeset.t()}
+  def delete(%Fact{} = fact) do
+    Repo.delete(fact, stale_error_field: :id)
   end
 end

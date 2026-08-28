@@ -24,9 +24,7 @@ defmodule Mem0.Extractor do
          messages = truncate_messages(messages, scope),
          {:ok, request} <- request(messages, summary),
          {:ok, response} <- Mem0.LLM.complete(request),
-         {:ok, facts} <- decode_response(response),
-         {:ok, facts} <- store_facts(facts, scope_id),
-         :ok <- bump_scope_watermark(messages, scope) do
+         {:ok, facts} <- decode_response(response) do
       {:ok, facts}
     else
       # no messages to be extracted is not an error, well just call it ok with 0
