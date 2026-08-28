@@ -19,6 +19,9 @@ defmodule Mem0.Repo.Migrations.RecreateMessagesWithScope do
       timestamps(type: :utc_datetime_usec, updated_at: false)
     end
 
-    create index(:messages, [:scope_id, :timestamp])
+    # A message is unique on scope, timestamp, role, and hash of content.
+    create unique_index(:messages, ["scope_id", "\"timestamp\"", "role", "md5(content)"],
+             name: :messages_scope_timestamp_role_content_index
+           )
   end
 end

@@ -3,11 +3,18 @@ defmodule Mem0.Store.Messages do
   Context module to retrieve/update/store messages in the database.
   """
 
+  import Ecto.Query
+
   alias Mem0.Repo
   alias Mem0.Store.Message
+  alias Mem0.Store.Scope
 
   @doc """
-  Inserts a new message.
+  Inserts a new message, or returns the already-stored message with the same
+  `(scope, timestamp, role, content)` combination.
+
+  On conflict the existing row is left untouched — in particular a
+  previously computed `embedding` survives re-ingesting the same transcript.
 
   Returns `{:error, changeset}` when validation fails or `scope_id` does not
   reference an existing scope.
@@ -16,7 +23,13 @@ defmodule Mem0.Store.Messages do
   def create(attrs) do
     %Message{}
     |> Message.changeset(attrs)
-    |> Repo.insert()
+    |> Repo.insert(
+      # A no-op DO UPDATE rather than DO NOTHING: DO NOTHING returns no row
+      # on conflict, so the existing message's id would never come back.
+      on_conflict: {:replace, [:content]},
+      conflict_target: {:unsafe_fragment, ~s/(scope_id, "timestamp", role, md5(content))/},
+      returning: true
+    )
   end
 
   @doc """
@@ -24,6 +37,19 @@ defmodule Mem0.Store.Messages do
   """
   @spec list() :: [Message.t()]
   def list, do: Repo.all(Message)
+
+  @doc """
+  Returns the conversation for the given session: every message whose scope
+  carries that session, sorted by timestamp with id as tiebreaker.
+  """
+  @spec get_conversation(String.t()) :: [Message.t()]
+  def get_conversation(session) do
+    Message
+    |> join(:inner, [m], s in Scope, on: m.scope_id == s.id)
+    |> where([m, s], s.session == ^session)
+    |> order_by([m], asc: m.timestamp, asc: m.id)
+    |> Repo.all()
+  end
 
   @doc """
   Fetches a message by id. Returns `nil` when it does not exist.
