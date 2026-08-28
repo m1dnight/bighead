@@ -5,10 +5,6 @@ defmodule Mem0.Extractor do
 
   alias Mem0.Extractor.Prompt
   alias Mem0.Store.Message
-  alias Mem0.Store.Scope
-  alias Mem0.Store.Scopes
-
-  @max_messages 50
 
   @response_schema %{
     "additionalProperties" => false,
@@ -37,9 +33,6 @@ defmodule Mem0.Extractor do
       # facts.
       {:error, :no_messages_to_extract_from} ->
         {:ok, []}
-
-      nil ->
-        {:error, :scope_not_found}
 
       err ->
         err

@@ -29,6 +29,7 @@ defmodule Mem0.Reconciler do
     "type" => "object"
   }
 
+  @spec reconcile_facts([String.t()], [Fact.t()], integer()) :: [Fact.t()]
   def reconcile_facts(new_facts, [], scope_id) do
     new_facts
     |> Enum.map(fn new_fact ->
@@ -41,7 +42,7 @@ defmodule Mem0.Reconciler do
     new_facts
     |> Enum.map(&reconcile_fact(&1, old_facts))
     |> Enum.dedup_by(fn
-      {fact, {op, nil, _reason}} -> {op, fact.id}
+      {fact, {op, nil, _reason}} -> {op, fact}
       {_fact, {op, id, _reason}} -> {op, id}
     end)
     |> Enum.reduce([], fn {fact, operation}, facts ->
@@ -62,8 +63,8 @@ defmodule Mem0.Reconciler do
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
 
-  @spec reconcile_fact(map(), [Fact.t()]) ::
-          {map(), operation()}
+  @spec reconcile_fact(String.t(), [Fact.t()]) ::
+          {String.t(), operation()}
           | {:error, :no_facts_to_reconcile | Mem0.LLM.reason()}
           | {:error, :invalid_response, map()}
           | {:error, :invalid_json, String.t()}
@@ -75,8 +76,8 @@ defmodule Mem0.Reconciler do
     end
   end
 
-  @spec update_fact(operation(), map(), [Fact.t()], integer()) ::
-          {:ok, Fact.t() | :noop} | {:error, term()}
+  @spec update_fact(operation(), String.t(), [Fact.t()], integer()) ::
+          {:ok, Fact.t() | :noop | :deleted} | {:error, term()}
   defp update_fact({:delete, id, _reason}, _fact, facts, _scope_id) do
     case Enum.find(facts, &(&1.id == id)) do
       nil ->
@@ -94,20 +95,20 @@ defmodule Mem0.Reconciler do
         {:error, :fact_to_update_not_found}
 
       fact ->
-        Facts.update(fact, %{fact: new_fact.fact})
+        Facts.update(fact, %{fact: new_fact})
     end
   end
 
-  defp update_fact({:add, _reason}, new_fact, _facts, scope_id) do
-    Facts.create(%{fact: new_fact.fact, scope_id: scope_id})
+  defp update_fact({:add, _id, _reason}, new_fact, _facts, scope_id) do
+    Facts.create(%{fact: new_fact, scope_id: scope_id})
   end
 
-  defp update_fact({:noop, _reason}, _new_fact, _facts, _scope_id) do
+  defp update_fact({:noop, _id, _reason}, _new_fact, _facts, _scope_id) do
     {:ok, :noop}
   end
 
   # generates the request to complete via the LLM.
-  @spec request(map(), [Fact.t()]) ::
+  @spec request(String.t(), [Fact.t()]) ::
           {:ok, Mem0.LLM.request()} | {:error, :no_facts_to_reconcile}
   defp request(_fact, []) do
     {:error, :no_facts_to_reconcile}

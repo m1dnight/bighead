@@ -6,7 +6,6 @@ defmodule Mem0.Processor do
   alias Mem0.Embeddings
   alias Mem0.Extractor
   alias Mem0.Reconciler
-  alias Mem0.Store.Fact
   alias Mem0.Store.Facts
   alias Mem0.Store.Message
   alias Mem0.Store.Messages
@@ -20,10 +19,7 @@ defmodule Mem0.Processor do
   # unread and must be picked up by the next pass.
   @max_text_length 500_000
 
-  @spec process_session(String.t()) ::
-          [:ok | {:error, term()}]
-          | {:error, term()}
-          | {:error, :partial, [Fact.t()], [{map(), Ecto.Changeset.t()}]}
+  @spec process_session(String.t()) :: :ok | {:error, term()}
   def process_session(session_id) do
     with {:ok, scope} <- Scopes.get_by_session(session_id),
          messages = messages_batch(session_id, scope.last_extracted_message_id, @max_text_length),
@@ -38,6 +34,8 @@ defmodule Mem0.Processor do
       if processed_messages > 0 do
         Logger.info("#{session_id}: #{fact_count} facts from #{processed_messages} messages")
       end
+
+      :ok
     end
   end
 

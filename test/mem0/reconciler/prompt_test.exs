@@ -12,7 +12,7 @@ defmodule Mem0.Reconciler.PromptTest do
     test "renders the known facts by id and the new fact after them" do
       rendered =
         Prompt.render(
-          fact: %{fact: "Prefers Neovim"},
+          fact: "Prefers Neovim",
           facts: [%{id: 1, fact: "Uses Vim"}, %{id: 2, fact: "Works on mem0"}]
         )
 
@@ -22,7 +22,7 @@ defmodule Mem0.Reconciler.PromptTest do
     end
 
     test "no known facts still renders the new fact" do
-      rendered = Prompt.render(fact: %{fact: "Prefers Neovim"}, facts: [])
+      rendered = Prompt.render(fact: "Prefers Neovim", facts: [])
 
       assert rendered =~ "Prefers Neovim"
     end

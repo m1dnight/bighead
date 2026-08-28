@@ -38,7 +38,7 @@ defmodule Mem0.ProcessorTest do
     test "extracts, stores and embeds the session's facts", %{scope: scope} do
       set_facts_reply(["Prefers Elixir"])
 
-      assert [:ok] = Processor.process_session("session-1")
+      assert :ok = Processor.process_session("session-1")
 
       assert [fact] = Facts.list()
       assert fact.fact == "Prefers Elixir"
@@ -52,8 +52,8 @@ defmodule Mem0.ProcessorTest do
     test "a second pass over an unchanged session extracts nothing", %{scope: scope} do
       set_facts_reply(["Prefers Elixir"])
 
-      assert [:ok] = Processor.process_session("session-1")
-      assert [] = Processor.process_session("session-1")
+      assert :ok = Processor.process_session("session-1")
+      assert :ok = Processor.process_session("session-1")
 
       assert [_only_one] = Facts.list()
       assert [_only_one_call] = LLM.Stub.calls()

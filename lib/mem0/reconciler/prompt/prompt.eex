@@ -5,4 +5,4 @@
 <% end %>
 
 #--- The new fact:
-<%= @fact.fact %>
+<%= @fact %>
