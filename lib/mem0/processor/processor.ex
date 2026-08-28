@@ -5,6 +5,7 @@ defmodule Mem0.Processor do
 
   alias Mem0.Embeddings
   alias Mem0.Extractor
+  alias Mem0.Reconciler
   alias Mem0.Store.Fact
   alias Mem0.Store.Facts
   alias Mem0.Store.Message
@@ -12,10 +13,12 @@ defmodule Mem0.Processor do
   alias Mem0.Store.Scope
   alias Mem0.Store.Scopes
 
+  require Logger
+
   # The extractor reads at most this many messages per pass, so the watermark
   # may only advance over a batch of the same size — anything past it stays
   # unread and must be picked up by the next pass.
-  @batch_size 50
+  @max_text_length 500_000
 
   @spec process_session(String.t()) ::
           [:ok | {:error, term()}]
@@ -23,11 +26,18 @@ defmodule Mem0.Processor do
           | {:error, :partial, [Fact.t()], [{map(), Ecto.Changeset.t()}]}
   def process_session(session_id) do
     with {:ok, scope} <- Scopes.get_by_session(session_id),
-         messages = fetch_batch(session_id, scope),
-         {:ok, facts} <- Extractor.extract_facts(messages, "", scope.id),
-         {:ok, stored} <- store_facts(facts, scope.id),
+         messages = messages_batch(session_id, scope.last_extracted_message_id, @max_text_length),
+         {:ok, facts} <- Extractor.extract_facts(messages, ""),
+         old_facts = Facts.facts_for(scope.id),
+         facts = Reconciler.reconcile_facts(facts, old_facts, scope.id),
          {:ok, _scope} <- bump_scope_watermark(messages, scope) do
-      Embeddings.embed_facts(stored)
+      facts = Embeddings.embed_facts(facts)
+      processed_messages = Enum.count(messages)
+      fact_count = Enum.count(facts)
+
+      if processed_messages > 0 do
+        Logger.info("#{session_id}: #{fact_count} facts from #{processed_messages} messages")
+      end
     end
   end
 
@@ -35,39 +45,21 @@ defmodule Mem0.Processor do
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
 
-  # defp reconcile_facts(facts, scope_id) do
-  #   with {:ok, known_facts} <- Facts.facts_for(scope_id) do
-
-  # end
-  @spec fetch_batch(String.t(), Scope.t()) :: [Message.t()]
-  defp fetch_batch(session_id, scope) do
+  @spec messages_batch(String.t(), integer(), integer()) :: [Message.t()]
+  defp messages_batch(session_id, from_id, max_length) do
     session_id
-    |> Messages.get_session(from: scope.last_extracted_message_id)
-    |> Enum.take(@batch_size)
-  end
+    |> Messages.get_session(from: from_id)
+    |> Enum.reduce_while({0, []}, fn message, {charcount, messages} ->
+      if charcount > max_length do
+        {:halt, {charcount, messages}}
+      else
+        message_length = String.length(message.content)
 
-  @spec store_facts([String.t()], integer()) ::
-          {:ok, [Fact.t()]} | {:error, :partial, [Fact.t()], [{map(), Ecto.Changeset.t()}]}
-  defp store_facts(facts, scope_id) do
-    facts
-    |> Enum.reduce_while({[], []}, fn fact, {facts, errors} ->
-      attrs = %{fact: fact, scope_id: scope_id}
-
-      case Facts.create(attrs) do
-        {:ok, fact} ->
-          {:cont, {[fact | facts], errors}}
-
-        {:error, err} ->
-          {:halt, {facts, [{attrs, err} | errors]}}
+        {:cont, {charcount + message_length, [message | messages]}}
       end
     end)
-    |> case do
-      {facts, []} ->
-        {:ok, facts}
-
-      {facts, errs} ->
-        {:error, :partial, facts, errs}
-    end
+    |> elem(1)
+    |> Enum.reverse()
   end
 
   @spec bump_scope_watermark([Message.t()], Scope.t()) ::

@@ -39,7 +39,7 @@ defmodule Mem0.Store.FactsTest do
     end
   end
 
-  describe "list_by_scope/1" do
+  describe "facts_for/1" do
     test "returns only the scope's facts, oldest first", %{scope: scope} do
       {:ok, other} = Scopes.create(%{user: "u", project: "/w", session: "session-2"})
 
@@ -47,12 +47,12 @@ defmodule Mem0.Store.FactsTest do
       {:ok, second} = Facts.create(%{fact: "second", scope_id: scope.id})
       {:ok, _elsewhere} = Facts.create(%{fact: "elsewhere", scope_id: other.id})
 
-      assert [%{id: a}, %{id: b}] = Facts.list_by_scope(scope.id)
+      assert [%{id: a}, %{id: b}] = Facts.facts_for(scope.id)
       assert {a, b} == {first.id, second.id}
     end
 
     test "a scope with nothing known yet is an empty list", %{scope: scope} do
-      assert Facts.list_by_scope(scope.id) == []
+      assert Facts.facts_for(scope.id) == []
     end
   end
 

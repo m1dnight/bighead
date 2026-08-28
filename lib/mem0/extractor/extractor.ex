@@ -20,12 +20,15 @@ defmodule Mem0.Extractor do
   @doc """
   Extracts facts from a set of messags.
   """
-  @spec extract_facts([Message.t()], String.t() | nil, integer()) ::
+  @spec extract_facts([Message.t()], String.t() | nil) ::
           {:ok, [String.t()]} | {:error, term()}
-  def extract_facts(messages, summary, scope_id) do
-    with %Scope{} = scope <- Scopes.get(scope_id),
-         messages = truncate_messages(messages, scope),
-         {:ok, request} <- request(messages, summary),
+
+  def extract_facts([], _) do
+    {:ok, []}
+  end
+
+  def extract_facts(messages, summary) do
+    with {:ok, request} <- request(messages, summary),
          {:ok, response} <- Mem0.LLM.complete(request),
          {:ok, facts} <- decode_response(response) do
       {:ok, facts}
@@ -46,51 +49,6 @@ defmodule Mem0.Extractor do
   # ---------------------------------------------------------------------------#
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
-
-  @spec truncate_messages([Message.t()], Scope.t()) :: [Message.t()]
-  defp truncate_messages(messages, scope) do
-    case scope do
-      %{last_extracted_message_id: nil} ->
-        messages
-
-      %{last_extracted_message_id: index} ->
-        Enum.reject(messages, &(&1.id <= index))
-    end
-    |> Enum.sort_by(& &1.id, :asc)
-    |> Enum.take(@max_messages)
-  end
-
-  # @spec bump_scope_watermark([Message.t()], Scope.t()) ::
-  #         {:ok, Scope.t()} | {:error, Ecto.Changeset.t()}
-  # defp bump_scope_watermark(messages, scope) do
-  #   latest_message_id = messages |> List.last() |> Map.get(:id)
-
-  #   Scopes.set_last_extracted(scope, latest_message_id)
-  # end
-
-  # @spec store_facts([String.t()], integer()) ::
-  #         {:ok, [Fact.t()]} | {:error, :partial, [Fact.t()], [{map(), Ecto.Changeset.t()}]}
-  # defp store_facts(facts, scope_id) do
-  #   facts
-  #   |> Enum.reduce_while({[], []}, fn fact, {facts, errors} ->
-  #     attrs = %{fact: fact, scope_id: scope_id}
-
-  #     case Facts.create(attrs) do
-  #       {:ok, fact} ->
-  #         {:cont, {[fact | facts], errors}}
-
-  #       {:error, err} ->
-  #         {:halt, {facts, [{attrs, err} | errors]}}
-  #     end
-  #   end)
-  #   |> case do
-  #     {facts, []} ->
-  #       {:ok, facts}
-
-  #     {facts, errs} ->
-  #       {:error, :partial, facts, errs}
-  #   end
-  # end
 
   # generates the request to complete via the LLM.
   @spec request([Message.t()], String.t() | nil) ::

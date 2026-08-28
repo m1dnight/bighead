@@ -15,8 +15,8 @@ defmodule Mem0.Reconciler do
   @typep operation ::
            {:delete, integer(), String.t()}
            | {:update, integer(), String.t()}
-           | {:add, String.t()}
-           | {:noop, String.t()}
+           | {:add, nil, String.t()}
+           | {:noop, nil, String.t()}
 
   @response_schema %{
     "additionalProperties" => false,
@@ -29,19 +29,51 @@ defmodule Mem0.Reconciler do
     "type" => "object"
   }
 
-  @spec reconcile_fact(map(), [Fact.t()], integer()) ::
-          {:ok, Fact.t() | :noop} | {:error, term()} | {:error, atom(), term()}
-  def reconcile_fact(fact, facts, scope_id) do
-    with {:ok, request} <- request(fact, facts),
-         {:ok, response} <- Mem0.LLM.complete(request),
-         {:ok, op} <- decode_response(response) do
-      update_fact(op, fact, facts, scope_id)
-    end
+  def reconcile_facts(new_facts, [], scope_id) do
+    new_facts
+    |> Enum.map(fn new_fact ->
+      {:ok, fact} = Facts.create(%{fact: new_fact, scope_id: scope_id})
+      fact
+    end)
+  end
+
+  def reconcile_facts(new_facts, old_facts, scope_id) do
+    new_facts
+    |> Enum.map(&reconcile_fact(&1, old_facts))
+    |> Enum.dedup_by(fn
+      {fact, {op, nil, _reason}} -> {op, fact.id}
+      {_fact, {op, id, _reason}} -> {op, id}
+    end)
+    |> Enum.reduce([], fn {fact, operation}, facts ->
+      case update_fact(operation, fact, old_facts, scope_id) do
+        {:ok, :deleted} ->
+          facts
+
+        {:ok, :noop} ->
+          facts
+
+        {:ok, %Fact{} = fact} ->
+          [fact | facts]
+      end
+    end)
   end
 
   # ---------------------------------------------------------------------------#
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
+
+  @spec reconcile_fact(map(), [Fact.t()]) ::
+          {map(), operation()}
+          | {:error, :no_facts_to_reconcile | Mem0.LLM.reason()}
+          | {:error, :invalid_response, map()}
+          | {:error, :invalid_json, String.t()}
+  defp reconcile_fact(fact, facts) do
+    with {:ok, request} <- request(fact, facts),
+         {:ok, response} <- Mem0.LLM.complete(request),
+         {:ok, operation} <- decode_response(response) do
+      {fact, operation}
+    end
+  end
 
   @spec update_fact(operation(), map(), [Fact.t()], integer()) ::
           {:ok, Fact.t() | :noop} | {:error, term()}
@@ -51,7 +83,8 @@ defmodule Mem0.Reconciler do
         {:error, :fact_to_delete_not_found}
 
       fact ->
-        Facts.delete(fact)
+        {:ok, _} = Facts.delete(fact)
+        {:ok, :deleted}
     end
   end
 
@@ -104,10 +137,10 @@ defmodule Mem0.Reconciler do
         {:ok, {:update, id, reason}}
 
       {:ok, %{"event" => "ADD", "reason" => reason}} ->
-        {:ok, {:add, reason}}
+        {:ok, {:add, nil, reason}}
 
       {:ok, %{"event" => "NOOP", "reason" => reason}} ->
-        {:ok, {:noop, reason}}
+        {:ok, {:noop, nil, reason}}
 
       {:ok, other} ->
         {:error, :invalid_response, other}

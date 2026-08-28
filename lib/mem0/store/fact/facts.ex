@@ -44,8 +44,8 @@ defmodule Mem0.Store.Facts do
   @doc """
   Returns all facts known for the given scope, sorted by ascending id.
   """
-  @spec list_by_scope(integer()) :: [Fact.t()]
-  def list_by_scope(scope_id) do
+  @spec facts_for(integer()) :: [Fact.t()]
+  def facts_for(scope_id) do
     Fact
     |> where([f], f.scope_id == ^scope_id)
     |> order_by([f], asc: f.id)
