@@ -42,6 +42,32 @@ defmodule Mem0.Store.Scopes do
   def get!(id), do: Repo.get!(Scope, id)
 
   @doc """
+  Fetches the scope for a session. Returns `nil` when it does not exist.
+
+  Sessions are globally unique, so at most one scope can match.
+  """
+  @spec get_by_session(String.t()) :: {:ok, Scope.t()} | {:error, :session_does_not_exist}
+  def get_by_session(session) do
+    Repo.get_by(Scope, session: session)
+    |> case do
+      nil ->
+        {:error, :session_does_not_exist}
+
+      scope ->
+        {:ok, scope}
+    end
+  end
+
+  @doc """
+  Sets the id of the last message facts have been extracted from.
+  """
+  @spec set_last_extracted(Scope.t(), integer()) ::
+          {:ok, Scope.t()} | {:error, Ecto.Changeset.t()}
+  def set_last_extracted(%Scope{} = scope, message_id) do
+    update(scope, %{last_extracted_message_id: message_id})
+  end
+
+  @doc """
   Updates an existing scope.
 
   Returns `{:error, changeset}` when validation fails or the change would

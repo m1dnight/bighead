@@ -13,7 +13,6 @@ run_claude = fn ->
   end)
 end
 
-
 run_codex = fn ->
   Path.wildcard(".transcripts/codex/*.jsonl")
   |> Enum.map(fn path ->
@@ -28,3 +27,15 @@ run_codex = fn ->
     end
   end)
 end
+
+run = fn ->
+  run_claude.()
+  run_codex.()
+end
+
+max_scope =
+  Mem0.Store.Messages.list()
+  |> Enum.group_by(& &1.scope_id)
+  |> Enum.max_by(fn {scope_id, msgs} -> Enum.count(msgs) end)
+  |> elem(0)
+  |> Mem0.Store.Scopes.get!()
