@@ -16,14 +16,14 @@ defmodule Mem0.Store.Message do
     field :role, :string
     field :content, :string
     field :timestamp, :utc_datetime_usec
-    field :embedding, Vector
+    field :embedding_768, Vector
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
 
   def changeset(message \\ %__MODULE__{}, attrs) do
     message
-    |> cast(attrs, [:scope_id, :role, :content, :timestamp, :embedding])
+    |> cast(attrs, [:scope_id, :role, :content, :timestamp, :embedding_768])
     |> validate_required([:scope_id, :role, :content, :timestamp])
     |> validate_inclusion(:role, @roles)
     |> foreign_key_constraint(:scope_id)

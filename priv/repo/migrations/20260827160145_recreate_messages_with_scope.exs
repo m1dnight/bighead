@@ -15,7 +15,7 @@ defmodule Mem0.Repo.Migrations.RecreateMessagesWithScope do
       add :role, :text, null: false
       add :content, :text, null: false
       add :timestamp, :utc_datetime_usec, null: false
-      add :embedding, :vector, size: 768
+      add :embedding_768, :vector, size: 768
       timestamps(type: :utc_datetime_usec, updated_at: false)
     end
 

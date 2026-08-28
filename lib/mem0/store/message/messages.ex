@@ -14,7 +14,8 @@ defmodule Mem0.Store.Messages do
   `(scope, timestamp, role, content)` combination.
 
   On conflict the existing row is left untouched — in particular a
-  previously computed `embedding` survives re-ingesting the same transcript.
+  previously computed `embedding_768` survives re-ingesting the same
+  transcript.
 
   Returns `{:error, changeset}` when validation fails or `scope_id` does not
   reference an existing scope.
