@@ -66,6 +66,8 @@
           {Credo.Check.Readability.RedundantBlankLines, []},
           {Credo.Check.Readability.Semicolons, []},
           {Credo.Check.Readability.SpaceAfterCommas, []},
+          {Credo.Check.Readability.Specs,
+           [include_defp: true, files: %{included: ["lib/"], excluded: ["lib/old/"]}]},
           {Credo.Check.Readability.StringSigils, []},
           {Credo.Check.Readability.TrailingBlankLine, []},
           {Credo.Check.Readability.TrailingWhiteSpace, []},
@@ -137,10 +139,6 @@
           # and forcing either way means renaming variables across files that
           # will be regenerated. Not a rule worth the churn.
           {Credo.Check.Consistency.UnusedVariableNames, []},
-          # Revisit at Phase 3, when the port behaviours land and specs start
-          # carrying weight. Turning it on against zero domain code would just
-          # produce noise on generated Phoenix modules.
-          {Credo.Check.Readability.Specs, []},
           # Quokka rewrites to satisfy this, and on generated Phoenix code that
           # is a large diff for no benefit. Revisit if module layout drifts.
           {Credo.Check.Readability.StrictModuleLayout, []},

@@ -93,6 +93,7 @@ defmodule Mem0Web.HooksController do
     json(conn, %{lines_seen: count})
   end
 
+  @spec store({:ok, [map()], [term()]} | {:error, term()}) :: non_neg_integer()
   defp store({:ok, messages, _drops}) do
     case Messages.put(messages) do
       {:ok, count} -> count
@@ -106,6 +107,7 @@ defmodule Mem0Web.HooksController do
   # first line is the cheapest thing that distinguishes one session from
   # another. A non-binary `prompt` is a client that is not Claude Code; it gets
   # the constant rather than an exception.
+  @spec session_title(term()) :: String.t()
   defp session_title(prompt) when is_binary(prompt) do
     prompt
     |> String.split("\n", parts: 2)

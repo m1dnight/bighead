@@ -21,6 +21,7 @@ defmodule Mem0.Store.Message do
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
 
+  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(message \\ %__MODULE__{}, attrs) do
     message
     |> cast(attrs, [:scope_id, :role, :content, :timestamp, :embedding_768])

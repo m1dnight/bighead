@@ -14,6 +14,7 @@ defmodule Mem0.Store.Scope do
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
 
+  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(scope \\ %__MODULE__{}, attrs) do
     scope
     |> cast(attrs, [:user, :project, :session, :last_extracted_message_id])

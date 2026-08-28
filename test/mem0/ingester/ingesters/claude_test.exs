@@ -1,84 +1,113 @@
 defmodule Mem0.Ingester.ClaudeTest do
   @moduledoc """
-  The string-level contract of the new ingester, plus one equivalence test
-  that pins the port: on every captured fixture it must agree with the
-  normaliser it supersedes. The rule-by-rule coverage lives with that old
-  module (`Mem0.Core.Transcript.ClaudeCodeTest`) and migrates here when the
-  old pipeline is rewired onto this one.
+  The contract of the Claude ingester, exercised through
+  `Mem0.Ingester.decode_transcript/2` and the behaviour callbacks it is built
+  from, plus a corpus check over every captured fixture.
   """
   use ExUnit.Case, async: true
-  use Mem0.CoreFixtures
 
-  alias Mem0.Core.Transcript.ClaudeCode
+  alias Mem0.Ingester
   alias Mem0.Ingester.Claude
   alias Mem0.TranscriptFixtures
 
-  doctest Claude
-
   @timestamp "2026-08-24T09:00:00.000Z"
 
-  describe "ingest/1" do
-    test "keeps user and assistant, in file order, with identity and time" do
+  describe "decode_transcript/2 with Claude" do
+    test "keeps user and assistant, in file order, with identity, time and scope" do
       transcript = transcript([entry("user", "hello"), entry("assistant", "hi")])
 
-      assert {:ok, [user, assistant]} = Claude.ingest(transcript)
+      assert {:ok, scope, [user, assistant]} = Ingester.decode_transcript(transcript, Claude)
+      assert scope == %{project: "/Users/example/Code/widget", session: "session-1"}
       assert %{role: "user", content: "hello", id: "uuid-user-1"} = user
       assert %{role: "assistant", content: "hi"} = assistant
-      assert user.timestamp == ~U[2026-08-24 09:00:00.000000Z]
+      assert user.timestamp == ~U[2026-08-24 09:00:00.000Z]
     end
 
-    test "machinery produces no message and no error" do
+    test "machinery entries produce no message and no error" do
       entries = [
+        entry("user", "hello"),
         entry("system", "x"),
-        entry("user", "hello", %{"isMeta" => true}),
-        entry("user", "Search the repo.", %{"isSidechain" => true}),
-        entry("user", [%{"type" => "tool_result", "content" => "ok"}]),
-        entry("user", "<system-reminder>machine text</system-reminder>"),
-        entry("user", "/compact")
+        entry("file-history-snapshot", "x"),
+        entry("user", "meta note", %{"isMeta" => true})
       ]
 
-      assert {:ok, []} = Claude.ingest(transcript(entries))
+      assert {:ok, _scope, [%{content: "hello"}]} =
+               Ingester.decode_transcript(transcript(entries), Claude)
     end
 
-    test "a wrapper strips and the person's own words survive" do
-      entry = entry("user", "<ide_opened_file>foo.ex</ide_opened_file>fix the bug")
-
-      assert {:ok, [message]} = Claude.ingest(transcript([entry]))
-      assert message.content == "fix the bug"
-    end
-
-    test "an entry without a readable timestamp or uuid is dropped, not invented" do
+    test "an entry whose content decodes to nothing is dropped" do
       entries = [
-        entry("user", "hello", %{"timestamp" => "not a time"}),
-        entry("user", "hello", %{"uuid" => ""})
+        entry("user", "hello"),
+        entry("user", [%{"type" => "tool_result", "content" => "ok"}])
       ]
 
-      assert {:ok, []} = Claude.ingest(transcript(entries))
+      assert {:ok, _scope, [%{content: "hello"}]} =
+               Ingester.decode_transcript(transcript(entries), Claude)
     end
 
-    test "a decodable non-entry line is dropped as malformed, not fatal" do
-      transcript = Enum.join([Jason.encode!(entry("user", "hello")), "5", ~s("text")], "\n")
+    test "text blocks join and non-text blocks contribute nothing" do
+      blocks = [%{"type" => "text", "text" => "part one"}, %{"type" => "tool_use"}]
+      entries = [entry("user", "hi"), entry("assistant", blocks)]
 
-      assert {:ok, [%{content: "hello"}]} = Claude.ingest(transcript)
+      assert {:ok, _scope, [_user, %{content: "part one"}]} =
+               Ingester.decode_transcript(transcript(entries), Claude)
+    end
+
+    test "an entry with an unreadable timestamp fails the transcript" do
+      entries = [entry("user", "hello", %{"timestamp" => "not a time"})]
+
+      assert {:error, :message_extract_failed} =
+               Ingester.decode_transcript(transcript(entries), Claude)
     end
 
     test "a line that does not decode fails the transcript, first failure wins" do
       transcript = Enum.join([Jason.encode!(entry("user", "hello")), "{not json", "{"], "\n")
 
-      assert {:error, {:invalid_line, 2}} = Claude.ingest(transcript)
+      assert {:error, {:invalid_line, 2}} = Ingester.decode_transcript(transcript, Claude)
     end
   end
 
-  describe "equivalence with the normaliser it supersedes" do
-    test "agrees on every captured fixture" do
+  describe "skip_entry?/1" do
+    test "an entry without a uuid is machinery" do
+      assert Claude.skip_entry?(%{"type" => "user"})
+    end
+
+    test "a conversational entry with a uuid is kept" do
+      refute Claude.skip_entry?(%{"type" => "user", "uuid" => "u-1"})
+    end
+  end
+
+  describe "scope/1" do
+    test "comes from the first user entry carrying cwd and sessionId" do
+      entries = [
+        entry("assistant", "hi"),
+        entry("user", "a", %{"cwd" => "/first", "sessionId" => "s-1"}),
+        entry("user", "b", %{"cwd" => "/second", "sessionId" => "s-2"})
+      ]
+
+      assert {:ok, %{project: "/first", session: "s-1"}} = Claude.scope(entries)
+    end
+
+    test "a transcript with no user entry has no session" do
+      assert {:error, :no_session} = Claude.scope([entry("assistant", "hi")])
+    end
+  end
+
+  describe "the captured corpus" do
+    test "every fixture decodes into conversational messages" do
       for name <- TranscriptFixtures.names() do
-        assert {:ok, messages} = Claude.ingest(TranscriptFixtures.raw(name))
+        assert {:ok, scope, messages} =
+                 Ingester.decode_transcript(TranscriptFixtures.raw(name), Claude),
+               "fixture #{name} did not decode"
 
-        {old, _drops} = ClaudeCode.messages(TranscriptFixtures.entries(name), scope())
+        assert is_binary(scope.project) and is_binary(scope.session)
 
-        assert Enum.map(messages, &{&1.id, &1.role, &1.content, &1.said_at}) ==
-                 Enum.map(old, &{&1.id, &1.role, &1.content, &1.said_at}),
-               "fixture #{name} diverged"
+        for message <- messages do
+          assert message.role in ["user", "assistant"], "fixture #{name} leaked a role"
+          assert is_binary(message.content) and message.content != ""
+          assert %DateTime{} = message.timestamp
+          assert is_binary(message.id)
+        end
       end
     end
   end

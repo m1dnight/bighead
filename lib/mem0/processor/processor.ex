@@ -8,6 +8,8 @@ defmodule Mem0.Processor do
   alias Mem0.Store.Messages
   alias Mem0.Store.Scopes
 
+  @spec process_session(String.t()) ::
+          [:ok | {:error, term()}] | {:error, term()} | {:error, atom(), term()}
   def process_session(session_id) do
     with {:ok, scope} <- Scopes.get_by_session(session_id),
          messages = Messages.get_session(session_id, from: scope.last_extracted_message_id),

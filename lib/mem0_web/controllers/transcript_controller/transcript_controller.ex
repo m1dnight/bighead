@@ -49,6 +49,7 @@ defmodule Mem0Web.TranscriptController do
     end
   end
 
+  @spec ingest_transcript(Plug.Conn.t(), binary(), map()) :: Plug.Conn.t()
   defp ingest_transcript(conn, raw, params) do
     with {:ok, scope, messages, drops} <-
            Ingest.receive_transcript(raw, params, Ingest.default_user_id()),
@@ -69,6 +70,8 @@ defmodule Mem0Web.TranscriptController do
     end
   end
 
+  @spec read_transcript(Plug.Conn.t(), [binary()], non_neg_integer()) ::
+          {:ok, binary(), Plug.Conn.t()} | {:too_large, Plug.Conn.t()} | {:error, term()}
   defp read_transcript(conn, chunks, bytes) when bytes <= @max_transcript_bytes do
     case read_body(conn, length: 8_000_000) do
       {:ok, chunk, conn} when bytes + byte_size(chunk) <= @max_transcript_bytes ->
@@ -87,6 +90,7 @@ defmodule Mem0Web.TranscriptController do
 
   defp read_transcript(conn, _chunks, _bytes), do: {:too_large, conn}
 
+  @spec error(Plug.Conn.t(), pos_integer(), String.t()) :: Plug.Conn.t()
   defp error(conn, status, message) do
     conn
     |> put_status(status)
@@ -94,6 +98,7 @@ defmodule Mem0Web.TranscriptController do
   end
 
   # Counts and verbs, no content — what the pulse did, not what it read.
+  @spec pulse_summary({:ok, [map()]} | :nothing_new | {:error, term()}) :: map()
   defp pulse_summary({:ok, decisions}) do
     %{
       outcome: "reconciled",
@@ -105,6 +110,7 @@ defmodule Mem0Web.TranscriptController do
   defp pulse_summary(:nothing_new), do: %{outcome: "nothing_new"}
   defp pulse_summary({:error, reason}), do: %{outcome: "error", reason: error_tag(reason)}
 
+  @spec verb(tuple() | :noop) :: String.t()
   defp verb({:add, _fact}), do: "add"
   defp verb({:update, _id, _fact}), do: "update"
   defp verb({:delete, _id}), do: "delete"
@@ -112,6 +118,7 @@ defmodule Mem0Web.TranscriptController do
 
   # The reason's leading tag only: an LLM error term can carry a response
   # body, and this reply should say what kind of failure, not relay it.
+  @spec error_tag(term()) :: String.t()
   defp error_tag(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp error_tag(%module{}), do: inspect(module)
 

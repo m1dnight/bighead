@@ -57,6 +57,7 @@ defmodule Mem0.Store.Messages do
     |> Repo.all()
   end
 
+  @spec after_id(Ecto.Query.t() | module(), integer() | nil) :: Ecto.Query.t() | module()
   defp after_id(query, nil), do: query
   defp after_id(query, id), do: where(query, [m], m.id > ^id)
 

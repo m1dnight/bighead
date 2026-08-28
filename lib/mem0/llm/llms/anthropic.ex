@@ -38,6 +38,7 @@ defmodule Mem0.LLM.Anthropic do
     end
   end
 
+  @spec body(Mem0.LLM.request(), keyword()) :: map()
   defp body(request, opts) do
     %{
       model: Keyword.fetch!(opts, :model),
@@ -48,15 +49,18 @@ defmodule Mem0.LLM.Anthropic do
     |> put_present(:output_config, schema_config(Map.get(request, :schema)))
   end
 
+  @spec schema_config(map() | nil) :: map() | nil
   defp schema_config(nil), do: nil
   defp schema_config(schema), do: %{format: %{type: "json_schema", schema: schema}}
 
+  @spec put_present(map(), atom(), term()) :: map()
   defp put_present(body, _key, nil), do: body
   defp put_present(body, key, value), do: Map.put(body, key, value)
 
   # A refusal is a 200. Check it before reading content, which may be absent.
   # `stop_details` is informational and may itself be null, hence `get_in/2`
   # rather than a match: the category is a hint for the caller, not a contract.
+  @spec decode(term()) :: {:ok, Mem0.LLM.response()} | {:error, Mem0.LLM.reason()}
   defp decode(%{"stop_reason" => "refusal"} = body) do
     {:error, {:refusal, get_in(body, ["stop_details", "category"])}}
   end

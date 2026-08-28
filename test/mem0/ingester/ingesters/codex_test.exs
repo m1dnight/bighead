@@ -1,48 +1,41 @@
 defmodule Mem0.Ingester.CodexTest do
   @moduledoc """
-  The Codex rollout format, as measured on the local corpus: conversation in
-  `response_item` message payloads, machinery everywhere else, synthetic
-  content injected into the user turn behind known wrappers.
+  The contract of the Codex ingester, exercised through
+  `Mem0.Ingester.decode_transcript/2` and the behaviour callbacks it is built
+  from: conversation lives in `response_item` message payloads, the scope in
+  the `session_meta` record, machinery everywhere else.
   """
   use ExUnit.Case, async: true
 
+  alias Mem0.Ingester
   alias Mem0.Ingester.Codex
-
-  doctest Codex
 
   @timestamp "2026-08-24T09:00:00.000Z"
 
-  describe "ingest/1" do
-    test "keeps user and assistant, in file order, with identity and time" do
+  describe "decode_transcript/2 with Codex" do
+    test "keeps user and final assistant answers, in file order, with identity and time" do
       transcript =
         transcript([
+          meta(),
           record(message("user", "why is the build slow?")),
-          record(message("assistant", "The PLT is being rebuilt.", %{"id" => "msg_abc"}))
+          record(
+            message("assistant", "The PLT is being rebuilt.", %{
+              "id" => "msg_abc",
+              "phase" => "final_answer"
+            })
+          )
         ])
 
-      assert {:ok, [user, assistant]} = Codex.ingest(transcript)
+      assert {:ok, scope, [user, assistant]} = Ingester.decode_transcript(transcript, Codex)
+      assert scope == %{project: "git@github.com:example/widget.git", session: "session-1"}
       assert %{role: "user", content: "why is the build slow?", id: nil} = user
       assert %{role: "assistant", id: "msg_abc"} = assistant
-      assert user.timestamp == ~U[2026-08-24 09:00:00.000000Z]
-    end
-
-    test "text blocks join and non-text blocks contribute nothing" do
-      blocks = [
-        %{"type" => "input_text", "text" => "look at this"},
-        %{"type" => "input_image", "image_url" => "data:..."},
-        %{"type" => "input_text", "text" => "what is wrong?"}
-      ]
-
-      transcript =
-        transcript([record(%{"type" => "message", "role" => "user", "content" => blocks})])
-
-      assert {:ok, [message]} = Codex.ingest(transcript)
-      assert message.content == "look at this\nwhat is wrong?"
+      assert user.timestamp == ~U[2026-08-24 09:00:00.000Z]
     end
 
     test "machinery produces no message and no error" do
       records = [
-        %{"timestamp" => @timestamp, "type" => "session_meta", "payload" => %{"id" => "s"}},
+        meta(),
         %{"timestamp" => @timestamp, "type" => "turn_context", "payload" => %{}},
         %{
           "timestamp" => @timestamp,
@@ -54,66 +47,98 @@ defmodule Mem0.Ingester.CodexTest do
         record(message("developer", "You are assessing a request."))
       ]
 
-      assert {:ok, []} = Codex.ingest(transcript(records))
+      assert {:ok, _scope, []} = Ingester.decode_transcript(transcript(records), Codex)
     end
 
-    test "wholly synthetic user turns drop" do
+    test "an assistant message that is not the final answer is machinery" do
       records = [
-        record(
-          message("user", "<environment_context>\n<cwd>/Users/x</cwd>\n</environment_context>")
-        ),
-        record(message("user", "<turn_aborted>\nThe user interrupted.\n</turn_aborted>")),
-        record(message("user", "<recommended_plugins>\n- Figma\n</recommended_plugins>"))
+        meta(),
+        record(message("assistant", "draft thinking")),
+        record(message("assistant", "the answer", %{"phase" => "final_answer"}))
       ]
 
-      assert {:ok, []} = Codex.ingest(transcript(records))
+      assert {:ok, _scope, [%{content: "the answer"}]} =
+               Ingester.decode_transcript(transcript(records), Codex)
     end
 
-    test "the image wrapper strips and the person's own words survive" do
-      text = ~s(<image name=[Image #1] path="/tmp/shot.png">\n</image>\n[Image #1] looks weird)
-
-      assert {:ok, [message]} = Codex.ingest(transcript([record(message("user", text))]))
-      assert message.content == "[Image #1] looks weird"
-    end
-
-    test "a dangling open wrapper strips to end-of-input" do
-      text = "here is my question<environment_context>\n<cwd>/Users/x</cwd>"
-
-      assert {:ok, [message]} = Codex.ingest(transcript([record(message("user", text))]))
-      assert message.content == "here is my question"
-    end
-
-    test "wrappers stay verbatim in assistant text" do
-      text = "Codex injects <environment_context> into the first user turn."
-
-      assert {:ok, [message]} = Codex.ingest(transcript([record(message("assistant", text))]))
-      assert message.content == text
-    end
-
-    test "a record without a readable timestamp is dropped, not invented" do
-      records = [
-        Map.delete(record(message("user", "hello")), "timestamp"),
-        record(message("user", "hello"), %{"timestamp" => "not a time"})
+    test "text blocks join and non-text blocks contribute nothing" do
+      blocks = [
+        %{"type" => "input_text", "text" => "look at this"},
+        %{"type" => "input_image", "image_url" => "data:..."},
+        %{"type" => "input_text", "text" => "what is wrong?"}
       ]
 
-      assert {:ok, []} = Codex.ingest(transcript(records))
+      transcript =
+        transcript([
+          meta(),
+          record(%{"type" => "message", "role" => "user", "content" => blocks})
+        ])
+
+      assert {:ok, _scope, [message]} = Ingester.decode_transcript(transcript, Codex)
+      assert message.content == "look at this\nwhat is wrong?"
     end
 
-    test "a decodable non-record line is dropped, not fatal" do
-      transcript = Enum.join([Jason.encode!(record(message("user", "hello"))), "5", "[]"], "\n")
+    test "a record without a readable timestamp fails the transcript" do
+      records = [meta(), Map.delete(record(message("user", "hello")), "timestamp")]
 
-      assert {:ok, [%{content: "hello"}]} = Codex.ingest(transcript)
+      assert {:error, :message_extract_failed} =
+               Ingester.decode_transcript(transcript(records), Codex)
     end
 
     test "a line that does not decode fails the transcript, first failure wins" do
-      transcript =
-        Enum.join([Jason.encode!(record(message("user", "hi"))), "{not json", "{"], "\n")
+      transcript = Enum.join([Jason.encode!(meta()), "{not json", "{"], "\n")
 
-      assert {:error, {:invalid_line, 2}} = Codex.ingest(transcript)
+      assert {:error, {:invalid_line, 2}} = Ingester.decode_transcript(transcript, Codex)
+    end
+  end
+
+  describe "scope/1" do
+    test "prefers the repository url over the working directory" do
+      assert {:ok, %{project: "git@github.com:example/widget.git", session: "session-1"}} =
+               Codex.scope([meta()])
+    end
+
+    test "falls back to the working directory when there is no git remote" do
+      meta = put_in(meta(), ["payload", "git"], nil)
+
+      assert {:ok, %{project: "/Users/example/Code/widget", session: "session-1"}} =
+               Codex.scope([meta])
+    end
+
+    test "a repeated identical session_meta still resolves to one scope" do
+      assert {:ok, %{session: "session-1"}} = Codex.scope([meta(), meta()])
+    end
+
+    test "no session_meta means no project" do
+      assert {:error, :no_project} = Codex.scope([record(message("user", "hi"))])
+    end
+
+    test "a session_meta without an id has no session" do
+      meta = put_in(meta(), ["payload", "id"], nil)
+
+      assert {:error, :no_session_found} = Codex.scope([meta])
+    end
+
+    test "two conflicting session_metas are ambiguous" do
+      other = put_in(meta(), ["payload", "id"], "session-2")
+
+      assert {:error, :ambiguous_scope} = Codex.scope([meta(), other])
     end
   end
 
   defp transcript(records), do: Enum.map_join(records, "\n", &Jason.encode!/1)
+
+  defp meta do
+    %{
+      "timestamp" => @timestamp,
+      "type" => "session_meta",
+      "payload" => %{
+        "id" => "session-1",
+        "cwd" => "/Users/example/Code/widget",
+        "git" => %{"repository_url" => "git@github.com:example/widget.git"}
+      }
+    }
+  end
 
   # Shaped the way a rollout line is shaped. The `overrides` map is merged
   # last so a test can delete or corrupt any field.

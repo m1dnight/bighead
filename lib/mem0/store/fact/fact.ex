@@ -17,6 +17,7 @@ defmodule Mem0.Store.Fact do
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
 
+  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(fact \\ %__MODULE__{}, attrs) do
     fact
     |> cast(attrs, [:scope_id, :fact, :embedding_768])

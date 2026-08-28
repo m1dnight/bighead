@@ -9,7 +9,14 @@ defmodule Mem0.Reconciler do
   If there are contradictions they are reoconciled here.
   """
   alias Mem0.Reconciler.Prompt
+  alias Mem0.Store.Fact
   alias Mem0.Store.Facts
+
+  @typep operation ::
+           {:delete, integer(), String.t()}
+           | {:update, integer(), String.t()}
+           | {:add, String.t()}
+           | {:noop, String.t()}
 
   @response_schema %{
     "additionalProperties" => false,
@@ -22,6 +29,8 @@ defmodule Mem0.Reconciler do
     "type" => "object"
   }
 
+  @spec reconcile_fact(map(), [Fact.t()], integer()) ::
+          {:ok, Fact.t() | :noop} | {:error, term()} | {:error, atom(), term()}
   def reconcile_fact(fact, facts, scope_id) do
     with {:ok, request} <- request(fact, facts),
          {:ok, response} <- Mem0.LLM.complete(request),
@@ -30,11 +39,12 @@ defmodule Mem0.Reconciler do
     end
   end
 
-
   # ---------------------------------------------------------------------------#
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
 
+  @spec update_fact(operation(), map(), [Fact.t()], integer()) ::
+          {:ok, Fact.t() | :noop} | {:error, term()}
   defp update_fact({:delete, id, _reason}, _fact, facts, _scope_id) do
     case Enum.find(facts, &(&1.id == id)) do
       nil ->
@@ -59,11 +69,13 @@ defmodule Mem0.Reconciler do
     Facts.create(%{fact: new_fact.fact, scope_id: scope_id})
   end
 
-  defp update_fact({:noop, _reason}, new_fact, _facts, scope_id) do
+  defp update_fact({:noop, _reason}, _new_fact, _facts, _scope_id) do
     {:ok, :noop}
   end
 
   # generates the request to complete via the LLM.
+  @spec request(map(), [Fact.t()]) ::
+          {:ok, Mem0.LLM.request()} | {:error, :no_facts_to_reconcile}
   defp request(_fact, []) do
     {:error, :no_facts_to_reconcile}
   end
@@ -79,6 +91,10 @@ defmodule Mem0.Reconciler do
      }}
   end
 
+  @spec decode_response(Mem0.LLM.response()) ::
+          {:ok, operation()}
+          | {:error, :invalid_response, map()}
+          | {:error, :invalid_json, String.t()}
   defp decode_response(%{content: json_str}) do
     case Jason.decode(json_str) do
       {:ok, %{"event" => "DELETE", "id" => id, "reason" => reason}} ->

@@ -34,7 +34,6 @@ defmodule Mem0.Reconciler.Prompt do
   - "reason" states, in one sentence, why the rule you chose matched.
   """
 
-
   @doc """
   Renders the full system prompt: the extraction instructions followed by
   the given messages.
@@ -51,6 +50,7 @@ defmodule Mem0.Reconciler.Prompt do
     |> render_template()
   end
 
+  @spec system_prompt() :: String.t()
   def system_prompt, do: @system_prompt
 
   EEx.function_from_file(:defp, :render_template, @template, [:assigns])

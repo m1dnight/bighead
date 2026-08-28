@@ -77,6 +77,8 @@ defmodule Mem0.Ingester do
     end
   end
 
+  @spec extract_messages([map()], module()) ::
+          {:ok, [message()]} | {:error, :message_extract_failed}
   defp extract_messages(entries, ingester) do
     entries
     |> Enum.reject(&ingester.skip_entry?/1)

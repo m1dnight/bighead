@@ -35,6 +35,7 @@ defmodule Mem0.Application do
   # database, and a connection pool retrying against a stopped container fills
   # an otherwise-passing run with red. Everything else leaves it alone and gets
   # the Repo, so this cannot silently disable persistence in dev or prod.
+  @spec repo_children() :: [module()]
   defp repo_children do
     if Application.get_env(:mem0, :start_repo, true), do: [Mem0.Repo], else: []
   end
