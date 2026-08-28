@@ -36,21 +36,16 @@ defmodule Mem0.ExtractorTest do
   end
 
   describe "extract_facts/3" do
-    test "stores the extracted facts and bumps the watermark", %{
+    test "returns the extracted facts and neither stores nor advances anything", %{
       scope: scope,
       messages: messages
     } do
       set_facts_reply(["Prefers Elixir"])
 
-      assert {:ok, [fact]} = Extractor.extract_facts(messages, "", scope.id)
-      assert fact.fact == "Prefers Elixir"
-      assert fact.scope_id == scope.id
+      assert {:ok, ["Prefers Elixir"]} = Extractor.extract_facts(messages, "", scope.id)
 
-      assert [stored] = Facts.list()
-      assert stored.id == fact.id
-
-      last_id = messages |> List.last() |> Map.fetch!(:id)
-      assert Scopes.get(scope.id).last_extracted_message_id == last_id
+      assert Facts.list() == []
+      assert Scopes.get(scope.id).last_extracted_message_id == nil
     end
 
     test "asks with the extraction prompt, the schema and the conversation", %{

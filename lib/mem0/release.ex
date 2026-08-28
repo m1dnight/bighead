@@ -25,7 +25,7 @@ defmodule Mem0.Release do
     Application.fetch_env!(@app, :ecto_repos)
   end
 
-  @spec load_app() :: {:ok, [atom()]} | {:error, term()}
+  @spec load_app() :: :ok | {:error, term()}
   defp load_app do
     # Many platforms require SSL when connecting to the database
     Application.ensure_all_started(:ssl)

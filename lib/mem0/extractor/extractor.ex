@@ -4,8 +4,6 @@ defmodule Mem0.Extractor do
   """
 
   alias Mem0.Extractor.Prompt
-  alias Mem0.Store.Fact
-  alias Mem0.Store.Facts
   alias Mem0.Store.Message
   alias Mem0.Store.Scope
   alias Mem0.Store.Scopes
@@ -23,15 +21,13 @@ defmodule Mem0.Extractor do
   Extracts facts from a set of messags.
   """
   @spec extract_facts([Message.t()], String.t() | nil, integer()) ::
-          {:ok, [Fact.t()]}
-          | {:error, term()}
-          | {:error, :partial, [Fact.t()], [{map(), Ecto.Changeset.t()}]}
+          {:ok, [String.t()]} | {:error, term()}
   def extract_facts(messages, summary, scope_id) do
-    with scope when not is_nil(scope) <- Scopes.get(scope_id),
+    with %Scope{} = scope <- Scopes.get(scope_id),
          messages = truncate_messages(messages, scope),
          {:ok, request} <- request(messages, summary),
          {:ok, response} <- Mem0.LLM.complete(request),
-         {:ok, facts} <- decode_response(response)  do
+         {:ok, facts} <- decode_response(response) do
       {:ok, facts}
     else
       # no messages to be extracted is not an error, well just call it ok with 0

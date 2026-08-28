@@ -2,7 +2,7 @@ defmodule Mem0.Ingester.Decoder do
   @moduledoc """
   Decodes strings from the transcripts into plain strings.
   """
-  @spec decode_contents([map()] | String.t()) :: String.t()
+  @spec decode_contents([map() | String.t()] | String.t()) :: String.t()
   def decode_contents(content) when is_binary(content) do
     decode_contents([content])
   end
