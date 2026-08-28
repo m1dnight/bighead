@@ -1,20 +1,31 @@
 defmodule Mem0.Store.Message do
-  # use Ecto.Schema
+  use Ecto.Schema
 
-  # alias Pgvector.Ecto.Vector
+  import Ecto.Changeset
 
-  # @primary_key {:id, :string, autogenerate: false}
-  # schema "messages" do
-  #   field :user_id, :string
-  #   field :project, :string
-  #   field :session, :string
-  #   field :role, :string
-  #   field :content, :string
-  #   field :said_at, :utc_datetime_usec
-  #   field :seq, :integer
-  #   field :embedding, Vector
+  alias Mem0.Store.Scope
+  alias Pgvector.Ecto.Vector
 
-  #   timestamps(type: :utc_datetime_usec, updated_at: false)
-  # end
+  @type t :: %__MODULE__{}
 
+  @roles ~w(user assistant system)
+
+  schema "messages" do
+    belongs_to :scope, Scope
+
+    field :role, :string
+    field :content, :string
+    field :timestamp, :utc_datetime_usec
+    field :embedding, Vector
+
+    timestamps(type: :utc_datetime_usec, updated_at: false)
+  end
+
+  def changeset(message \\ %__MODULE__{}, attrs) do
+    message
+    |> cast(attrs, [:scope_id, :role, :content, :timestamp, :embedding])
+    |> validate_required([:scope_id, :role, :content, :timestamp])
+    |> validate_inclusion(:role, @roles)
+    |> foreign_key_constraint(:scope_id)
+  end
 end

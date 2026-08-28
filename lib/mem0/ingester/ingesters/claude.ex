@@ -1,13 +1,12 @@
 defmodule Mem0.Ingester.Claude do
   @moduledoc """
   Ingests JSON entries form transcripts in a Claude chat, and converts them to
-  `Message`s.
+  `t:Mem0.Ingester.message/0` maps.
   """
 
   @behaviour Mem0.Ingester
 
   alias Mem0.Ingester.Decoder
-  alias Mem0.Ingester.Message
 
   # The entry `type`s that are bookkeeping rather than conversation. Kept in
   # sync with the jq filter in `scripts/dev/clean_claude.sh`.
@@ -48,7 +47,7 @@ defmodule Mem0.Ingester.Claude do
       content = Decoder.decode_contents(contents)
 
       {:ok,
-       %Message{
+       %{
          id: id,
          role: role,
          content: content,

@@ -2,8 +2,7 @@ defmodule Mem0.Repo.Migrations.CreateScopes do
   use Ecto.Migration
 
   def change do
-    create table(:scopes, primary_key: false) do
-      add :id, :text, primary_key: true
+    create table(:scopes) do
       add :user, :text, null: false
       add :project, :text
       add :session, :text

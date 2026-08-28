@@ -1,13 +1,12 @@
 defmodule Mem0.Ingester.Codex do
   @moduledoc """
   Ingests JSON entries form transcripts in a Codex chat, and converts them to
-  `Message`s.
+  `t:Mem0.Ingester.message/0` maps.
   """
 
   @behaviour Mem0.Ingester
 
   alias Mem0.Ingester.Decoder
-  alias Mem0.Ingester.Message
 
   @impl true
   # a user message in a response_item is kept.
@@ -32,7 +31,7 @@ defmodule Mem0.Ingester.Codex do
     true
   end
 
-  # Converts a raw entry from a Codex log into a Message struct.
+  # Converts a raw entry from a Codex log into a message map.
   @impl true
   def parse_entry(%{"type" => "response_item"} = entry) when is_map(entry) do
     with {:ok, payload} <- Map.fetch(entry, "payload"),
@@ -44,7 +43,7 @@ defmodule Mem0.Ingester.Codex do
       content = Decoder.decode_contents(contents)
 
       {:ok,
-       %Message{
+       %{
          id: id,
          role: role,
          content: content,

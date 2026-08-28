@@ -7,7 +7,6 @@ defmodule Mem0.Ingester.CodexTest do
   use ExUnit.Case, async: true
 
   alias Mem0.Ingester.Codex
-  alias Mem0.Ingester.Message
 
   doctest Codex
 
@@ -22,9 +21,9 @@ defmodule Mem0.Ingester.CodexTest do
         ])
 
       assert {:ok, [user, assistant]} = Codex.ingest(transcript)
-      assert %Message{role: :user, content: "why is the build slow?", id: nil} = user
-      assert %Message{role: :assistant, id: "msg_abc"} = assistant
-      assert user.said_at == ~U[2026-08-24 09:00:00.000000Z]
+      assert %{role: "user", content: "why is the build slow?", id: nil} = user
+      assert %{role: "assistant", id: "msg_abc"} = assistant
+      assert user.timestamp == ~U[2026-08-24 09:00:00.000000Z]
     end
 
     test "text blocks join and non-text blocks contribute nothing" do

@@ -11,7 +11,6 @@ defmodule Mem0.Ingester.ClaudeTest do
 
   alias Mem0.Core.Transcript.ClaudeCode
   alias Mem0.Ingester.Claude
-  alias Mem0.Ingester.Message
   alias Mem0.TranscriptFixtures
 
   doctest Claude
@@ -23,9 +22,9 @@ defmodule Mem0.Ingester.ClaudeTest do
       transcript = transcript([entry("user", "hello"), entry("assistant", "hi")])
 
       assert {:ok, [user, assistant]} = Claude.ingest(transcript)
-      assert %Message{role: :user, content: "hello", id: "uuid-user-1"} = user
-      assert %Message{role: :assistant, content: "hi"} = assistant
-      assert user.said_at == ~U[2026-08-24 09:00:00.000000Z]
+      assert %{role: "user", content: "hello", id: "uuid-user-1"} = user
+      assert %{role: "assistant", content: "hi"} = assistant
+      assert user.timestamp == ~U[2026-08-24 09:00:00.000000Z]
     end
 
     test "machinery produces no message and no error" do

@@ -3,27 +3,28 @@ run_claude = fn ->
   |> Enum.map(fn path ->
     content = File.read!(path)
 
-    case Mem0.Ingester.decode_transcript(content, Mem0.Ingester.Claude) do
-      {:ok, scope, messages} ->
-        {:ok, scope, messages}
+    case Mem0.Importer.import_transcript(content, Mem0.Ingester.Claude) do
+      {:ok, _messages} ->
+        :ok
 
-      {:error, err} ->
-        IO.inspect(err)
+      err ->
+        IO.puts(inspect(err, pretty: true, limit: 1000))
     end
   end)
 end
+
 
 run_codex = fn ->
   Path.wildcard(".transcripts/codex/*.jsonl")
   |> Enum.map(fn path ->
     content = File.read!(path)
 
-    case Mem0.Ingester.decode_transcript(content, Mem0.Ingester.Codex) do
-      {:ok, scope, messages} ->
-        {:ok, scope, messages}
+    case Mem0.Importer.import_transcript(content, Mem0.Ingester.Codex) do
+      {:ok, _messages} ->
+        :ok
 
-      {:error, err} ->
-        IO.puts("#{path}: #{inspect(err)}")
+      err ->
+        IO.puts(inspect(err, pretty: true, limit: 1000))
     end
   end)
 end

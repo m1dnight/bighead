@@ -4,12 +4,31 @@ defmodule Mem0.Ingester do
   into messages we care about.
   """
 
-  alias Mem0.Ingester.Message
+  @typedoc """
+  The shape into which all messages from all agents have to be put in order
+  for them to go further into the Mem0 pipeline.
+
+  A plain map rather than a struct: it is fed into
+  `Mem0.Store.Message.changeset/2` as attrs, so `role` stays the raw string
+  the changeset validates.
+  """
+  @type message :: %{
+          id: String.t() | nil,
+          role: String.t(),
+          content: String.t(),
+          timestamp: DateTime.t()
+        }
+
+  @typedoc """
+  The scope a transcript belongs to, as attrs for
+  `Mem0.Store.Scope.changeset/2`.
+  """
+  @type scope :: %{project: String.t(), session: String.t()}
 
   @doc """
-  Parses a map into a `Message` struct for further processing.
+  Parses a raw entry into a `t:message/0` map for further processing.
   """
-  @callback parse_entry(entry :: map()) :: {:ok, Message.t()} | {:error, term()}
+  @callback parse_entry(entry :: map()) :: {:ok, message()} | {:error, term()}
 
   @doc """
   Given a decoded entry, checks if this entry should be discarded or not.
@@ -22,9 +41,10 @@ defmodule Mem0.Ingester do
   This function assumes that all the given entries belong to a single
   transcript, and it only expects to return a single scope.
   """
-  @callback scope(entries :: [map()]) :: {:ok, map()} | {:error, term()}
+  @callback scope(entries :: [map()]) :: {:ok, scope()} | {:error, term()}
 
-  @spec decode_transcript(String.t(), module()) :: {:ok, map(), [Message.t()]} | {:error, term()}
+  @spec decode_transcript(String.t(), module()) ::
+          {:ok, scope(), [message()]} | {:error, term()}
   def decode_transcript(content, ingester) do
     with {:ok, entries} <- decode_lines(content),
          {:ok, scope} <- ingester.scope(entries),

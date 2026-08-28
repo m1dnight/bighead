@@ -5,7 +5,6 @@ defmodule Mem0.Store.Scope do
 
   @type t :: %__MODULE__{}
 
-  @primary_key {:id, :string, autogenerate: false}
   schema "scopes" do
     field :user, :string
     field :project, :string
@@ -16,8 +15,8 @@ defmodule Mem0.Store.Scope do
 
   def changeset(scope \\ %__MODULE__{}, attrs) do
     scope
-    |> cast(attrs, [:id, :user, :project, :session])
-    |> validate_required([:id, :user])
+    |> cast(attrs, [:user, :project, :session])
+    |> validate_required([:user])
     |> unique_constraint([:user, :project, :session])
   end
 end
