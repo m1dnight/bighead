@@ -42,11 +42,24 @@ defmodule Mem0.Store.Messages do
   Returns the conversation for the given session: every message whose scope
   carries that session, sorted by timestamp with id as tiebreaker.
   """
-  @spec get_conversation(String.t()) :: [Message.t()]
-  def get_conversation(session) do
+  @spec get_session(String.t()) :: [Message.t()]
+  def get_session(session) do
     Message
     |> join(:inner, [m], s in Scope, on: m.scope_id == s.id)
     |> where([m, s], s.session == ^session)
+    |> order_by([m], asc: m.timestamp, asc: m.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns every message whose scope carries the given project, across all of
+  its sessions, sorted by timestamp with id as tiebreaker.
+  """
+  @spec get_project(String.t()) :: [Message.t()]
+  def get_project(project) do
+    Message
+    |> join(:inner, [m], s in Scope, on: m.scope_id == s.id)
+    |> where([m, s], s.project == ^project)
     |> order_by([m], asc: m.timestamp, asc: m.id)
     |> Repo.all()
   end

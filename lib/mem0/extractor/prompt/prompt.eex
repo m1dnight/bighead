@@ -1,0 +1,3 @@
+<%= for message <- @messages do %>
+<%= message.role %>: <%= message.content %>
+<% end %>
