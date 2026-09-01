@@ -22,30 +22,29 @@ defmodule Mem0Web.Router do
     get "/", PageController, :home
   end
 
-  # Bound to loopback in dev (see `config/dev.exs`), and that matters more now
-  # than it will later: this accepts conversation transcripts and, until bearer
-  # tokens land, no credentials at all. It should not be reachable off-box by
-  # accident.
-  scope "/hooks", Mem0Web do
-    pipe_through :api
+  scope "/v1" do
+    scope "/hooks", Mem0Web do
+      pipe_through :api
 
-    post "/user-prompt-submit", HooksController, :user_prompt_submit
-    post "/stop", HooksController, :stop
-    post "/snapshot", HooksController, :snapshot
+      post "/user-prompt-submit", HooksController, :user_prompt_submit
+      post "/stop", HooksController, :stop
+      post "/snapshot", HooksController, :snapshot
 
-    # mem0's own, not Claude Code hook events. `lines-seen` is a read and takes
-    # its scope from the query string; `backfill` writes.
-    get "/lines-seen", HooksController, :lines_seen
-    post "/backfill", HooksController, :backfill
-  end
+      # mem0's own, not Claude Code hook events. `lines-seen` is a read and takes
+      # its scope from the query string; `backfill` writes.
+      get "/lines-seen", HooksController, :lines_seen
+      post "/backfill", HooksController, :backfill
+    end
 
-  # An operator's tool, not hook machinery: a whole session file as raw JSON
-  # Lines, and the full write path — messages stored, facts extracted and
-  # reconciled — runs in one request. Same no-credentials caveat as `/hooks`.
-  scope "/", Mem0Web do
-    pipe_through :api
+    # An operator's tool, not hook machinery: a whole session file as raw JSON
+    # Lines, and the full write path — messages stored, facts extracted and
+    # reconciled — runs in one request. Same no-credentials caveat as `/hooks`.
+    scope "/", Mem0Web do
+      pipe_through :api
 
-    post "/transcripts", TranscriptController, :create
+      post "/transcripts", TranscriptController, :create
+      post "/diffs", DiffController, :create
+    end
   end
 
   # Other scopes may use custom stacks.
