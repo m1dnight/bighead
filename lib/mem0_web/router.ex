@@ -31,6 +31,7 @@ defmodule Mem0Web.Router do
 
     post "/user-prompt-submit", HooksController, :user_prompt_submit
     post "/stop", HooksController, :stop
+    post "/snapshot", HooksController, :snapshot
 
     # mem0's own, not Claude Code hook events. `lines-seen` is a read and takes
     # its scope from the query string; `backfill` writes.

@@ -62,6 +62,18 @@ defmodule Mem0Web.HooksController do
   end
 
   @doc """
+  `scripts/hooks/snapshot.py` forwards every event it handles here — the raw
+  `PostToolUse` and `UserPromptSubmit` payloads. Plumbing only for now: print
+  the payload, store nothing.
+  """
+  @spec snapshot(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def snapshot(conn, params) do
+    IO.inspect(params, label: "snapshot hook", limit: :infinity)
+
+    json(conn, %{})
+  end
+
+  @doc """
   A hook file can read a whole transcript and backfill the lines here in chunks.
 
   When the script is called, the script could be several hundred lines, and we

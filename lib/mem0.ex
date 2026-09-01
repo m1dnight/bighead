@@ -38,4 +38,26 @@ defmodule Mem0 do
       end
     end)
   end
+
+  @doc """
+  Computes the factorial of a non-negative integer.
+
+      iex> Mem0.factorial(5)
+      120
+  """
+  @spec factorial(non_neg_integer()) :: pos_integer()
+  def factorial(0) do
+    1
+  end
+  def factorial(n) when is_integer(n) and n > 0, do: n * factorial(n - 1)
+
+  @doc """
+  Returns the lowest number in a non-empty list.
+
+      iex> Mem0.lowest([3, 1, 2])
+      1
+  """
+  @spec lowest([number(), ...]) :: number()
+  def lowest([x]), do: x
+  def lowest([head | tail]), do: min(head, lowest(tail))
 end

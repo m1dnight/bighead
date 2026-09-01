@@ -7,20 +7,51 @@ claude --settings '{
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/user-prompt-submit.sh 50"
+            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
           }
         ]
       }
     ],
-        "Stop": [
+    "SessionStart": [
+      {
+        "hooks": [
           {
-            "hooks": [
-              {
-                "type": "command",
-                "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/stop.py"
-              }
-            ]
+            "type": "command",
+            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
           }
         ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+          }
+        ]
+      }
+    ]
   }
 }'
