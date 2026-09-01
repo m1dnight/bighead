@@ -16,7 +16,7 @@ defmodule Mem0Web.DiffController do
 
       curl -X POST -H 'content-type: application/json' \\
         -d '{"file": "lib/foo.ex", "diff": "@@ -1 +1 @@..."}' \\
-        http://localhost:4000/diffs
+        http://localhost:4000/v1/diffs
 
   Posting the same payload twice is safe — the store dedups on file and diff
   text, and the reply carries the existing row's id.
@@ -25,7 +25,7 @@ defmodule Mem0Web.DiffController do
   def create(conn, %{"file" => file, "diff" => diff}) when is_binary(file) and is_binary(diff) do
     case Diffs.create(%{file: file, diff: diff}) do
       {:ok, stored} ->
-        json(conn, %{id: stored.id, file: stored.file})
+        render(conn, :create, diff: stored)
 
       # The guard already ensured both fields are binaries, so this is a
       # blank file or diff — a shape problem, same answer as the clause below.
@@ -34,12 +34,14 @@ defmodule Mem0Web.DiffController do
     end
   end
 
-  def create(conn, _params), do: invalid_payload(conn)
+  def create(conn, _params) do
+     invalid_payload(conn)
+  end
 
   @spec invalid_payload(Plug.Conn.t()) :: Plug.Conn.t()
   defp invalid_payload(conn) do
     conn
     |> put_status(422)
-    |> json(%{error: ~s(expected {"file": <path>, "diff": <diff text>})})
+    |> render(:error)
   end
 end
