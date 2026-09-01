@@ -1,7 +1,7 @@
 defmodule Mem0.CodeExtractor.Prompt do
   @moduledoc """
-  Renders a list of messages into the conversation block of the extractor's
-  system prompt.
+  Renders one diff — the file it touches and the diff text — into the user
+  prompt of the code extractor.
   """
 
   require EEx
@@ -61,13 +61,9 @@ defmodule Mem0.CodeExtractor.Prompt do
   """
 
   @doc """
-  Renders the full system prompt: the extraction instructions followed by
-  the given messages.
+  Renders the user prompt: the file name followed by the diff text.
 
-      Prompt.render(messages: messages)
-
-  `@system_prompt` is filled in automatically; passing an explicit
-  `:system_prompt` assign overrides the built-in instructions.
+      Prompt.render(file: diff.file, diff: diff.diff)
   """
   @spec render(keyword() | map()) :: String.t()
   def render(assigns) do
