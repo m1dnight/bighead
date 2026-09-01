@@ -33,6 +33,8 @@ defmodule Mem0Web.TranscriptController do
 
       {:error, :failed_to_read_transcript} ->
         error(conn, 400, "could not read the request body")
+      {:error, _err} ->
+        error(conn, 500, "could not import transcript")
     end
   end
 

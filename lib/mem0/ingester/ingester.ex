@@ -6,6 +6,8 @@ defmodule Mem0.Ingester do
 
   import Util
 
+  require Logger
+
   @typedoc """
   The shape into which all messages from all agents have to be put in order for
   them to go further into the Mem0 pipeline. This means that transcripts from
@@ -78,13 +80,14 @@ defmodule Mem0.Ingester do
   defp extract_messages(entries, ingester) do
     entries
     |> Enum.reject(&ingester.skip_entry?/1)
-    |> traverse(&ingester.parse_entry/1)
+    |> partition_map(&ingester.parse_entry/1)
     |> case do
-      {:ok, messages} ->
+      {messages, []} ->
         {:ok, messages}
 
-      {:error, _err} ->
-        {:error, :message_extract_failed}
+      {messages, failed} ->
+        Logger.warning("Failed to import some messages: #{inspect(failed)}")
+        {:ok, messages}
     end
   end
 end

@@ -78,6 +78,45 @@ is augmented with information retrieval in mem0.
 5. The prompt is sent to the LLM.
 
 
+## Ingestion Pipeline
+
+Capture is deliberately dumb: on every `Stop` and `SessionEnd`, the hook script
+posts the *whole* transcript file to the server as raw JSON Lines. The server
+owns everything interesting — parsing, dedup, and fact extraction.
+
+```
+Claude Code session
+  |
+  |  Stop / SessionEnd: hook.py posts the whole transcript .jsonl
+  |  to /v1/transcripts as raw JSON Lines
+  v
+TranscriptController -> Importer -> Ingester.decode_transcript
+  |
+  |
+  +-> scopes      scope from the file's own sessionId + cwd
+  +-> messages    upsert; dedup on (scope, timestamp, role, md5(content))
+        |
+        |  past the scope watermark
+        |  (Processor.process_session, separate pass)
+        v
+      Extractor (LLM) -> Reconciler -> Embeddings -> facts
+```
+
+Two invariants make "post the whole file, every turn" correct:
+
+- **The message store is idempotent.** `Messages.create` upserts on
+`(scope, timestamp, role, md5(content))`, so a re-posted transcript stores
+nothing new.
+- **Extraction is incremental.** Each scope carries a watermark
+(`last_extracted_message_id`); a processor pass only reads messages past it,
+extracts facts with the LLM, reconciles them against the facts already
+stored, embeds the result, and bumps the watermark.
+
+The two stages are decoupled on purpose. Capture happens per turn over HTTP;
+extraction is a pass over whatever accumulated (today via
+`Mem0.process_all_sessions/0`), so a failed or skipped pass is retried for
+free the next time it runs.
+
 ## Improvements
 
 - Improve search (the way mem0 actually does it). Build a separate index for words (e.g., names, tech vocabulary, ..) and then do a word search, meaning search, and name search. This will yield a bigger set of potentially relevant resources.

@@ -43,9 +43,8 @@ defmodule Mem0.Ingester.Claude do
          {:ok, timestamp, _} <- DateTime.from_iso8601(timestamp),
          {:ok, role} <- Map.fetch(entry, "type"),
          {:ok, content} <- Map.fetch(entry, "message"),
-         {:ok, contents} <- Map.fetch(content, "content") do
-      content = Decoder.decode_contents(contents)
-
+         {:ok, contents} <- Map.fetch(content, "content"),
+         content when content != "" <- Decoder.decode_contents(contents) do
       {:ok,
        %{
          id: id,

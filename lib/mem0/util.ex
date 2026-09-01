@@ -25,4 +25,22 @@ defmodule Util do
       {:error, _} = error -> error
     end
   end
+
+  @doc """
+  Maps a function over a list and partitions the results: the successful
+  values in the first list, the error reasons in the second, both in input
+  order.  Similar to Haskell's `partitionEithers`.
+  """
+  @spec partition_map([a], (a -> {:ok, b} | {:error, c})) :: {[b], [c]} when a: var, b: var, c: var
+  def partition_map(list, fun) do
+    {oks, errors} =
+      Enum.reduce(list, {[], []}, fn item, {oks, errors} ->
+        case fun.(item) do
+          {:ok, value} -> {[value | oks], errors}
+          {:error, reason} -> {oks, [reason | errors]}
+        end
+      end)
+
+    {Enum.reverse(oks), Enum.reverse(errors)}
+  end
 end

@@ -12,9 +12,6 @@ defmodule Mem0.Importer do
   @doc """
   Given the content of transcript and an ingester, parses and stores all the
   messages from this transcript.
-
-  Returns the scope alongside the stored messages so callers can hand the
-  session on to `Mem0.Processor` without re-deriving it from the file.
   """
   @spec import_transcript(String.t(), module()) ::
           {:ok, Scope.t(), [Message.t()]}
@@ -28,6 +25,10 @@ defmodule Mem0.Importer do
     end
   end
 
+  # ---------------------------------------------------------------------------#
+  #                                Helpers                                     #
+  # ---------------------------------------------------------------------------#
+
   @spec store_messages([map()], Scope.t()) ::
           {:ok, [Message.t()]}
           | {:error, :partial, [Message.t()], [{map(), Ecto.Changeset.t()}]}
@@ -35,6 +36,5 @@ defmodule Mem0.Importer do
     messages
     |> Enum.map(&Map.put(&1, :scope_id, scope.id))
     |> Messages.create_many()
-    |> tap(&IO.inspect(&1, label: "create_many", limit: 10))
   end
 end
