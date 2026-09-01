@@ -14,6 +14,7 @@ defmodule Mem0Web.TranscriptController do
 
   alias Mem0.Importer
   alias Mem0.Ingester.Claude
+  alias Mem0.Refresher
 
   # A whole transcript held in memory at once; past this the request is
   # refused rather than the VM grown without bound.
@@ -26,6 +27,10 @@ defmodule Mem0Web.TranscriptController do
   def create(conn, _params) do
     with {:ok, body} <- fetch_body(conn, @max_transcript_bytes),
          {:ok, scope, messages} <- Importer.import_transcript(body, Claude) do
+      # Fire-and-forget: extraction happens off the request path, and a cast
+      # to a refresher that is not running (test) is a silent no-op.
+      Refresher.poke()
+
       render(conn, :create, messages: messages, session: scope)
     else
       {:error, :transcript_exceeds_size} ->
@@ -33,6 +38,7 @@ defmodule Mem0Web.TranscriptController do
 
       {:error, :failed_to_read_transcript} ->
         error(conn, 400, "could not read the request body")
+
       {:error, _err} ->
         error(conn, 500, "could not import transcript")
     end

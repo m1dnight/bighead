@@ -18,7 +18,7 @@ defmodule Mem0.Application do
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Mem0.Supervisor]
-    Supervisor.start_link(repo_children() ++ children, opts)
+    Supervisor.start_link(repo_children() ++ children ++ refresher_children(), opts)
   end
 
   # `mix test.core` sets this to `false`: the functional core's suite touches no
@@ -28,6 +28,14 @@ defmodule Mem0.Application do
   @spec repo_children() :: [module()]
   defp repo_children do
     if Application.get_env(:mem0, :start_repo, true), do: [Mem0.Repo], else: []
+  end
+
+  # `config/test.exs` sets this to `false`: the refresher queries the database
+  # on its own timer, outside any test's sandbox ownership, and would call the
+  # LLM besides. Dev and prod leave it alone and get the sweep.
+  @spec refresher_children() :: [module()]
+  defp refresher_children do
+    if Application.get_env(:mem0, :start_refresher, true), do: [Mem0.Refresher], else: []
   end
 
   # Tell Phoenix to update the endpoint configuration

@@ -5,6 +5,7 @@ defmodule Mem0.Store.ScopesTest do
   """
   use Mem0.DataCase, async: true
 
+  alias Mem0.Store.Messages
   alias Mem0.Store.Scopes
 
   @attrs %{user: "christophe", project: "/code/widget", session: "session-1"}
@@ -64,5 +65,43 @@ defmodule Mem0.Store.ScopesTest do
       assert updated.last_extracted_message_id == 42
       assert Scopes.get(scope.id).last_extracted_message_id == 42
     end
+  end
+
+  describe "stale/0" do
+    test "a scope with no messages is not stale" do
+      {:ok, _scope} = Scopes.create(@attrs)
+
+      assert Scopes.stale() == []
+    end
+
+    test "a never-extracted scope with a message is stale" do
+      {:ok, scope} = Scopes.create(@attrs)
+      {:ok, _message} = Messages.create(message_attrs(scope, "hello"))
+
+      assert [stale] = Scopes.stale()
+      assert stale.id == scope.id
+    end
+
+    test "a scope extracted up to its last message is not stale, and appears once past it" do
+      {:ok, scope} = Scopes.create(@attrs)
+      {:ok, first} = Messages.create(message_attrs(scope, "hello"))
+      {:ok, scope} = Scopes.set_last_extracted(scope, first.id)
+
+      assert Scopes.stale() == []
+
+      {:ok, _second} = Messages.create(message_attrs(scope, "again", 1))
+      {:ok, _third} = Messages.create(message_attrs(scope, "more", 2))
+
+      assert [_only_once] = Scopes.stale()
+    end
+  end
+
+  defp message_attrs(scope, content, seconds \\ 0) do
+    %{
+      scope_id: scope.id,
+      role: "user",
+      content: content,
+      timestamp: DateTime.add(~U[2026-08-24 09:00:00.000000Z], seconds, :second)
+    }
   end
 end

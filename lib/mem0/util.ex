@@ -21,8 +21,11 @@ defmodule Util do
       end
     end)
     |> case do
-      {:ok, acc} -> {:ok, Enum.reverse(acc)}
-      {:error, _} = error -> error
+      {:ok, acc} ->
+        {:ok, Enum.reverse(acc)}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -31,13 +34,17 @@ defmodule Util do
   values in the first list, the error reasons in the second, both in input
   order.  Similar to Haskell's `partitionEithers`.
   """
-  @spec partition_map([a], (a -> {:ok, b} | {:error, c})) :: {[b], [c]} when a: var, b: var, c: var
+  @spec partition_map([a], (a -> {:ok, b} | {:error, c})) :: {[b], [c]}
+        when a: var, b: var, c: var
   def partition_map(list, fun) do
     {oks, errors} =
       Enum.reduce(list, {[], []}, fn item, {oks, errors} ->
         case fun.(item) do
-          {:ok, value} -> {[value | oks], errors}
-          {:error, reason} -> {oks, [reason | errors]}
+          {:ok, value} ->
+            {[value | oks], errors}
+
+          {:error, reason} ->
+            {oks, [reason | errors]}
         end
       end)
 

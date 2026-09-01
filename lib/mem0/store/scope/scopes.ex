@@ -3,7 +3,12 @@ defmodule Mem0.Store.Scopes do
   Context module to retrieve/update/store scopes in the database.
   """
 
+  # `except`: this module defines its own `update/2`, and the imported macro
+  # would otherwise win inside functions defined above it.
+  import Ecto.Query, except: [update: 2, update: 3]
+
   alias Mem0.Repo
+  alias Mem0.Store.Message
   alias Mem0.Store.Scope
 
   @doc """
@@ -28,6 +33,20 @@ defmodule Mem0.Store.Scopes do
   """
   @spec list() :: [Scope.t()]
   def list, do: Repo.all(Scope)
+
+  @doc """
+  Returns the scopes with messages past their extraction watermark — the
+  work set for a refresh pass. A `nil` watermark means never extracted, so
+  any message at all makes the scope stale.
+  """
+  @spec stale() :: [Scope.t()]
+  def stale do
+    Scope
+    |> join(:inner, [s], m in Message, on: m.scope_id == s.id)
+    |> where([s, m], m.id > coalesce(s.last_extracted_message_id, 0))
+    |> distinct(true)
+    |> Repo.all()
+  end
 
   @doc """
   Fetches a scope by id. Returns `nil` when it does not exist.

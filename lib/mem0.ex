@@ -16,11 +16,8 @@ defmodule Mem0 do
   end
 
   def process_all_sessions do
-    Scopes.list()
-    |> Enum.map(& &1.session)
-    |> Enum.dedup()
-    |> Enum.map(fn session ->
-      Mem0.Processor.process_session(session)
+    Enum.map(Scopes.list(), fn scope ->
+      Mem0.Processor.process_session(scope.id)
     end)
   end
 

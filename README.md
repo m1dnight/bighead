@@ -113,9 +113,12 @@ extracts facts with the LLM, reconciles them against the facts already
 stored, embeds the result, and bumps the watermark.
 
 The two stages are decoupled on purpose. Capture happens per turn over HTTP;
-extraction is a pass over whatever accumulated (today via
-`Mem0.process_all_sessions/0`), so a failed or skipped pass is retried for
-free the next time it runs.
+extraction is a pass over whatever accumulated, run by `Mem0.Refresher` — a
+single GenServer that sweeps every stale scope on a timer and is poked after
+each import. The database is its queue (a scope is stale when it has
+messages past the watermark), so the refresher holds no state, a crash loses
+nothing, and a failed or skipped pass is retried for free the next time it
+runs.
 
 ## Improvements
 

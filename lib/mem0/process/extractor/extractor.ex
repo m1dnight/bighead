@@ -16,8 +16,7 @@ defmodule Mem0.Extractor do
   @doc """
   Extracts facts from a set of messags.
   """
-  @spec extract_facts([Message.t()], String.t() | nil) ::
-          {:ok, [String.t()]} | {:error, term()}
+  @spec extract_facts([Message.t()], String.t() | nil) :: {:ok, [String.t()]} | {:error, term()}
 
   def extract_facts([], _) do
     {:ok, []}
