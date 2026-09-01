@@ -3,11 +3,5 @@
   subdirectories: ["priv/*/migrations"],
   plugins: [Quokka, Phoenix.LiveView.HTMLFormatter],
   inputs: ["*.{heex,ex,exs}", "{config,lib,test}/**/*.{heex,ex,exs}", "priv/*/seeds.exs"],
-  line_length: 140,
-  quokka: [
-    only: [],
-    exclude: [
-      :line_length
-    ]
-  ]
+  line_length: 140
 ]

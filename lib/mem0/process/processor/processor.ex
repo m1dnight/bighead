@@ -28,9 +28,10 @@ defmodule Mem0.Processor do
       case process_session(scope.id) do
         {:ok, facts, messages} ->
           {:ok, {facts, messages}}
+
         err ->
           err
-        end
+      end
     end)
   end
 

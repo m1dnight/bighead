@@ -17,12 +17,18 @@ defmodule Mem0.Refresher do
   alias Mem0.Processor
   alias Mem0.Store.Scopes
 
+  require Logger
+
   @tick to_timeout(minute: 1)
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: Keyword.get(opts, :name, __MODULE__))
   end
+
+  # ---------------------------------------------------------------------------#
+  #                                API                                         #
+  # ---------------------------------------------------------------------------#
 
   @doc """
   Asks the refresher to sweep soon.
@@ -31,7 +37,13 @@ defmodule Mem0.Refresher do
   behind whatever extraction is already running.
   """
   @spec poke(GenServer.server()) :: :ok
-  def poke(server \\ __MODULE__), do: GenServer.cast(server, :poke)
+  def poke(server \\ __MODULE__) do
+    GenServer.cast(server, :poke)
+  end
+
+  # ---------------------------------------------------------------------------#
+  #                                Callbacks                                   #
+  # ---------------------------------------------------------------------------#
 
   @impl true
   def init(_opts) do
@@ -56,9 +68,25 @@ defmodule Mem0.Refresher do
   # is the retry — nothing to track here.
   @spec sweep() :: :ok
   defp sweep do
-    Enum.each(Scopes.stale(), fn scope -> Processor.process_session(scope.id) end)
+    case Processor.process_sessions() do
+      {[], []} ->
+        :ok
+
+      {_success, []} ->
+        :ok
+
+      {[], _failed} ->
+        Logger.error("Failed to process sessions")
+        :ok
+
+      {_success, _failed} ->
+        Logger.error("Failed to process some sessions")
+        :ok
+    end
   end
 
   @spec schedule_tick() :: reference()
-  defp schedule_tick, do: Process.send_after(self(), :tick, @tick)
+  defp schedule_tick do
+    Process.send_after(self(), :tick, @tick)
+  end
 end
