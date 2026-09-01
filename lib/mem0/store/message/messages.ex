@@ -4,6 +4,7 @@ defmodule Mem0.Store.Messages do
   """
 
   import Ecto.Query
+  import Util
 
   alias Mem0.Repo
   alias Mem0.Store.Message
@@ -31,6 +32,15 @@ defmodule Mem0.Store.Messages do
       conflict_target: {:unsafe_fragment, ~s/(scope_id, "timestamp", role, md5(content))/},
       returning: true
     )
+  end
+
+  def create_many(attrs_list) do
+    Repo.transact(fn ->
+      attrs_list
+      |> traverse(fn attrs ->
+        create(attrs)
+      end)
+    end)
   end
 
   @doc """

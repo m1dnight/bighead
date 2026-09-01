@@ -12,15 +12,19 @@ defmodule Mem0.Importer do
   @doc """
   Given the content of transcript and an ingester, parses and stores all the
   messages from this transcript.
+
+  Returns the scope alongside the stored messages so callers can hand the
+  session on to `Mem0.Processor` without re-deriving it from the file.
   """
   @spec import_transcript(String.t(), module()) ::
-          {:ok, [Message.t()]}
+          {:ok, Scope.t(), [Message.t()]}
           | {:error, term()}
           | {:error, :partial, [Message.t()], [{map(), Ecto.Changeset.t()}]}
   def import_transcript(content, ingester) do
     with {:ok, scope, messages} <- Ingester.decode_transcript(content, ingester),
-         {:ok, scope} <- Scopes.create(Map.put(scope, :user, "default")) do
-      store_messages(messages, scope)
+         {:ok, scope} <- Scopes.create(Map.put(scope, :user, "default")),
+         {:ok, stored} <- store_messages(messages, scope) do
+      {:ok, scope, stored}
     end
   end
 
@@ -29,23 +33,8 @@ defmodule Mem0.Importer do
           | {:error, :partial, [Message.t()], [{map(), Ecto.Changeset.t()}]}
   defp store_messages(messages, scope) do
     messages
-    |> Enum.reduce_while({[], []}, fn attrs, {messages, errors} ->
-      attrs = Map.put(attrs, :scope_id, scope.id)
-
-      case Messages.create(attrs) do
-        {:ok, message} ->
-          {:cont, {[message | messages], errors}}
-
-        {:error, err} ->
-          {:halt, {messages, [{attrs, err} | errors]}}
-      end
-    end)
-    |> case do
-      {messages, []} ->
-        {:ok, messages}
-
-      {messages, errs} ->
-        {:error, :partial, messages, errs}
-    end
+    |> Enum.map(&Map.put(&1, :scope_id, scope.id))
+    |> Messages.create_many()
+    |> tap(&IO.inspect(&1, label: "create_many", limit: 10))
   end
 end

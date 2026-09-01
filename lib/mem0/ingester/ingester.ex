@@ -4,13 +4,12 @@ defmodule Mem0.Ingester do
   into messages we care about.
   """
 
-  @typedoc """
-  The shape into which all messages from all agents have to be put in order
-  for them to go further into the Mem0 pipeline.
+  import Util
 
-  A plain map rather than a struct: it is fed into
-  `Mem0.Store.Message.changeset/2` as attrs, so `role` stays the raw string
-  the changeset validates.
+  @typedoc """
+  The shape into which all messages from all agents have to be put in order for
+  them to go further into the Mem0 pipeline. This means that transcripts from
+  Claude, Codex, .. all have to be able to be transformed into this shape.
   """
   @type message :: %{
           id: String.t() | nil,
@@ -43,8 +42,11 @@ defmodule Mem0.Ingester do
   """
   @callback scope(entries :: [map()]) :: {:ok, scope()} | {:error, term()}
 
-  @spec decode_transcript(String.t(), module()) ::
-          {:ok, scope(), [message()]} | {:error, term()}
+  @doc """
+  Given a string that represents the contents of a jsonl transcript, decodes
+  each line into a message and returns a list of `message()`s.
+  """
+  @spec decode_transcript(String.t(), module()) :: {:ok, scope(), [message()]} | {:error, term()}
   def decode_transcript(content, ingester) do
     with {:ok, entries} <- decode_lines(content),
          {:ok, scope} <- ingester.scope(entries),
@@ -61,19 +63,13 @@ defmodule Mem0.Ingester do
   defp decode_lines(lines) do
     lines
     |> String.split("\n", trim: true)
-    |> Enum.with_index(1)
-    |> Enum.reduce_while({:ok, []}, fn {line, number}, {:ok, entries} ->
-      case Jason.decode(line) do
-        {:ok, entry} ->
-          {:cont, {:ok, [entry | entries]}}
-
-        {:error, _undecodable} ->
-          {:halt, {:error, {:invalid_line, number}}}
-      end
-    end)
+    |> traverse(&Jason.decode/1)
     |> case do
-      {:ok, entries} -> {:ok, Enum.reverse(entries)}
-      {:error, _reason} = error -> error
+      {:ok, entries} ->
+        {:ok, entries}
+
+      {:error, _reason} ->
+        {:error, :decode_failed}
     end
   end
 
@@ -82,21 +78,10 @@ defmodule Mem0.Ingester do
   defp extract_messages(entries, ingester) do
     entries
     |> Enum.reject(&ingester.skip_entry?/1)
-    |> Enum.reduce_while({:ok, []}, fn entry, {:ok, messages} ->
-      case ingester.parse_entry(entry) do
-        {:ok, %{content: ""}} ->
-          {:cont, {:ok, messages}}
-
-        {:ok, message} ->
-          {:cont, {:ok, [message | messages]}}
-
-        {:error, err} ->
-          {:halt, {:error, err}}
-      end
-    end)
+    |> traverse(&ingester.parse_entry/1)
     |> case do
       {:ok, messages} ->
-        {:ok, Enum.reverse(messages)}
+        {:ok, messages}
 
       {:error, _err} ->
         {:error, :message_extract_failed}

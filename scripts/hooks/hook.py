@@ -27,7 +27,6 @@ HANDLERS = {
     "Stop": stop.handle,
 }
 
-
 def process(raw_payload):
     payload_dict = payload.parse(raw_payload)
 

@@ -22,29 +22,14 @@ defmodule Mem0Web.Router do
     get "/", PageController, :home
   end
 
-  scope "/v1" do
-    scope "/hooks", Mem0Web do
-      pipe_through :api
+  # `/transcripts` is capture: the hook script posts the whole session
+  # transcript there on `Stop` and `SessionEnd`, and an operator posts there
+  # to backfill a file by hand. No credentials on either route.
+  scope "/v1", Mem0Web do
+    pipe_through :api
 
-      post "/user-prompt-submit", HooksController, :user_prompt_submit
-      post "/stop", HooksController, :stop
-      post "/snapshot", HooksController, :snapshot
-
-      # mem0's own, not Claude Code hook events. `lines-seen` is a read and takes
-      # its scope from the query string; `backfill` writes.
-      get "/lines-seen", HooksController, :lines_seen
-      post "/backfill", HooksController, :backfill
-    end
-
-    # An operator's tool, not hook machinery: a whole session file as raw JSON
-    # Lines, and the full write path — messages stored, facts extracted and
-    # reconciled — runs in one request. Same no-credentials caveat as `/hooks`.
-    scope "/", Mem0Web do
-      pipe_through :api
-
-      post "/transcripts", TranscriptController, :create
-      post "/diffs", DiffController, :create
-    end
+    post "/transcripts", TranscriptController, :create
+    post "/diffs", DiffController, :create
   end
 
   # Other scopes may use custom stacks.

@@ -30,6 +30,7 @@ def parse(raw):
         "file": _file_path(payload),
         "cwd": payload.get("cwd"),
         "session_id": payload.get("session_id"),
+        "transcript_path": payload.get("transcript_path"),
     }
 
 

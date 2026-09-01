@@ -35,7 +35,7 @@ defmodule Mem0Web.DiffController do
   end
 
   def create(conn, _params) do
-     invalid_payload(conn)
+    invalid_payload(conn)
   end
 
   @spec invalid_payload(Plug.Conn.t()) :: Plug.Conn.t()

@@ -16,10 +16,11 @@ defmodule Mem0.ImporterTest do
     test "stores the scope and every conversational message" do
       transcript = transcript([entry("user", "hello"), entry("assistant", "hi")])
 
-      assert {:ok, messages} = Importer.import_transcript(transcript, Claude)
+      assert {:ok, returned_scope, messages} = Importer.import_transcript(transcript, Claude)
       assert length(messages) == 2
 
       assert [scope] = Scopes.list()
+      assert returned_scope.id == scope.id
       assert scope.user == "default"
       assert scope.project == "/Users/example/Code/widget"
       assert scope.session == "session-1"
@@ -32,8 +33,8 @@ defmodule Mem0.ImporterTest do
     test "importing the same transcript twice stores nothing new" do
       transcript = transcript([entry("user", "hello"), entry("assistant", "hi")])
 
-      assert {:ok, _first} = Importer.import_transcript(transcript, Claude)
-      assert {:ok, _second} = Importer.import_transcript(transcript, Claude)
+      assert {:ok, _scope, _first} = Importer.import_transcript(transcript, Claude)
+      assert {:ok, _scope, _second} = Importer.import_transcript(transcript, Claude)
 
       assert [_scope] = Scopes.list()
       assert length(Messages.list()) == 2

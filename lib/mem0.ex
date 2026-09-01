@@ -30,7 +30,7 @@ defmodule Mem0 do
       content = File.read!(path)
 
       case Mem0.Importer.import_transcript(content, ingester) do
-        {:ok, _messages} ->
+        {:ok, _scope, _messages} ->
           :ok
 
         err ->
@@ -49,6 +49,7 @@ defmodule Mem0 do
   def factorial(0) do
     1
   end
+
   def factorial(n) when is_integer(n) and n > 0, do: n * factorial(n - 1)
 
   @doc """
