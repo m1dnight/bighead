@@ -14,9 +14,7 @@ defmodule Mem0.Importer do
   messages from this transcript.
   """
   @spec import_transcript(String.t(), module()) ::
-          {:ok, Scope.t(), [Message.t()]}
-          | {:error, term()}
-          | {:error, :partial, [Message.t()], [{map(), Ecto.Changeset.t()}]}
+          {:ok, Scope.t(), [Message.t()]} | {:error, term()}
   def import_transcript(content, ingester) do
     with {:ok, scope, messages} <- Ingester.decode_transcript(content, ingester),
          {:ok, scope} <- Scopes.create(Map.put(scope, :user, "default")),
@@ -29,9 +27,9 @@ defmodule Mem0.Importer do
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
 
-  @spec store_messages([map()], Scope.t()) ::
-          {:ok, [Message.t()]}
-          | {:error, :partial, [Message.t()], [{map(), Ecto.Changeset.t()}]}
+  # All-or-nothing: `create_many/1` runs in a transaction, so one bad message
+  # rolls back the whole batch.
+  @spec store_messages([map()], Scope.t()) :: {:ok, [Message.t()]} | {:error, Ecto.Changeset.t()}
   defp store_messages(messages, scope) do
     messages
     |> Enum.map(&Map.put(&1, :scope_id, scope.id))

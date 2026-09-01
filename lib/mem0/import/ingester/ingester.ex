@@ -61,7 +61,7 @@ defmodule Mem0.Ingester do
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
 
-  @spec decode_lines(String.t()) :: {:ok, [map()]} | {:error, {:invalid_line, pos_integer()}}
+  @spec decode_lines(String.t()) :: {:ok, [map()]} | {:error, :decode_failed}
   defp decode_lines(lines) do
     lines
     |> String.split("\n", trim: true)
@@ -75,8 +75,9 @@ defmodule Mem0.Ingester do
     end
   end
 
-  @spec extract_messages([map()], module()) ::
-          {:ok, [message()]} | {:error, :message_extract_failed}
+  # Never errors: entries that fail to parse are logged and dropped, the rest
+  # of the transcript still imports.
+  @spec extract_messages([map()], module()) :: {:ok, [message()]}
   defp extract_messages(entries, ingester) do
     entries
     |> Enum.reject(&ingester.skip_entry?/1)

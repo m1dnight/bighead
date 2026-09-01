@@ -49,6 +49,8 @@ defmodule Mem0Web.TranscriptController do
   # ---------------------------------------------------------------------------#
 
   # fetch the body and limit the maximum size. error if it's too big.
+  @spec fetch_body(Plug.Conn.t(), non_neg_integer()) ::
+          {:ok, binary()} | {:error, :transcript_exceeds_size | :failed_to_read_transcript}
   defp fetch_body(conn, limit) do
     case read_body(conn, length: limit) do
       {:ok, raw, _conn} ->

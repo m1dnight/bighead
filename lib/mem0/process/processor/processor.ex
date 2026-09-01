@@ -8,6 +8,7 @@ defmodule Mem0.Processor do
   alias Mem0.Embeddings
   alias Mem0.Extractor
   alias Mem0.Reconciler
+  alias Mem0.Store.Fact
   alias Mem0.Store.Facts
   alias Mem0.Store.Message
   alias Mem0.Store.Messages
@@ -22,6 +23,7 @@ defmodule Mem0.Processor do
   @doc """
   Processes all stale sessions.
   """
+  @spec process_sessions() :: {[{[Fact.t()], [Message.t()]}], [term()]}
   def process_sessions do
     Scopes.stale()
     |> partition_map(fn scope ->
@@ -38,7 +40,7 @@ defmodule Mem0.Processor do
   @doc """
   Given a scope, extracts facts from the next batch of messages.
   """
-  @spec process_session(Scope.t()) :: :ok | {:error, term()}
+  @spec process_session(integer()) :: {:ok, [Fact.t()], [Message.t()]} | {:error, term()} | nil
   def process_session(scope_id) do
     with %Scope{} = scope <- Scopes.get(scope_id),
          messages = next_messages(scope, @max_text_length),
@@ -61,6 +63,7 @@ defmodule Mem0.Processor do
   # ---------------------------------------------------------------------------#
   # fetches the next message batch and makes sure the total content does not
   # exceed the given limit.
+  @spec next_messages(Scope.t(), non_neg_integer()) :: [Message.t()]
   defp next_messages(scope, max_length) do
     Messages.get_session(scope.session, from: scope.last_extracted_message_id)
     |> Enum.reduce_while({0, []}, fn message, {charcount, messages} ->

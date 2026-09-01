@@ -34,7 +34,7 @@ defmodule Util do
   values in the first list, the error reasons in the second, both in input
   order.  Similar to Haskell's `partitionEithers`.
   """
-  @spec partition_map([a], (a -> {:ok, b} | {:error, c})) :: {[b], [c]}
+  @spec partition_map(Enumerable.t(a), (a -> {:ok, b} | {:error, c})) :: {[b], [c]}
         when a: var, b: var, c: var
   def partition_map(list, fun) do
     {oks, errors} =

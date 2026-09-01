@@ -34,6 +34,7 @@ defmodule Mem0.Store.Messages do
     )
   end
 
+  @spec create_many([map()]) :: {:ok, [Message.t()]} | {:error, Ecto.Changeset.t()}
   def create_many(attrs_list) do
     Repo.transact(fn ->
       attrs_list

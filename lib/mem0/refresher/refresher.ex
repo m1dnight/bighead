@@ -15,7 +15,6 @@ defmodule Mem0.Refresher do
   use GenServer
 
   alias Mem0.Processor
-  alias Mem0.Store.Scopes
 
   require Logger
 

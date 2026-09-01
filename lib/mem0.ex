@@ -10,17 +10,20 @@ defmodule Mem0 do
   alias Mem0.Ingester.Codex
   alias Mem0.Store.Scopes
 
+  @spec import() :: [:ok]
   def import do
     run_import(".transcripts/claude/*.jsonl", Claude)
     run_import(".transcripts/codex/*.jsonl", Codex)
   end
 
+  @spec process_all_sessions() :: [term()]
   def process_all_sessions do
     Enum.map(Scopes.list(), fn scope ->
       Mem0.Processor.process_session(scope.id)
     end)
   end
 
+  @spec run_import(String.t(), module()) :: [:ok]
   def run_import(path, ingester) do
     Path.wildcard(path)
     |> Enum.map(fn path ->
