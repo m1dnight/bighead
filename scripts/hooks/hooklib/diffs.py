@@ -24,13 +24,20 @@ def transitions(cwd, file_path):
         if before["hash"] == after["hash"]:
             continue
 
+        # the diff ignores whitespace, so a reformat-only edit hashes
+        # differently yet diffs to nothing; the server rejects an empty
+        # diff, and retrying it would keep the ledger from ever draining
+        diff = git.diff(cwd, before["hash"], after["hash"])
+        if not diff.strip():
+            continue
+
         found.append(
             {
                 "file_path": file_path,
                 "direction": f"{before['version']}_to_{after['version']}",
                 "from": before,
                 "to": after,
-                "diff": git.diff(cwd, before["hash"], after["hash"]),
+                "diff": diff,
             }
         )
 
