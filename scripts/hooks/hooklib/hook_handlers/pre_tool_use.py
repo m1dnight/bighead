@@ -7,7 +7,7 @@ storage.
 This version is assumed to be a user-modified version, so we can compare it with the llm-edited version
 """
 
-from hooklib import git, repo
+from hooklib import git, repo, diffs
 
 
 def handle(event):
@@ -19,18 +19,11 @@ def handle(event):
 
     file_path = event["file"]
 
-    hash = git.store(event["cwd"], file_path)
+    # pretooluse means the LLM will likely edit this file, so we look at the
+    # current state. if it has changes since last time, we update them. So this
+    # is basically a log of the version before the tool modifies it.
+    cwd = event["cwd"]
+    session_id = event["session_id"]
+    prompt_id = event["prompt_id"]
 
-    # mark the file as current version owned by the user, but only when the
-    # content actually drifted from the last recorded version. If the last
-    # version was a user version as well, just update its hash to reflect the
-    # latest version.
-    last = repo.last_version(event["cwd"], file_path)
-    if last is not None and last["hash"] == hash:
-        return
-    if last is not None and last["version"] == "user":
-        repo.replace_hash(event["cwd"], last["id"], hash, event["session_id"])
-    else:
-        repo.add_version(
-            event["cwd"], file_path, "user", hash, event["session_id"], event["prompt_id"]
-        )
+    diffs.detect_changes(cwd, file_path, "user", session_id, prompt_id)

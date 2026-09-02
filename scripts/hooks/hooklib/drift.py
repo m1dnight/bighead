@@ -9,32 +9,17 @@ a user edit and we store it as a diff made by the user.
 
 import os
 
-from hooklib import git, repo
+from hooklib import git, repo, diffs
 
 
-def sweep(cwd, session_id=None, prompt_id=None):
-    """Record a user version for every known file whose content drifted.
-
-    Consecutive user versions collapse into one holding the latest hash, so
-    editing a file over several prompts still yields a single llm -> user
-    diff from the last llm version to the latest content. Returns the paths
-    that drifted.
+def sweep(cwd, version, session_id=None, prompt_id=None):
     """
-    drifted = []
+    Looks over all the files in the git repo. If the file has changes versus the
+    last time it was index, the change is chalked up to be a user's edit.
+    """
     for file_path in repo.files(cwd):
         # a deleted file has nothing to hash; its last version stays as is
         if not os.path.isfile(file_path):
             continue
 
-        last = repo.last_version(cwd, file_path)
-        hash = git.store(cwd, file_path)
-        if last["hash"] == hash:
-            continue
-
-        if last["version"] == "user":
-            repo.replace_hash(cwd, last["id"], hash, session_id)
-        else:
-            repo.add_version(cwd, file_path, "user", hash, session_id, prompt_id)
-        drifted.append(file_path)
-
-    return drifted
+        diffs.detect_changes(cwd, file_path, version, session_id, prompt_id)
