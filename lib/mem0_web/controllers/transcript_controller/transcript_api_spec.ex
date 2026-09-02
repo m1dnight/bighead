@@ -29,9 +29,7 @@ defmodule Mem0Web.TranscriptApiSpec do
     message store dedups what it has already seen and the processor's
     watermark refuses what it has already read.
     """,
-    request_body:
-      {"The transcript file content, as raw JSON Lines", "application/x-ndjson",
-       %Schema{type: :string}, required: true},
+    request_body: {"The transcript file content, as raw JSON Lines", "application/x-ndjson", %Schema{type: :string}, required: true},
     responses: [
       ok:
         {"The transcript was stored", "application/json",
@@ -61,11 +59,8 @@ defmodule Mem0Web.TranscriptApiSpec do
            }
          }},
       bad_request: {"The request body could not be read", "application/json", @error_schema},
-      request_entity_too_large:
-        {"The transcript exceeds 50,000,000 bytes", "application/json", @error_schema},
-      internal_server_error:
-        {"The transcript could not be imported — not JSON Lines, or storing failed",
-         "application/json", @error_schema}
+      request_entity_too_large: {"The transcript exceeds 50,000,000 bytes", "application/json", @error_schema},
+      internal_server_error: {"The transcript could not be imported — not JSON Lines, or storing failed", "application/json", @error_schema}
     ]
   )
 end

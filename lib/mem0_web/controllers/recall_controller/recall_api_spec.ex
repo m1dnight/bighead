@@ -70,8 +70,8 @@ defmodule Mem0Web.RecallApiSpec do
            }
          }},
       unprocessable_entity:
-        {"The payload is not the expected shape — missing, non-string, or empty prompt, or an unknown kind",
-         "application/json", @error_schema},
+        {"The payload is not the expected shape — missing, non-string, or empty prompt, or an unknown kind", "application/json",
+         @error_schema},
       bad_gateway: {"The embedder upstream is down", "application/json", @error_schema}
     ]
   )

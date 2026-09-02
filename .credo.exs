@@ -40,8 +40,7 @@
           # AliasUsage is contentious, but the only code tripping it is
           # generated, and fixing it there is two lines. Keeping it on means
           # fully-qualified nested calls stay a deliberate choice.
-          {Credo.Check.Design.AliasUsage,
-           [priority: :low, if_nested_deeper_than: 2, if_called_more_often_than: 0]},
+          {Credo.Check.Design.AliasUsage, [priority: :low, if_nested_deeper_than: 2, if_called_more_often_than: 0]},
           {Credo.Check.Design.TagFIXME, []},
           {Credo.Check.Design.TagTODO, [exit_status: 2]},
 
@@ -66,8 +65,7 @@
           {Credo.Check.Readability.RedundantBlankLines, []},
           {Credo.Check.Readability.Semicolons, []},
           {Credo.Check.Readability.SpaceAfterCommas, []},
-          {Credo.Check.Readability.Specs,
-           [include_defp: true, files: %{included: ["lib/"], excluded: ["lib/old/"]}]},
+          {Credo.Check.Readability.Specs, [include_defp: true, files: %{included: ["lib/"], excluded: ["lib/old/"]}]},
           {Credo.Check.Readability.StringSigils, []},
           {Credo.Check.Readability.TrailingBlankLine, []},
           {Credo.Check.Readability.TrailingWhiteSpace, []},

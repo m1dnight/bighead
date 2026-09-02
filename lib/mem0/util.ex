@@ -50,6 +50,4 @@ defmodule Util do
 
     {Enum.reverse(oks), Enum.reverse(errors)}
   end
-
-
 end

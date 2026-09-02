@@ -135,8 +135,7 @@ defmodule Mem0.Processor.DiffsTest do
         {:ok, LLM.Stub.response(Jason.encode!(%{"guidelines" => guidelines}))}
 
       _reconcile, _opts ->
-        {:ok,
-         LLM.Stub.response(Jason.encode!(%{"event" => "ADD", "id" => nil, "reason" => "new"}))}
+        {:ok, LLM.Stub.response(Jason.encode!(%{"event" => "ADD", "id" => nil, "reason" => "new"}))}
     end)
   end
 end

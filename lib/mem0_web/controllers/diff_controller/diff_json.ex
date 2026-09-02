@@ -19,8 +19,7 @@ defmodule Mem0Web.DiffJSON do
   @spec error(map()) :: map()
   def error(_assigns) do
     %{
-      error:
-        ~s(expected {"file": <path>, "diff": <diff text>, "project": <cwd>, "session": <session id>})
+      error: ~s(expected {"file": <path>, "diff": <diff text>, "project": <cwd>, "session": <session id>})
     }
   end
 end

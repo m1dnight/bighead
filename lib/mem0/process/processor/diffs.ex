@@ -20,7 +20,7 @@ defmodule Mem0.Processor.Diffs do
 
   # One extractor call reads at most this much diff text; a settle larger
   # than that is split into several batches.
-  @max_batch_chars 700_000
+  @max_batch_chars 800_000
 
   @doc """
   Processes every scope with diffs past its watermark.
@@ -95,7 +95,7 @@ defmodule Mem0.Processor.Diffs do
   @spec process_batch([Diff.t()], Scope.t()) :: {:ok, Scope.t(), [Fact.t()]} | {:error, term()}
   defp process_batch(batch, scope) do
     with {:ok, guidelines} <- CodeExtractor.extract_guidelines(batch),
-         :ok = log_extracted(batch, scope, guidelines),
+         :ok = log_extracted(batch, guidelines),
          old_facts = Facts.facts_for(scope.id, kind: :guideline),
          facts = Reconciler.reconcile_facts(guidelines, old_facts, scope.id, :guideline),
          {:ok, facts} <- Embeddings.embed_facts(facts),
@@ -127,26 +127,30 @@ defmodule Mem0.Processor.Diffs do
     )
   end
 
-  # Console feedback for debugging: every batch and what the LLM pulled out
-  # of it, before reconciliation decides what to do with it. An empty
-  # result is logged too, so a quiet extractor is visible.
-  @spec log_extracted([Diff.t()], Scope.t(), [String.t()]) :: :ok
-  defp log_extracted(batch, scope, guidelines) do
-    extracted =
+  # Console feedback for debugging: one line per diff, then the guidelines
+  # one per line, so a scan of the log shows what came out of what.
+  @spec log_extracted([Diff.t()], [String.t()]) :: :ok
+  defp log_extracted(batch, guidelines) do
+    diffs = Enum.map_join(batch, "\n", &("diff: " <> preview(&1.diff)))
+
+    facts =
       case guidelines do
-        [] -> "  (none)"
-        _ -> Enum.map_join(guidelines, "\n", &("  - " <> &1))
+        [] -> " none"
+        _ -> "\n" <> Enum.map_join(guidelines, "\n", &("  " <> &1))
       end
 
-    sources =
-      Enum.map_join(batch, "\n", fn diff ->
-        "--- diff #{diff.id} #{diff.file} (#{diff.origin || "unknown"})\n" <>
-          String.trim_trailing(diff.diff)
-      end)
+    Logger.error(diffs <> ": facts:" <> facts)
+  end
 
-    Logger.error(
-      "Extracted #{length(guidelines)} guideline(s) from #{length(batch)} diff(s) (session #{scope.session}):\n" <>
-        extracted <> "\nfrom diffs:\n" <> sources
-    )
+  # The first 20 characters of a diff's changed lines, on one line. The
+  # header before the first hunk names blobs, not content, so it is skipped.
+  @spec preview(String.t()) :: String.t()
+  defp preview(diff) do
+    diff
+    |> String.split("\n")
+    |> Enum.drop_while(&(not String.starts_with?(&1, "@@")))
+    |> Enum.drop(1)
+    |> Enum.join(" ")
+    |> String.slice(0, 20)
   end
 end

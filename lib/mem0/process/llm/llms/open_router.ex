@@ -124,9 +124,7 @@ defmodule Mem0.LLM.OpenRouter do
     {:error, {:refusal, refusal}}
   end
 
-  defp decode(
-         %{"choices" => [%{"message" => %{"content" => content}} | _], "model" => model} = body
-       )
+  defp decode(%{"choices" => [%{"message" => %{"content" => content}} | _], "model" => model} = body)
        when is_binary(content) and is_binary(model) do
     {:ok, %{content: content, model: model, usage: usage(body)}}
   end

@@ -68,15 +68,13 @@ defmodule Mem0Web.DiffApiSpec do
            example: %{"id" => 7, "file" => "lib/foo.ex", "scope_id" => 3}
          }},
       unprocessable_entity:
-        {"The payload is not the expected shape — missing, non-string, or blank fields",
-         "application/json",
+        {"The payload is not the expected shape — missing, non-string, or blank fields", "application/json",
          %Schema{
            type: :object,
            required: [:error],
            properties: %{error: %Schema{type: :string}},
            example: %{
-             "error" =>
-               ~s(expected {"file": <path>, "diff": <diff text>, "project": <cwd>, "session": <session id>})
+             "error" => ~s(expected {"file": <path>, "diff": <diff text>, "project": <cwd>, "session": <session id>})
            }
          }}
     ]
