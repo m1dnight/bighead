@@ -13,6 +13,14 @@ from pathlib import Path
 from hooklib import git, repo
 
 
+def inspect(file_path, message):
+    if (
+        file_path
+        == "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hooklib/diffs.py"
+    ):
+        print(message)
+
+
 # edit
 # file missing on disk?                        -> ignore
 # not tracked before?                          -> new entry, as the side recording it
@@ -26,18 +34,22 @@ def detect_changes(cwd, file_path, version, session_id, prompt_id):
     """Detects if a file has changed, and stores changes accordingly."""
 
     if not _file_exists(cwd, file_path):
+        inspect(file_path, "File does not exist")
         return
 
     last = repo.last_version(cwd, file_path)
     hash = git.store(cwd, file_path)
 
     if last is None:
+        inspect(file_path, "File was never tracked")
         _store_new_version(cwd, file_path, session_id, prompt_id, version, hash)
         return
 
     if last["hash"] == hash:
+        inspect(file_path, "File unchanged")
         return
 
+    print(f"File change: {file_path}")
     if version == "user":
         if last["version"] == "user":
             _update_hash(cwd, last["id"], hash, session_id)

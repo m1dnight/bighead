@@ -47,7 +47,7 @@ def post_transcript(path):
         with urllib.request.urlopen(
             request, timeout=TRANSCRIPT_TIMEOUT_SECONDS
         ) as response:
-            print(response.read().decode())
+            response.read()
         return True
     except OSError:
         return False

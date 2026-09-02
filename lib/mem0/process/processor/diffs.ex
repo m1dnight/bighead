@@ -114,7 +114,7 @@ defmodule Mem0.Processor.Diffs do
       fn diff, {batch, size} ->
         chars = String.length(diff.diff)
 
-        if batch != [] and size + chars > max_chars do
+        if not Enum.empty?(batch) and size + chars > max_chars do
           {:cont, Enum.reverse(batch), {[diff], chars}}
         else
           {:cont, {[diff | batch], size + chars}}

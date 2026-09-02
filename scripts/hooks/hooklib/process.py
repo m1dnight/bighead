@@ -16,7 +16,6 @@ def changes_log(cwd):
 
 def run(cwd):
     """Process all pending changes; returns the appended change records."""
-    print("Processing diffs")
     changes = []
     # Create a list of diffs based on what is known locally.
     for file_path in repo.files(cwd):

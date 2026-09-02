@@ -33,5 +33,5 @@ def handle(event):
         return None
 
     lines = "\n".join(f"- {fact}" for fact in facts)
-    print(lines)
+
     return f"Relevant facts remembered from earlier sessions:\n{lines}\n"
