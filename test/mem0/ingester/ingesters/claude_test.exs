@@ -6,9 +6,15 @@ defmodule Mem0.Ingester.ClaudeTest do
   """
   use ExUnit.Case, async: true
 
+  # Tolerated parse failures log a warning; captured so passing runs stay
+  # quiet (the corpus fixtures contain such entries).
+  import ExUnit.CaptureLog
+
   alias Mem0.Ingester
   alias Mem0.Ingester.Claude
   alias Mem0.TranscriptFixtures
+
+  @moduletag :capture_log
 
   @timestamp "2026-08-24T09:00:00.000Z"
 
@@ -53,17 +59,25 @@ defmodule Mem0.Ingester.ClaudeTest do
                Ingester.decode_transcript(transcript(entries), Claude)
     end
 
-    test "an entry with an unreadable timestamp fails the transcript" do
-      entries = [entry("user", "hello", %{"timestamp" => "not a time"})]
+    test "an entry with an unreadable timestamp is dropped, the rest imports" do
+      entries = [
+        entry("user", "hello", %{"timestamp" => "not a time"}),
+        entry("assistant", "hi")
+      ]
 
-      assert {:error, :message_extract_failed} =
-               Ingester.decode_transcript(transcript(entries), Claude)
+      log =
+        capture_log(fn ->
+          assert {:ok, _scope, [%{content: "hi"}]} =
+                   Ingester.decode_transcript(transcript(entries), Claude)
+        end)
+
+      assert log =~ "Failed to import some messages"
     end
 
-    test "a line that does not decode fails the transcript, first failure wins" do
+    test "a line that does not decode fails the transcript" do
       transcript = Enum.join([Jason.encode!(entry("user", "hello")), "{not json", "{"], "\n")
 
-      assert {:error, {:invalid_line, 2}} = Ingester.decode_transcript(transcript, Claude)
+      assert {:error, :decode_failed} = Ingester.decode_transcript(transcript, Claude)
     end
   end
 

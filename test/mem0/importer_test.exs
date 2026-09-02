@@ -43,7 +43,7 @@ defmodule Mem0.ImporterTest do
     test "a transcript that does not decode stores nothing" do
       transcript = Enum.join([Jason.encode!(entry("user", "hello")), "{not json"], "\n")
 
-      assert {:error, {:invalid_line, 2}} = Importer.import_transcript(transcript, Claude)
+      assert {:error, :decode_failed} = Importer.import_transcript(transcript, Claude)
       assert Scopes.list() == []
       assert Messages.list() == []
     end

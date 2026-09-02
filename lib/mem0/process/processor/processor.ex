@@ -40,7 +40,7 @@ defmodule Mem0.Processor do
   @doc """
   Given a scope, extracts facts from the next batch of messages.
   """
-  @spec process_session(integer()) :: {:ok, [Fact.t()], [Message.t()]} | {:error, term()} | nil
+  @spec process_session(integer()) :: {:ok, [Fact.t()], [Message.t()]} | {:error, term()}
   def process_session(scope_id) do
     with %Scope{} = scope <- Scopes.get(scope_id),
          messages = next_messages(scope, @max_text_length),
@@ -55,6 +55,10 @@ defmodule Mem0.Processor do
          # Bump the scope's watermark to remember where it stopped.
          {:ok, _scope} <- bump_scope_watermark(messages, scope) do
       {:ok, facts, messages}
+    else
+      # `Scopes.get/1` misses with `nil`; everything else already errors.
+      nil -> {:error, :session_does_not_exist}
+      err -> err
     end
   end
 

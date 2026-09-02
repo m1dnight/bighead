@@ -84,11 +84,17 @@ defmodule Mem0.Ingester do
     |> partition_map(&ingester.parse_entry/1)
     |> case do
       {messages, []} ->
-        {:ok, messages}
+        {:ok, drop_empty(messages)}
 
       {messages, failed} ->
         Logger.warning("Failed to import some messages: #{inspect(failed)}")
-        {:ok, messages}
+        {:ok, drop_empty(messages)}
     end
+  end
+
+  # Drop all messages that are actually empty.
+  @spec drop_empty([message()]) :: [message()]
+  defp drop_empty(messages) do
+    Enum.reject(messages, &(String.trim(&1.content) == ""))
   end
 end

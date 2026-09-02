@@ -38,7 +38,7 @@ defmodule Mem0.ProcessorTest do
     test "extracts, stores and embeds the session's facts", %{scope: scope} do
       set_facts_reply(["Prefers Elixir"])
 
-      assert :ok = Processor.process_session("session-1")
+      assert {:ok, [_fact], [_one, _two]} = Processor.process_session(scope.id)
 
       assert [fact] = Facts.list()
       assert fact.fact == "Prefers Elixir"
@@ -52,22 +52,22 @@ defmodule Mem0.ProcessorTest do
     test "a second pass over an unchanged session extracts nothing", %{scope: scope} do
       set_facts_reply(["Prefers Elixir"])
 
-      assert :ok = Processor.process_session("session-1")
-      assert :ok = Processor.process_session("session-1")
+      assert {:ok, _facts, _messages} = Processor.process_session(scope.id)
+      assert {:ok, _facts, []} = Processor.process_session(scope.id)
 
       assert [_only_one] = Facts.list()
       assert [_only_one_call] = LLM.Stub.calls()
       assert Scopes.get(scope.id).last_extracted_message_id != nil
     end
 
-    test "a session nobody stored is an error" do
-      assert {:error, :session_does_not_exist} = Processor.process_session("session-9")
+    test "a scope nobody stored is an error", %{scope: scope} do
+      assert {:error, :session_does_not_exist} = Processor.process_session(scope.id + 1)
     end
 
-    test "an extraction failure stops the pass before embedding" do
+    test "an extraction failure stops the pass before embedding", %{scope: scope} do
       LLM.Stub.set({:error, {:http_error, 500, %{}}})
 
-      assert {:error, {:http_error, 500, _body}} = Processor.process_session("session-1")
+      assert {:error, {:http_error, 500, _body}} = Processor.process_session(scope.id)
       assert Facts.list() == []
       assert Embedder.Stub.calls() == []
     end

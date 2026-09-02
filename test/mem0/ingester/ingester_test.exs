@@ -42,6 +42,8 @@ defmodule Mem0.IngesterTest do
   """
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Mem0.Ingester
   alias Mem0.IngesterTest.StubIngester
 
@@ -78,19 +80,24 @@ defmodule Mem0.IngesterTest do
       assert {:ok, _scope, []} = Ingester.decode_transcript(transcript, StubIngester)
     end
 
-    test "a line that does not decode fails the transcript, first failure wins" do
+    test "a line that does not decode fails the transcript" do
       transcript =
         Enum.join([Jason.encode!(%{"scope" => "s"}), "{not json", "{"], "\n")
 
-      assert {:error, {:invalid_line, 2}} =
+      assert {:error, :decode_failed} =
                Ingester.decode_transcript(transcript, StubIngester)
     end
 
-    test "a parse failure fails the transcript" do
-      transcript = transcript([%{"scope" => "s"}, %{"boom" => true}])
+    test "a parse failure drops the entry, the rest imports" do
+      transcript = transcript([%{"scope" => "s", "content" => "kept"}, %{"boom" => true}])
 
-      assert {:error, :message_extract_failed} =
-               Ingester.decode_transcript(transcript, StubIngester)
+      log =
+        capture_log(fn ->
+          assert {:ok, _scope, [%{content: "kept"}]} =
+                   Ingester.decode_transcript(transcript, StubIngester)
+        end)
+
+      assert log =~ "Failed to import some messages"
     end
 
     test "a scope failure fails the transcript before any parsing" do

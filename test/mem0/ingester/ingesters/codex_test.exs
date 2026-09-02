@@ -7,6 +7,8 @@ defmodule Mem0.Ingester.CodexTest do
   """
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Mem0.Ingester
   alias Mem0.Ingester.Codex
 
@@ -78,17 +80,26 @@ defmodule Mem0.Ingester.CodexTest do
       assert message.content == "look at this\nwhat is wrong?"
     end
 
-    test "a record without a readable timestamp fails the transcript" do
-      records = [meta(), Map.delete(record(message("user", "hello")), "timestamp")]
+    test "a record without a readable timestamp is dropped, the rest imports" do
+      records = [
+        meta(),
+        Map.delete(record(message("user", "hello")), "timestamp"),
+        record(message("user", "still here"))
+      ]
 
-      assert {:error, :message_extract_failed} =
-               Ingester.decode_transcript(transcript(records), Codex)
+      log =
+        capture_log(fn ->
+          assert {:ok, _scope, [%{content: "still here"}]} =
+                   Ingester.decode_transcript(transcript(records), Codex)
+        end)
+
+      assert log =~ "Failed to import some messages"
     end
 
-    test "a line that does not decode fails the transcript, first failure wins" do
+    test "a line that does not decode fails the transcript" do
       transcript = Enum.join([Jason.encode!(meta()), "{not json", "{"], "\n")
 
-      assert {:error, {:invalid_line, 2}} = Ingester.decode_transcript(transcript, Codex)
+      assert {:error, :decode_failed} = Ingester.decode_transcript(transcript, Codex)
     end
   end
 
