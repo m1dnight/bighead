@@ -23,6 +23,9 @@ defmodule Mem0Web.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live "/projects", ProjectLive.Index, :index
+    live "/projects/:user", ProjectLive.Show, :show
   end
 
   # `/transcripts` is capture: the hook script posts the whole session

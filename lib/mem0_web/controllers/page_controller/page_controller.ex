@@ -3,6 +3,6 @@ defmodule Mem0Web.PageController do
 
   @spec home(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def home(conn, _params) do
-    render(conn, :home)
+    redirect(conn, to: ~p"/projects")
   end
 end
