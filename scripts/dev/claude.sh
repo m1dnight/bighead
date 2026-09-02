@@ -35,6 +35,7 @@ claude --settings '{
     ],
     "PreToolUse": [
       {
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
