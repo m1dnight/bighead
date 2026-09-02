@@ -18,11 +18,9 @@ def run(cwd):
     """Process all pending changes; returns the appended change records."""
     print("Processing diffs")
     changes = []
-    # only what replaced the llm's code: the user's hand edits, and the llm's
-    # edits on the user's next prompt. The other direction is the llm editing
-    # user code, which the guideline extractor must not read as a correction
+    # Create a list of diffs based on what is known locally.
     for file_path in repo.files(cwd):
-        changes.extend(diffs.from_llm(cwd, file_path))
+        changes.extend(diffs.transitions(cwd, file_path))
 
     # submit all diffs, but if theyre not all delivered, keep the log, and try
     # again later. server dedupes anyway.

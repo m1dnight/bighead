@@ -12,6 +12,7 @@ from pathlib import Path
 
 from hooklib import git, repo
 
+
 # edit
 # file missing on disk?                        -> ignore
 # not tracked before?                          -> new entry, as the side recording it
@@ -64,32 +65,33 @@ def _file_exists(cwd, file_path):
 
 
 def transitions(cwd, file_path):
-    """One diff per author transition for a file, oldest first."""
+    """One diff per consecutive pair of versions, oldest first.
+
+    The ledger folds same-author edits under one prompt into one row, so
+    every pair is one editor's change. Its origin says how the change came
+    about: "manual" when the user edited by hand, "requested" when the llm
+    made the change on the user's prompt.
+    """
     entries = repo.versions(cwd, file_path)
 
     found = []
     for before, after in itertools.pairwise(entries):
-        # a run of same-author versions under one prompt is not a transition,
-        # and identical hashes (e.g. a no-op edit) have nothing to diff
-        if (
-            before["version"] == after["version"]
-            and before["prompt_id"] == after["prompt_id"]
-        ):
-            continue
-        if before["hash"] == after["hash"]:
-            continue
-
-        # the diff ignores whitespace, so a reformat-only edit hashes
-        # differently yet diffs to nothing; the server rejects an empty
-        # diff, and retrying it would keep the ledger from ever draining
+        # a reformat-only edit hashes differently yet diffs to nothing
         diff = git.diff(cwd, before["hash"], after["hash"])
         if not diff.strip():
             continue
+
+        # initial version llm  -> next version llm  -> requested: changed on a prompt
+        #                      -> next version user -> manual: changed by hand
+        # initial version user -> next version llm  -> requested
+        #                      -> next version user -> never: user rows fold
+        origin = "manual" if after["version"] == "user" else "requested"
 
         found.append(
             {
                 "file_path": file_path,
                 "direction": f"{before['version']}_to_{after['version']}",
+                "origin": origin,
                 "from": before,
                 "to": after,
                 "diff": diff,
@@ -99,22 +101,3 @@ def transitions(cwd, file_path):
         )
 
     return found
-
-
-def user_to_llm(cwd, file_path):
-    """One diff per user -> llm transition for a file, oldest first."""
-    return [t for t in transitions(cwd, file_path) if t["direction"] == "user_to_llm"]
-
-
-def llm_to_user(cwd, file_path):
-    """One diff per llm -> user transition for a file, oldest first."""
-    return [t for t in transitions(cwd, file_path) if t["direction"] == "llm_to_user"]
-
-
-def from_llm(cwd, file_path):
-    """One diff per transition away from an llm version, oldest first.
-
-    What replaced the llm's code: the user's hand edit, or the llm's own
-    edit on the user's next prompt.
-    """
-    return [t for t in transitions(cwd, file_path) if t["from"]["version"] == "llm"]

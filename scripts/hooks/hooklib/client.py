@@ -21,6 +21,7 @@ def post_diff(change):
         "diff": change["diff"],
         "project": change["project"],
         "session": change["session"],
+        "origin": change["origin"],
     }
     return _post("/v1/diffs", body)
 
