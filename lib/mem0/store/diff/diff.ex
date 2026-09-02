@@ -12,6 +12,7 @@ defmodule Mem0.Store.Diff do
 
     field :file, :string
     field :diff, :string
+    field :origin, Ecto.Enum, values: [:manual, :requested]
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end
@@ -19,7 +20,7 @@ defmodule Mem0.Store.Diff do
   @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(diff \\ %__MODULE__{}, attrs) do
     diff
-    |> cast(attrs, [:scope_id, :file, :diff])
+    |> cast(attrs, [:scope_id, :file, :diff, :origin])
     |> validate_required([:scope_id, :file, :diff])
     |> foreign_key_constraint(:scope_id)
   end

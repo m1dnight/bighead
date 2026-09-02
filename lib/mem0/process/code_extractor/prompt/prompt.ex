@@ -1,7 +1,7 @@
 defmodule Mem0.CodeExtractor.Prompt do
   @moduledoc """
-  Renders one diff — the file it touches and the diff text — into the user
-  prompt of the code extractor.
+  Renders one diff — the file it touches, how the change came about and the
+  diff text — into the user prompt of the code extractor.
   """
 
   require EEx
@@ -16,6 +16,13 @@ defmodule Mem0.CodeExtractor.Prompt do
     The input is a git diff. Removed lines are what the agent produced. Added
     lines are what the developer replaced it with. The signal is the gap between
     them: what the agent got wrong, or could have done better.
+
+    A `change:` line says how the replacement happened. `manual`: the developer
+    edited the agent's code by hand, so the added lines are theirs. `requested`:
+    the developer told the agent what to change and the agent made the edit, so
+    the added lines carry the developer's intent but the agent's habits; read
+    the guideline from what was removed and why, not from the style of what
+    replaced it.
 
     Extract a guideline only if it would change how the agent writes code in the
     next file, on the next task:
@@ -61,14 +68,17 @@ defmodule Mem0.CodeExtractor.Prompt do
   """
 
   @doc """
-  Renders the user prompt: the file name followed by the diff text.
+  Renders the user prompt: the file name, how the change came about, and
+  the diff text. A diff stored before origins were recorded renders as
+  `unknown`.
 
-      Prompt.render(file: diff.file, diff: diff.diff)
+      Prompt.render(file: diff.file, diff: diff.diff, origin: diff.origin)
   """
   @spec render(keyword() | map()) :: String.t()
   def render(assigns) do
     assigns
     |> Map.new()
+    |> Map.put_new(:origin, nil)
     |> render_template()
   end
 

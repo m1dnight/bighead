@@ -8,6 +8,7 @@ defmodule Mem0.CodeExtractor do
   alias Mem0.Store.Diff
 
   require Logger
+
   @response_schema %{
     "additionalProperties" => false,
     "properties" => %{"guidelines" => %{"items" => %{"type" => "string"}, "type" => "array"}},
@@ -23,11 +24,11 @@ defmodule Mem0.CodeExtractor do
     with {:ok, request} <- request(diff),
          {:ok, response} <- Mem0.LLM.complete(request),
          {:ok, guidelines} <- decode_response(response) do
+      Logger.warning("""
+      Diff: #{inspect(diff)}
+      Guidelines: #{inspect(guidelines)}
+      """)
 
-      Logger.warning """
-      Diff: #{inspect diff}
-      Guidelines: #{inspect guidelines}
-      """
       {:ok, guidelines}
     else
       # a blank diff holds no guidelines, which is not an error — the same
@@ -50,7 +51,7 @@ defmodule Mem0.CodeExtractor do
     if String.trim(diff.diff) == "" do
       {:error, :no_diff_to_extract_from}
     else
-      prompt = Prompt.render(file: diff.file, diff: diff.diff)
+      prompt = Prompt.render(file: diff.file, diff: diff.diff, origin: diff.origin)
 
       {:ok,
        %{

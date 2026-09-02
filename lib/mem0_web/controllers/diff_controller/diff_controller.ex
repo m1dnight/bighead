@@ -21,14 +21,24 @@ defmodule Mem0Web.DiffController do
 
   `project` and `session` name the scope, the same `(cwd, session id)` pair
   the transcript path resolves to, so a diff and the conversation it came
-  from land on the same scope row.
+  from land on the same scope row. `origin` says how the change came about:
+  `manual` for a hand edit, `requested` for an edit the agent made on the
+  developer's prompt.
   """
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def create(conn, %{"file" => file, "diff" => diff, "project" => project, "session" => session})
+  def create(conn, %{
+        "file" => file,
+        "diff" => diff,
+        "project" => project,
+        "session" => session,
+        "origin" => origin
+      })
       when is_binary(file) and is_binary(diff) and is_binary(project) and is_binary(session) do
-    with :ok <- refuse_blank([file, diff, project, session]),
+    with {:ok, origin} <- origin(origin),
+         :ok <- refuse_blank([file, diff, project, session]),
          {:ok, scope} <- Scopes.create(%{user: "default", project: project, session: session}),
-         {:ok, stored} <- Diffs.create(%{file: file, diff: diff, scope_id: scope.id}) do
+         {:ok, stored} <-
+           Diffs.create(%{file: file, diff: diff, origin: origin, scope_id: scope.id}) do
       IO.puts("Got some diffs yo")
       Refresher.poke()
 
@@ -54,6 +64,13 @@ defmodule Mem0Web.DiffController do
   defp refuse_blank(values) do
     if Enum.any?(values, &(String.trim(&1) == "")), do: {:error, :blank_value}, else: :ok
   end
+
+  # How the change came about. A fixed mapping, so no client string ever
+  # becomes an atom.
+  @spec origin(term()) :: {:ok, :manual | :requested} | {:error, :unknown_origin}
+  defp origin("manual"), do: {:ok, :manual}
+  defp origin("requested"), do: {:ok, :requested}
+  defp origin(_other), do: {:error, :unknown_origin}
 
   @spec invalid_payload(Plug.Conn.t()) :: Plug.Conn.t()
   defp invalid_payload(conn) do

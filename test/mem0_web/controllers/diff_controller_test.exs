@@ -12,7 +12,8 @@ defmodule Mem0Web.DiffControllerTest do
     +def hello, do: :mem0
     """,
     "project" => "/code/widget",
-    "session" => "session-1"
+    "session" => "session-1",
+    "origin" => "manual"
   }
 
   describe "POST /diffs" do
@@ -23,6 +24,7 @@ defmodule Mem0Web.DiffControllerTest do
                json_response(conn, 200)
 
       assert Diffs.get!(id).diff == @payload["diff"]
+      assert Diffs.get!(id).origin == :manual
       assert Diffs.get!(id).scope_id == scope_id
     end
 
@@ -58,6 +60,13 @@ defmodule Mem0Web.DiffControllerTest do
                  conn |> post(~p"/v1/diffs", Map.delete(@payload, key)) |> json_response(422)
       end
 
+      assert Diffs.list() == []
+    end
+
+    test "an unknown origin is refused", %{conn: conn} do
+      payload = %{@payload | "origin" => "magic"}
+
+      assert %{"error" => _} = conn |> post(~p"/v1/diffs", payload) |> json_response(422)
       assert Diffs.list() == []
     end
 

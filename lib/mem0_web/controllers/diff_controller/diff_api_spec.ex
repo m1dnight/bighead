@@ -25,7 +25,7 @@ defmodule Mem0Web.DiffApiSpec do
       {"The diff to store", "application/json",
        %Schema{
          type: :object,
-         required: [:file, :diff, :project, :session],
+         required: [:file, :diff, :project, :session, :origin],
          properties: %{
            file: %Schema{type: :string, description: "Path of the file the diff applies to"},
            diff: %Schema{type: :string, description: "The diff text"},
@@ -33,13 +33,21 @@ defmodule Mem0Web.DiffApiSpec do
              type: :string,
              description: "Working directory of the session the diff happened in"
            },
-           session: %Schema{type: :string, description: "Id of the session the diff happened in"}
+           session: %Schema{type: :string, description: "Id of the session the diff happened in"},
+           origin: %Schema{
+             type: :string,
+             enum: ["manual", "requested"],
+             description:
+               "manual: the developer edited the agent's code by hand; " <>
+                 "requested: the agent changed it on the developer's prompt"
+           }
          },
          example: %{
            "file" => "lib/foo.ex",
            "diff" => "@@ -1 +1 @@...",
            "project" => "/code/widget",
-           "session" => "3f0f569b-0d3c-4f6e-9a3e-2b9c1d5e7f01"
+           "session" => "3f0f569b-0d3c-4f6e-9a3e-2b9c1d5e7f01",
+           "origin" => "manual"
          }
        }, required: true},
     responses: [
