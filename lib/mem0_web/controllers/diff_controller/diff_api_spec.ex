@@ -36,9 +36,10 @@ defmodule Mem0Web.DiffApiSpec do
            session: %Schema{type: :string, description: "Id of the session the diff happened in"},
            origin: %Schema{
              type: :string,
-             enum: ["manual", "requested", "agent"],
+             enum: ["manual", "own", "requested", "agent"],
              description:
                "manual: the developer edited the agent's code by hand; " <>
+                 "own: the developer edited code the agent had not touched; " <>
                  "requested: the agent changed its own code on the developer's prompt; " <>
                  "agent: the agent's own work on the developer's code"
            }

@@ -25,6 +25,10 @@ defmodule Mem0.CodeExtractor.Prompt do
       from what was removed and why, not from the style of what replaced it.
     - `manual`: the developer edited the agent's code by hand. Removed lines are
       the agent's, added lines are the developer's.
+    - `own`: the developer edited code the agent had not touched. Both sides
+      are the developer's, so it shows a habit rather than a verdict on the
+      agent; it supports a guideline only when the same habit shows more than
+      once.
 
     The signal is what the developer changed, or asked to change, after seeing
     the agent's version: what the agent got wrong, or could have done better.
@@ -53,8 +57,9 @@ defmodule Mem0.CodeExtractor.Prompt do
       imports, whitespace
     - the content of the change — a business rule, a constant, a URL, user-facing
       copy
-    - anything true only of this function: one call that needs a longer timeout,
-      one branch that needs a special case
+    - anything true only of this function or this project: one call that needs
+      a longer timeout, one branch that needs a special case, how one of this
+      project's own features should behave
     - a restatement of what the diff did
 
     Rules:
@@ -68,7 +73,12 @@ defmodule Mem0.CodeExtractor.Prompt do
     - Do not guess at motive. If an edit has several plausible readings, skip it.
     - If the agent's version would have been acceptable and the edit is taste at
       the margin, skip it.
-    - Write each guideline in the language the developer's code and comments use.
+    - Write for any project. Name no module, file, feature, or domain term of
+      this project; put the guideline in terms of the language, its standard
+      library, and general practice, so that it reads as sound advice in a
+      different codebase in the same language. If it cannot be stated without
+      this project's vocabulary, it is project knowledge, not a guideline:
+      skip it.
     - Most changes hold no guideline. An empty list is the right answer far more
       often than not.
   """

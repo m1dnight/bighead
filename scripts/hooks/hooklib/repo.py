@@ -60,14 +60,19 @@ def files(cwd):
 
 
 def compact(cwd):
-    """Keep only each file's latest entry, as the untouched baseline for
-    later diffs; returns rows deleted."""
+    """Keep only each file's latest entry, as the baseline for later diffs;
+    returns rows deleted.
+
+    A user row settles into untouched, so the user's next edit is a new row
+    rather than a fold. An llm row stays llm: whether the user edits it is
+    the verdict the diffs are after.
+    """
     with closing(connect(cwd)) as conn, conn:
         cursor = conn.execute(
             "DELETE FROM file_versions WHERE id NOT IN"
             " (SELECT MAX(id) FROM file_versions GROUP BY file_path)"
         )
-        conn.execute("UPDATE file_versions SET version = 'untouched'")
+        conn.execute("UPDATE file_versions SET version = 'untouched' WHERE version = 'user'")
 
     return cursor.rowcount
 

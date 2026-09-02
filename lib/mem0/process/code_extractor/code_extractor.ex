@@ -26,8 +26,8 @@ defmodule Mem0.CodeExtractor do
          {:ok, guidelines} <- decode_response(response) do
       {:ok, guidelines}
     else
-      # blank diffs hold no guidelines, which is not an error — the same
-      # posture as the extractor's empty message batch.
+      # blank diffs, or only the agent's own, hold no guidelines, which is not
+      # an error — the same posture as the extractor's empty message batch.
       {:error, :no_diff_to_extract_from} ->
         {:ok, []}
 
@@ -47,6 +47,7 @@ defmodule Mem0.CodeExtractor do
       diffs
       |> Enum.reject(&(String.trim(&1.diff) == ""))
       |> Enum.sort_by(&{&1.file, &1.id})
+      |> with_a_developer_change()
 
     if diffs == [] do
       {:error, :no_diff_to_extract_from}
@@ -58,6 +59,16 @@ defmodule Mem0.CodeExtractor do
          system: Prompt.system_prompt()
        }}
     end
+  end
+
+  # Keeps the files the developer changed something in. The agent's own diffs
+  # are context for reading those; a file holding nothing else has no
+  # guideline in it and only costs tokens.
+  @spec with_a_developer_change([Diff.t()]) :: [Diff.t()]
+  defp with_a_developer_change(diffs) do
+    files = diffs |> Enum.reject(&(&1.origin == :agent)) |> MapSet.new(& &1.file)
+
+    Enum.filter(diffs, &MapSet.member?(files, &1.file))
   end
 
   # decodes the response from the LLM into a list of guidelines.

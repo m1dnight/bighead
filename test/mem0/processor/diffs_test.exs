@@ -113,6 +113,34 @@ defmodule Mem0.Processor.DiffsTest do
       assert Scopes.get(scope.id).last_extracted_diff_id == second.id
     end
 
+    test "a developer change brings the agent's earlier diffs on the file along as context",
+         %{scope: scope} do
+      set_guidelines_reply([])
+      assert {:ok, [], [_one, _two]} = Processor.Diffs.process_scope(scope.id)
+
+      {:ok, _older} =
+        Diffs.create(%{file: "lib/baz.ex", diff: "-old()\n+older()", origin: :manual, scope_id: scope.id})
+
+      {:ok, _agent} =
+        Diffs.create(%{file: "lib/baz.ex", diff: "-older()\n+agent()", origin: :agent, scope_id: scope.id})
+
+      assert {:ok, [], [_older, _agent]} = Processor.Diffs.process_scope(scope.id)
+
+      {:ok, manual} =
+        Diffs.create(%{file: "lib/baz.ex", diff: "-agent()\n+mine()", origin: :manual, scope_id: scope.id})
+
+      # only the new diff is the batch; the agent's diff rides along, the
+      # developer's older one does not
+      assert {:ok, [], [only]} = Processor.Diffs.process_scope(scope.id)
+      assert only.id == manual.id
+
+      assert [_setup, _older_and_agent, %{messages: [%{content: prompt}]}] = LLM.Stub.calls()
+      assert prompt =~ "+agent()"
+      assert prompt =~ "+mine()"
+      refute prompt =~ "+older()"
+      assert Scopes.get(scope.id).last_extracted_diff_id == manual.id
+    end
+
     test "a scope nobody stored is an error", %{scope: scope} do
       assert {:error, :scope_does_not_exist} = Processor.Diffs.process_scope(scope.id + 1)
     end

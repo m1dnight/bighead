@@ -1,11 +1,11 @@
 """Diffs between recorded versions of a file.
 
-Every file starts from an "untouched" baseline: its content at HEAD when
-the ledger first sees it, or whatever was left behind by the last push.
+A file enters the ledger as an "untouched" baseline, its content at HEAD.
 Each later row is one side's change on top of the row before it: an llm
 row is what the llm changed, a user row is what the user changed, and two
 llm rows from different prompts are what the llm changed on the user's
-next instruction.
+next instruction. After a push the user's row settles back into the
+baseline; the llm's row stays, waiting for the user's verdict.
 """
 
 import itertools
@@ -78,7 +78,8 @@ def transitions(cwd, file_path):
 
     The ledger folds same-author edits under one prompt into one row, so
     every pair is one editor's change. Its origin says how the change came
-    about: "manual" when the user edited by hand, "requested" when the llm
+    about: "manual" when the user edited the llm's code by hand, "own" when
+    the user edited code the llm had not touched, "requested" when the llm
     changed its own code on the user's prompt, "agent" for any other llm
     edit.
     """
@@ -91,11 +92,12 @@ def transitions(cwd, file_path):
         if not diff.strip():
             continue
 
-        # next version user                       -> manual: changed by hand
-        # llm version -> next version llm         -> requested: changed on a prompt
+        # llm version       -> next version user  -> manual: the llm's code, changed by hand
+        # anything else     -> next version user  -> own: the user's code, changed by hand
+        # llm version       -> next version llm   -> requested: changed on a prompt
         # untouched or user -> next version llm   -> agent: the llm's own work
         if after["version"] == "user":
-            origin = "manual"
+            origin = "manual" if before["version"] == "llm" else "own"
         elif before["version"] == "llm":
             origin = "requested"
         else:

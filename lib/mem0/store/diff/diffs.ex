@@ -60,6 +60,19 @@ defmodule Mem0.Store.Diffs do
   defp after_id(query, id), do: where(query, [d], d.id > ^id)
 
   @doc """
+  Returns the diffs recorded for the given file in the scope before `id`,
+  newest first, at most `limit` of them.
+  """
+  @spec before(integer(), String.t(), integer(), pos_integer()) :: [Diff.t()]
+  def before(scope_id, file, id, limit) do
+    Diff
+    |> where([d], d.scope_id == ^scope_id and d.file == ^file and d.id < ^id)
+    |> order_by([d], desc: d.id)
+    |> limit(^limit)
+    |> Repo.all()
+  end
+
+  @doc """
   Fetches a diff by id. Returns `nil` when it does not exist.
   """
   @spec get(integer()) :: Diff.t() | nil

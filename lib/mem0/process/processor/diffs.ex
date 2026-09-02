@@ -22,6 +22,9 @@ defmodule Mem0.Processor.Diffs do
   # than that is split into several batches.
   @max_batch_chars 800_000
 
+  # How many of the agent's earlier diffs on a file come along as context.
+  @max_context_per_file 10
+
   @doc """
   Processes every scope with diffs past its watermark.
   """
@@ -97,7 +100,7 @@ defmodule Mem0.Processor.Diffs do
   # message batch takes in `Mem0.Processor`.
   @spec process_batch([Diff.t()], Scope.t()) :: {:ok, Scope.t(), [Fact.t()]} | {:error, term()}
   defp process_batch(batch, scope) do
-    with {:ok, guidelines} <- CodeExtractor.extract_guidelines(batch),
+    with {:ok, guidelines} <- CodeExtractor.extract_guidelines(with_context(batch, scope)),
          :ok = log_extracted(batch, guidelines),
          old_facts = Facts.facts_for(scope.id, kind: :guideline),
          facts = Reconciler.reconcile_facts(guidelines, old_facts, scope.id, :guideline),
@@ -105,6 +108,27 @@ defmodule Mem0.Processor.Diffs do
          {:ok, scope} <- Scopes.set_last_extracted_diff(scope, List.last(batch).id) do
       {:ok, scope, facts}
     end
+  end
+
+  # The batch plus, for each file in it, the agent's diffs on that file since
+  # the developer last changed it. Those were extracted already; they come
+  # along as the before-picture of a developer change in the batch, which
+  # usually lands in a later batch than the agent's work it reacts to.
+  @spec with_context([Diff.t()], Scope.t()) :: [Diff.t()]
+  defp with_context(batch, scope) do
+    first_id = List.first(batch).id
+
+    context =
+      batch
+      |> Enum.map(& &1.file)
+      |> Enum.uniq()
+      |> Enum.flat_map(fn file ->
+        scope.id
+        |> Diffs.before(file, first_id, @max_context_per_file)
+        |> Enum.take_while(&(&1.origin in [:agent, :requested]))
+      end)
+
+    context ++ batch
   end
 
   # Splits diffs into batches whose diff text stays under `max_chars`. A

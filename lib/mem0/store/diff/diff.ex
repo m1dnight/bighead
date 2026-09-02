@@ -12,7 +12,7 @@ defmodule Mem0.Store.Diff do
 
     field :file, :string
     field :diff, :string
-    field :origin, Ecto.Enum, values: [:manual, :requested, :agent]
+    field :origin, Ecto.Enum, values: [:manual, :own, :requested, :agent]
 
     timestamps(type: :utc_datetime_usec, updated_at: false)
   end

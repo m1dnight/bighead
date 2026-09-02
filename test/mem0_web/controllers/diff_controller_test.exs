@@ -64,7 +64,7 @@ defmodule Mem0Web.DiffControllerTest do
     end
 
     test "every origin the hook can send is accepted", %{conn: conn} do
-      for origin <- ["manual", "requested", "agent"] do
+      for origin <- ["manual", "own", "requested", "agent"] do
         payload = %{@payload | "origin" => origin, "file" => "lib/#{origin}.ex"}
         assert %{"id" => _} = conn |> post(~p"/v1/diffs", payload) |> json_response(200)
       end

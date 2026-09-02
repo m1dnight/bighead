@@ -33,6 +33,17 @@ defmodule Mem0.CodeExtractorTest do
     """
   }
 
+  @baz %Diff{
+    id: 3,
+    file: "lib/baz.ex",
+    origin: :agent,
+    diff: """
+    @@ -1 +1 @@
+    -x
+    +y
+    """
+  }
+
   setup do
     LLM.Stub.start!()
     :ok
@@ -72,6 +83,17 @@ defmodule Mem0.CodeExtractorTest do
       refute prompt =~ "lib/blank.ex"
 
       assert {:ok, []} = CodeExtractor.extract_guidelines([blank])
+      assert [_only_the_first] = LLM.Stub.calls()
+    end
+
+    test "a file with only the agent's own diffs is left out, and a batch of only those costs no call" do
+      set_guidelines_reply([])
+
+      assert {:ok, []} = CodeExtractor.extract_guidelines([@baz, @foo])
+      assert [%{messages: [%{content: prompt}]}] = LLM.Stub.calls()
+      refute prompt =~ "lib/baz.ex"
+
+      assert {:ok, []} = CodeExtractor.extract_guidelines([@baz])
       assert [_only_the_first] = LLM.Stub.calls()
     end
 
