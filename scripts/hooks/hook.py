@@ -2,7 +2,7 @@
 
 import sys
 import traceback
-from hooklib import git, payload, storage
+from hooklib import git, payload, storage, repo
 from hooklib.hook_handlers import (
     post_tool_use,
     pre_tool_use,
@@ -32,24 +32,33 @@ def process(raw_payload):
 
     # If the payload was None, we don't care about it.
     if payload_dict == None:
-        return
+        return None
 
     # make sure it's a git repo, otherwise ignore
     if not git.is_repo(payload_dict["cwd"]):
         print("Not a .git repo, ignoring")
-        return
+        return None 
+
 
     event = payload_dict["event"]
-    HANDLERS[event](payload_dict)
+    result = HANDLERS[event](payload_dict)
 
     # debug logging, disable later
     cwd = payload_dict["cwd"]
+    storage.init(cwd)
     storage.append(storage.payload_log(cwd), raw_payload)
+
+    return result
 
 
 def main():
     raw_payload = sys.stdin.read()
-    process(raw_payload)
+    result = process(raw_payload)
+
+    # A handler's return value is for Claude Code, not the log: on
+    # UserPromptSubmit whatever lands on stdout is injected as context.
+    if result:
+        real_stdout.write(result)
 
 
 if __name__ == "__main__":

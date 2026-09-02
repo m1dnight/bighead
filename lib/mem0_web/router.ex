@@ -1,6 +1,8 @@
 defmodule Mem0Web.Router do
   use Mem0Web, :router
 
+  alias OpenApiSpex.Plug.PutApiSpec
+  alias OpenApiSpex.Plug.RenderSpec
   alias Plug.Swoosh.MailboxPreview
 
   pipeline :browser do
@@ -14,6 +16,7 @@ defmodule Mem0Web.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug PutApiSpec, module: Mem0Web.ApiSpec
   end
 
   scope "/", Mem0Web do
@@ -30,6 +33,18 @@ defmodule Mem0Web.Router do
 
     post "/transcripts", TranscriptController, :create
     post "/diffs", DiffController, :create
+
+    # `/recall` is the read side: the hook posts the user's prompt here on
+    # `UserPromptSubmit` and injects the facts that come back as context.
+    post "/recall", RecallController, :create
+  end
+
+  # The spec route sits outside the `Mem0Web` scope: `RenderSpec` is a plug
+  # from `open_api_spex`, not one of our controllers.
+  scope "/v1" do
+    pipe_through :api
+
+    get "/openapi", RenderSpec, []
   end
 
   # Other scopes may use custom stacks.

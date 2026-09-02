@@ -46,6 +46,26 @@ def post_transcript(path):
         return False
 
 
+def recall(prompt):
+    """POST the prompt to /v1/recall; the relevant fact texts, best first.
+
+    Empty on any failure — a session must never be blocked because the
+    memory server is down.
+    """
+    request = urllib.request.Request(
+        BASE_URL + "/v1/recall",
+        data=json.dumps({"prompt": prompt}).encode(),
+        headers={"content-type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            reply = json.load(response)
+    except (OSError, ValueError):
+        return []
+
+    return [fact["fact"] for fact in reply.get("facts", []) if fact.get("fact")]
+
+
 def _post(path, body):
     """POST a JSON body; True on a 2xx reply, False on anything else."""
     request = urllib.request.Request(

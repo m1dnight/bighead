@@ -11,15 +11,10 @@ defmodule Mem0Web.DiffController do
 
   alias Mem0.Store.Diffs
 
+  defdelegate open_api_operation(action), to: Mem0Web.DiffApiSpec
+
   @doc """
-  Stores one diff:
-
-      curl -X POST -H 'content-type: application/json' \\
-        -d '{"file": "lib/foo.ex", "diff": "@@ -1 +1 @@..."}' \\
-        http://localhost:4000/v1/diffs
-
-  Posting the same payload twice is safe — the store dedups on file and diff
-  text, and the reply carries the existing row's id.
+  Stores one diff.
   """
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def create(conn, %{"file" => file, "diff" => diff}) when is_binary(file) and is_binary(diff) do
@@ -27,8 +22,6 @@ defmodule Mem0Web.DiffController do
       {:ok, stored} ->
         render(conn, :create, diff: stored)
 
-      # The guard already ensured both fields are binaries, so this is a
-      # blank file or diff — a shape problem, same answer as the clause below.
       {:error, _changeset} ->
         invalid_payload(conn)
     end
@@ -37,6 +30,10 @@ defmodule Mem0Web.DiffController do
   def create(conn, _params) do
     invalid_payload(conn)
   end
+
+  # ---------------------------------------------------------------------------#
+  #                                Helpers                                     #
+  # ---------------------------------------------------------------------------#
 
   @spec invalid_payload(Plug.Conn.t()) :: Plug.Conn.t()
   defp invalid_payload(conn) do

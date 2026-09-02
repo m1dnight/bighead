@@ -16,6 +16,8 @@ defmodule Mem0Web.TranscriptController do
   alias Mem0.Ingester.Claude
   alias Mem0.Refresher
 
+  defdelegate open_api_operation(action), to: Mem0Web.TranscriptApiSpec
+
   # A whole transcript held in memory at once; past this the request is
   # refused rather than the VM grown without bound.
   @max_transcript_bytes 50_000_000

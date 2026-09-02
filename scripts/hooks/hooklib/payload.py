@@ -31,6 +31,8 @@ def parse(raw):
         "cwd": payload.get("cwd"),
         "session_id": payload.get("session_id"),
         "transcript_path": payload.get("transcript_path"),
+        # Only UserPromptSubmit carries one; None everywhere else.
+        "prompt": payload.get("prompt"),
     }
 
 
