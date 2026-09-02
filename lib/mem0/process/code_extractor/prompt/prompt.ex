@@ -1,7 +1,7 @@
 defmodule Mem0.CodeExtractor.Prompt do
   @moduledoc """
-  Renders one diff — the file it touches, how the change came about and the
-  diff text — into the user prompt of the code extractor.
+  Renders a batch of diffs — for each the file it touches, how the change
+  came about and the diff text — into the user prompt of the code extractor.
   """
 
   require EEx
@@ -10,19 +10,25 @@ defmodule Mem0.CodeExtractor.Prompt do
   @external_resource @template
 
   @system_prompt """
-    You extract durable code guidelines from a developer's edits to code that a
+    You extract durable code guidelines from how a developer treats code that a
     coding agent wrote.
 
-    The input is a git diff. Removed lines are what the agent produced. Added
-    lines are what the developer replaced it with. The signal is the gap between
-    them: what the agent got wrong, or could have done better.
+    The input is the changes recorded to a project's files during one working
+    session, grouped by file in the order they happened. Each change is a git
+    diff with a `change:` line saying how it came about:
 
-    A `change:` line says how the replacement happened. `manual`: the developer
-    edited the agent's code by hand, so the added lines are theirs. `requested`:
-    the developer told the agent what to change and the agent made the edit, so
-    the added lines carry the developer's intent but the agent's habits; read
-    the guideline from what was removed and why, not from the style of what
-    replaced it.
+    - `agent`: the agent's own work on the developer's code. Context for reading
+      the changes that follow it, never a source of guidelines by itself.
+    - `requested`: the agent changed its own earlier work because the developer
+      asked for it. The removed lines are what the developer rejected. The added
+      lines carry their intent but the agent's habits, so read the guideline
+      from what was removed and why, not from the style of what replaced it.
+    - `manual`: the developer edited the agent's code by hand. Removed lines are
+      the agent's, added lines are the developer's.
+
+    The signal is what the developer changed, or asked to change, after seeing
+    the agent's version: what the agent got wrong, or could have done better.
+    The same correction across several files is one guideline, better founded.
 
     Extract a guideline only if it would change how the agent writes code in the
     next file, on the next task:
@@ -63,22 +69,21 @@ defmodule Mem0.CodeExtractor.Prompt do
     - If the agent's version would have been acceptable and the edit is taste at
       the margin, skip it.
     - Write each guideline in the language the developer's code and comments use.
-    - Most diffs hold no guideline. An empty list is the right answer far more
+    - Most changes hold no guideline. An empty list is the right answer far more
       often than not.
   """
 
   @doc """
-  Renders the user prompt: the file name, how the change came about, and
-  the diff text. A diff stored before origins were recorded renders as
-  `unknown`.
+  Renders the user prompt: for each diff its file name, how the change came
+  about, and the diff text, in the order given. A diff stored before origins
+  were recorded renders as `unknown`.
 
-      Prompt.render(file: diff.file, diff: diff.diff, origin: diff.origin)
+      Prompt.render(diffs: diffs)
   """
   @spec render(keyword() | map()) :: String.t()
   def render(assigns) do
     assigns
     |> Map.new()
-    |> Map.put_new(:origin, nil)
     |> render_template()
   end
 

@@ -69,8 +69,9 @@ def transitions(cwd, file_path):
 
     The ledger folds same-author edits under one prompt into one row, so
     every pair is one editor's change. Its origin says how the change came
-    about: "manual" when the user edited by hand, "requested" when the llm
-    made the change on the user's prompt.
+    about: "manual" when the user edited the llm's code by hand, "requested"
+    when the llm changed its own code on the user's prompt, "agent" when
+    the llm worked on the user's code.
     """
     entries = repo.versions(cwd, file_path)
 
@@ -81,11 +82,16 @@ def transitions(cwd, file_path):
         if not diff.strip():
             continue
 
-        # initial version llm  -> next version llm  -> requested: changed on a prompt
-        #                      -> next version user -> manual: changed by hand
-        # initial version user -> next version llm  -> requested
+        # initial version llm  -> next version user -> manual: changed by hand
+        #                      -> next version llm  -> requested: changed on a prompt
+        # initial version user -> next version llm  -> agent: the llm's own work
         #                      -> next version user -> never: user rows fold
-        origin = "manual" if after["version"] == "user" else "requested"
+        if after["version"] == "user":
+            origin = "manual"
+        elif before["version"] == "llm":
+            origin = "requested"
+        else:
+            origin = "agent"
 
         found.append(
             {

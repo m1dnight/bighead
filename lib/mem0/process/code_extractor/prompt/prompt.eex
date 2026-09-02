@@ -1,4 +1,6 @@
-file: <%= @file %>
-change: <%= @origin || "unknown" %>
+<%= for diff <- @diffs do %>file: <%= diff.file %>
+change: <%= diff.origin || "unknown" %>
 
-<%= @diff %>
+<%= String.trim_trailing(diff.diff) %>
+
+<% end %>

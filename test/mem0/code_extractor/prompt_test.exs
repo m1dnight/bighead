@@ -1,31 +1,35 @@
 defmodule Mem0.CodeExtractor.PromptTest do
   @moduledoc """
-  The code-extraction prompt: the diff renders under its file name, and the
-  system prompt carries the extraction rules.
+  The code-extraction prompt: each diff renders under its file name and
+  origin, in the order given, and the system prompt carries the rules.
   """
   use ExUnit.Case, async: true
 
   alias Mem0.CodeExtractor.Prompt
 
   describe "render/1" do
-    test "renders the file name and origin followed by the diff text" do
+    test "renders every diff with its file name and origin, in order" do
       rendered =
         Prompt.render(
-          file: "lib/foo.ex",
-          diff: "@@ -1 +1 @@\n-old_line()\n+new_line()",
-          origin: :requested
+          diffs: [
+            %{file: "lib/foo.ex", origin: :requested, diff: "@@ -1 +1 @@\n-old()\n+new()"},
+            %{file: "lib/bar.ex", origin: :manual, diff: "@@ -2 +2 @@\n-a()\n+b()"}
+          ]
         )
 
-      assert rendered =~ "file: lib/foo.ex"
-      assert rendered =~ "change: requested"
-      assert rendered =~ "-old_line()"
-      assert rendered =~ "+new_line()"
+      assert rendered =~ "file: lib/foo.ex\nchange: requested"
+      assert rendered =~ "file: lib/bar.ex\nchange: manual"
+      assert rendered =~ "+new()"
+      assert rendered =~ "+b()"
 
-      assert first_index(rendered, "lib/foo.ex") < first_index(rendered, "@@")
+      assert first_index(rendered, "lib/foo.ex") < first_index(rendered, "+new()")
+      assert first_index(rendered, "+new()") < first_index(rendered, "lib/bar.ex")
     end
 
     test "a diff without an origin renders as unknown" do
-      assert Prompt.render(file: "lib/foo.ex", diff: "@@ -1 +1 @@") =~ "change: unknown"
+      rendered = Prompt.render(diffs: [%{file: "lib/foo.ex", origin: nil, diff: "@@ -1 +1 @@"}])
+
+      assert rendered =~ "change: unknown"
     end
   end
 

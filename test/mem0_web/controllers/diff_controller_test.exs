@@ -63,6 +63,13 @@ defmodule Mem0Web.DiffControllerTest do
       assert Diffs.list() == []
     end
 
+    test "every origin the hook can send is accepted", %{conn: conn} do
+      for origin <- ["manual", "requested", "agent"] do
+        payload = %{@payload | "origin" => origin, "file" => "lib/#{origin}.ex"}
+        assert %{"id" => _} = conn |> post(~p"/v1/diffs", payload) |> json_response(200)
+      end
+    end
+
     test "an unknown origin is refused", %{conn: conn} do
       payload = %{@payload | "origin" => "magic"}
 

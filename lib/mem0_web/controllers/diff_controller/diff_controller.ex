@@ -22,8 +22,9 @@ defmodule Mem0Web.DiffController do
   `project` and `session` name the scope, the same `(cwd, session id)` pair
   the transcript path resolves to, so a diff and the conversation it came
   from land on the same scope row. `origin` says how the change came about:
-  `manual` for a hand edit, `requested` for an edit the agent made on the
-  developer's prompt.
+  `manual` for a hand edit of the agent's code, `requested` for the agent
+  changing its own code on the developer's prompt, `agent` for the agent's
+  own work on the developer's code.
   """
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def create(conn, %{
@@ -39,7 +40,6 @@ defmodule Mem0Web.DiffController do
          {:ok, scope} <- Scopes.create(%{user: "default", project: project, session: session}),
          {:ok, stored} <-
            Diffs.create(%{file: file, diff: diff, origin: origin, scope_id: scope.id}) do
-      IO.puts("Got some diffs yo")
       Refresher.poke()
 
       render(conn, :create, diff: stored)
@@ -67,9 +67,10 @@ defmodule Mem0Web.DiffController do
 
   # How the change came about. A fixed mapping, so no client string ever
   # becomes an atom.
-  @spec origin(term()) :: {:ok, :manual | :requested} | {:error, :unknown_origin}
+  @spec origin(term()) :: {:ok, :manual | :requested | :agent} | {:error, :unknown_origin}
   defp origin("manual"), do: {:ok, :manual}
   defp origin("requested"), do: {:ok, :requested}
+  defp origin("agent"), do: {:ok, :agent}
   defp origin(_other), do: {:error, :unknown_origin}
 
   @spec invalid_payload(Plug.Conn.t()) :: Plug.Conn.t()

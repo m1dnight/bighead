@@ -1,8 +1,9 @@
 defmodule Mem0.Processor.DiffsTest do
   @moduledoc """
   The extract-then-embed pass over one scope's diffs, with both ports
-  stubbed: guidelines land in the store as embedded facts, and the diff
-  watermark moves so the next pass reads nothing twice.
+  stubbed: a batch of diffs goes to the extractor in one call, guidelines
+  land in the store as embedded facts, and the diff watermark moves so the
+  next pass reads nothing twice.
   """
   use Mem0.DataCase, async: true
 
@@ -52,13 +53,24 @@ defmodule Mem0.Processor.DiffsTest do
       assert Scopes.get(scope.id).last_extracted_diff_id == second.id
     end
 
-    test "a diff holding no guideline still moves the watermark, one call per diff",
+    test "a batch holding no guideline still moves the watermark, in one call",
          %{scope: scope, second: second} do
       set_guidelines_reply([])
 
       assert {:ok, [], [_one, _two]} = Processor.Diffs.process_scope(scope.id)
 
       assert Facts.list() == []
+      assert [%{messages: [%{content: prompt}]}] = LLM.Stub.calls()
+      assert prompt =~ "fetch(x)"
+      assert prompt =~ "Logger.debug"
+      assert Scopes.get(scope.id).last_extracted_diff_id == second.id
+    end
+
+    test "a size cap splits the pass into several batches", %{scope: scope, second: second} do
+      set_guidelines_reply([])
+
+      assert {:ok, [], [_one, _two]} = Processor.Diffs.process_scope(scope.id, max_batch_chars: 1)
+
       assert [_first_call, _second_call] = LLM.Stub.calls()
       assert Scopes.get(scope.id).last_extracted_diff_id == second.id
     end
@@ -69,7 +81,7 @@ defmodule Mem0.Processor.DiffsTest do
       assert {:ok, [], [_one, _two]} = Processor.Diffs.process_scope(scope.id)
       assert {:ok, [], []} = Processor.Diffs.process_scope(scope.id)
 
-      assert [_first_call, _second_call] = LLM.Stub.calls()
+      assert [_only_call] = LLM.Stub.calls()
     end
 
     test "an extraction failure stops the pass and leaves the watermark", %{scope: scope} do
@@ -82,16 +94,16 @@ defmodule Mem0.Processor.DiffsTest do
       assert Scopes.get(scope.id).last_extracted_diff_id == nil
     end
 
-    test "a failure on a later diff keeps the earlier ones done and resumes there",
+    test "a failure on a later batch keeps the earlier ones done and resumes there",
          %{scope: scope, first: first, second: second} do
-      # the second diff's text is only in the second request
+      # one diff per batch, so the second diff's text is only in the second request
       LLM.Stub.set(fn %{messages: [%{content: prompt}]}, _opts ->
         if String.contains?(prompt, "Logger.debug"),
           do: {:error, :boom},
           else: {:ok, LLM.Stub.response(Jason.encode!(%{"guidelines" => []}))}
       end)
 
-      assert {:error, :boom} = Processor.Diffs.process_scope(scope.id)
+      assert {:error, :boom} = Processor.Diffs.process_scope(scope.id, max_batch_chars: 1)
       assert Scopes.get(scope.id).last_extracted_diff_id == first.id
 
       set_guidelines_reply([])
@@ -116,8 +128,7 @@ defmodule Mem0.Processor.DiffsTest do
   end
 
   # Answers the extractor with guidelines and the reconciler with ADD, told
-  # apart by the schema each asks for: the second diff reconciles its
-  # guideline against the fact the first one stored.
+  # apart by the schema each asks for.
   defp set_guidelines_reply(guidelines) do
     LLM.Stub.set(fn
       %{schema: %{"properties" => %{"guidelines" => _}}}, _opts ->
