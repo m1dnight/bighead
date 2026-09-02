@@ -10,7 +10,7 @@ defmodule Mem0Web.DiffJSON do
   """
   @spec create(%{diff: Diff.t()}) :: map()
   def create(%{diff: diff}) do
-    %{id: diff.id, file: diff.file}
+    %{id: diff.id, file: diff.file, scope_id: diff.scope_id}
   end
 
   @doc """
@@ -18,6 +18,9 @@ defmodule Mem0Web.DiffJSON do
   """
   @spec error(map()) :: map()
   def error(_assigns) do
-    %{error: ~s(expected {"file": <path>, "diff": <diff text>})}
+    %{
+      error:
+        ~s(expected {"file": <path>, "diff": <diff text>, "project": <cwd>, "session": <session id>})
+    }
   end
 end

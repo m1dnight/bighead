@@ -38,6 +38,8 @@ def transitions(cwd, file_path):
                 "from": before,
                 "to": after,
                 "diff": diff,
+                "project": str(cwd),
+                "session": after["session_id"],
             }
         )
 

@@ -15,7 +15,12 @@ TRANSCRIPT_TIMEOUT_SECONDS = 60
 
 def post_diff(change):
     """POST one ledger change to /v1/diffs; True when the server stored it."""
-    body = {"file": str(change["file_path"]), "diff": change["diff"]}
+    body = {
+        "file": str(change["file_path"]),
+        "diff": change["diff"],
+        "project": change["project"],
+        "session": change["session"],
+    }
     return _post("/v1/diffs", body)
 
 

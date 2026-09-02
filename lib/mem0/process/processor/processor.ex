@@ -15,6 +15,8 @@ defmodule Mem0.Processor do
   alias Mem0.Store.Scope
   alias Mem0.Store.Scopes
 
+  require Logger
+
   # The extractor reads at most this many messages per pass, so the watermark
   # may only advance over a batch of the same size — anything past it stays
   # unread and must be picked up by the next pass.
@@ -46,6 +48,7 @@ defmodule Mem0.Processor do
          messages = next_messages(scope, @max_text_length),
          # Extract facts from the messages.
          {:ok, facts} <- Extractor.extract_facts(messages, ""),
+         :ok = log_extracted(scope, facts),
          # Fetch old facts, to reconcile.
          old_facts = Facts.facts_for(scope.id),
          # Reconcile the new facts with the known ones.
@@ -80,6 +83,18 @@ defmodule Mem0.Processor do
     end)
     |> elem(1)
     |> Enum.reverse()
+  end
+
+  # Console feedback for debugging: what the LLM pulled out of this batch,
+  # before reconciliation decides what to do with it.
+  @spec log_extracted(Scope.t(), [String.t()]) :: :ok
+  defp log_extracted(_scope, []), do: :ok
+
+  defp log_extracted(scope, facts) do
+    Logger.error(
+      "Extracted #{length(facts)} fact(s) from session #{scope.session}:\n" <>
+        Enum.map_join(facts, "\n", &("  - " <> &1))
+    )
   end
 
   @spec bump_scope_watermark([Message.t()], Scope.t()) ::

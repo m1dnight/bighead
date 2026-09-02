@@ -8,6 +8,7 @@ defmodule Mem0.Store.Scopes do
   import Ecto.Query, except: [update: 2, update: 3]
 
   alias Mem0.Repo
+  alias Mem0.Store.Diff
   alias Mem0.Store.Message
   alias Mem0.Store.Scope
 
@@ -49,6 +50,20 @@ defmodule Mem0.Store.Scopes do
   end
 
   @doc """
+  Returns the scopes with diffs past their diff watermark — the work set for
+  `Mem0.Processor.Diffs`. A `nil` watermark means never extracted, so any
+  diff at all makes the scope stale.
+  """
+  @spec stale_diffs() :: [Scope.t()]
+  def stale_diffs do
+    Scope
+    |> join(:inner, [s], d in Diff, on: d.scope_id == s.id)
+    |> where([s, d], d.id > coalesce(s.last_extracted_diff_id, 0))
+    |> distinct(true)
+    |> Repo.all()
+  end
+
+  @doc """
   Fetches a scope by id. Returns `nil` when it does not exist.
   """
   @spec get(integer()) :: Scope.t() | nil
@@ -84,6 +99,15 @@ defmodule Mem0.Store.Scopes do
           {:ok, Scope.t()} | {:error, Ecto.Changeset.t()}
   def set_last_extracted(%Scope{} = scope, message_id) do
     update(scope, %{last_extracted_message_id: message_id})
+  end
+
+  @doc """
+  Sets the id of the last diff guidelines have been extracted from.
+  """
+  @spec set_last_extracted_diff(Scope.t(), integer()) ::
+          {:ok, Scope.t()} | {:error, Ecto.Changeset.t()}
+  def set_last_extracted_diff(%Scope{} = scope, diff_id) do
+    update(scope, %{last_extracted_diff_id: diff_id})
   end
 
   @doc """

@@ -43,6 +43,23 @@ defmodule Mem0.Store.Diffs do
   end
 
   @doc """
+  Returns the diffs recorded for the given scope, oldest first. With
+  `from: id`, only those past that id — the read behind the diff watermark.
+  """
+  @spec for_scope(integer(), keyword()) :: [Diff.t()]
+  def for_scope(scope_id, opts \\ []) do
+    Diff
+    |> where([d], d.scope_id == ^scope_id)
+    |> after_id(Keyword.get(opts, :from))
+    |> order_by([d], asc: d.id)
+    |> Repo.all()
+  end
+
+  @spec after_id(Ecto.Query.t(), integer() | nil) :: Ecto.Query.t()
+  defp after_id(query, nil), do: query
+  defp after_id(query, id), do: where(query, [d], d.id > ^id)
+
+  @doc """
   Fetches a diff by id. Returns `nil` when it does not exist.
   """
   @spec get(integer()) :: Diff.t() | nil

@@ -3,8 +3,9 @@ defmodule Mem0.Refresher do
   Runs fact extraction over whatever the ingestion side accumulated.
 
   The database is the queue: a scope needs work exactly when it has messages
-  past its extraction watermark, so this server keeps no state of its own —
-  every sweep derives its work set from `Scopes.stale/0`. It sweeps on a
+  or diffs past its extraction watermarks, so this server keeps no state of
+  its own — every sweep derives its work set from `Scopes.stale/0` and
+  `Scopes.stale_diffs/0`. It sweeps on a
   timer and can be poked after an import; either way the sweep is the same,
   so pokes for the same scope coalesce for free, and a crash loses nothing.
 
@@ -67,22 +68,14 @@ defmodule Mem0.Refresher do
   # is the retry — nothing to track here.
   @spec sweep() :: :ok
   defp sweep do
-    case Processor.process_sessions() do
-      {[], []} ->
-        :ok
-
-      {_success, []} ->
-        :ok
-
-      {[], _failed} ->
-        Logger.error("Failed to process sessions")
-        :ok
-
-      {_success, _failed} ->
-        Logger.error("Failed to process some sessions")
-        :ok
-    end
+    report("sessions", Processor.process_sessions())
+    report("diffs", Processor.Diffs.process_diffs())
   end
+
+  @spec report(String.t(), {[term()], [term()]}) :: :ok
+  defp report(_what, {_success, []}), do: :ok
+  defp report(what, {[], _failed}), do: Logger.error("Failed to process #{what}")
+  defp report(what, {_success, _failed}), do: Logger.error("Failed to process some #{what}")
 
   @spec schedule_tick() :: reference()
   defp schedule_tick do

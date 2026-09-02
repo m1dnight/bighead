@@ -5,6 +5,7 @@ defmodule Mem0.Store.ScopesTest do
   """
   use Mem0.DataCase, async: true
 
+  alias Mem0.Store.Diffs
   alias Mem0.Store.Messages
   alias Mem0.Store.Scopes
 
@@ -94,6 +95,49 @@ defmodule Mem0.Store.ScopesTest do
 
       assert [_only_once] = Scopes.stale()
     end
+  end
+
+  describe "set_last_extracted_diff/2" do
+    test "moves the diff watermark" do
+      {:ok, scope} = Scopes.create(@attrs)
+
+      assert {:ok, updated} = Scopes.set_last_extracted_diff(scope, 42)
+      assert updated.last_extracted_diff_id == 42
+      assert Scopes.get(scope.id).last_extracted_diff_id == 42
+    end
+  end
+
+  describe "stale_diffs/0" do
+    test "a scope with no diffs is not stale" do
+      {:ok, _scope} = Scopes.create(@attrs)
+
+      assert Scopes.stale_diffs() == []
+    end
+
+    test "a never-extracted scope with a diff is stale" do
+      {:ok, scope} = Scopes.create(@attrs)
+      {:ok, _diff} = Diffs.create(diff_attrs(scope, "one"))
+
+      assert [stale] = Scopes.stale_diffs()
+      assert stale.id == scope.id
+    end
+
+    test "a scope extracted up to its last diff is not stale, and appears once past it" do
+      {:ok, scope} = Scopes.create(@attrs)
+      {:ok, first} = Diffs.create(diff_attrs(scope, "one"))
+      {:ok, scope} = Scopes.set_last_extracted_diff(scope, first.id)
+
+      assert Scopes.stale_diffs() == []
+
+      {:ok, _second} = Diffs.create(diff_attrs(scope, "two"))
+      {:ok, _third} = Diffs.create(diff_attrs(scope, "three"))
+
+      assert [_only_once] = Scopes.stale_diffs()
+    end
+  end
+
+  defp diff_attrs(scope, diff) do
+    %{scope_id: scope.id, file: "lib/foo.ex", diff: diff}
   end
 
   defp message_attrs(scope, content, seconds \\ 0) do
