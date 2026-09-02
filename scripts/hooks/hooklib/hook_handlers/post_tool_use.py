@@ -4,13 +4,18 @@ When the PostToolUse handler is invoked, it means the llm potentially modified a
 file. We log this file here with its hash.
 """
 
-from hooklib import diffs
+from hooklib import diffs, drift
 
 
 def handle(event):
     """Handle a parsed PostToolUse payload."""
     print("handle PostToolUse")
-    # Tool calls that do not target a file (e.g. Bash) carry no file to check.
+    # A shell command can touch any file, so look at the whole working tree.
+    if event["tool"] == "Bash":
+        drift.sweep(event["cwd"], "llm", event["session_id"], event["prompt_id"])
+        return
+
+    # Tool calls that do not target a file carry no file to check.
     if event["file"] is None:
         return
 

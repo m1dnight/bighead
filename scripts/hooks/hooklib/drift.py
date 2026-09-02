@@ -1,19 +1,20 @@
 """
-Drift: when a user edits a file, we want to catch these changes at arbitrary
+Drift: catch file changes made outside the Edit/Write tools at arbitrary
 points in time.
 
-Each file that is known to have changed in the datbase is looked at, and a new
-diff is made vs the current version. If the version has changed, we know it was
-a user edit and we store it as a diff made by the user.
+Every file in the ledger, plus whatever git sees as modified or untracked, is
+compared against its last recorded version. A change is stored as an edit by
+`version`: "user" between tool calls, "llm" right after a shell command.
 """
 
-from hooklib import diffs, repo
+from hooklib import diffs, git, repo
 
 
 def sweep(cwd, version, session_id=None, prompt_id=None):
     """
-    Looks over all the files in the git repo. If the file has changes versus the
-    last time it was index, the change is chalked up to be a user's edit.
+    Looks over every known file. If the file has changes versus the last time it
+    was indexed, the change is chalked up to `version`.
     """
-    for file_path in repo.files(cwd):
+    files = set(repo.files(cwd)) | set(git.changed_files(cwd))
+    for file_path in sorted(files):
         diffs.detect_changes(cwd, file_path, version, session_id, prompt_id)

@@ -7,13 +7,18 @@ storage.
 This version is assumed to be a user-modified version, so we can compare it with the llm-edited version
 """
 
-from hooklib import diffs
+from hooklib import diffs, drift
 
 
 def handle(event):
     """Handle a parsed PreToolUse payload."""
     print("handle PreToolUse")
-    # Tool calls that do not target a file (e.g. Bash) carry no file to check.
+    # A shell command can touch any file, so look at the whole working tree.
+    if event["tool"] == "Bash":
+        drift.sweep(event["cwd"], "user", event["session_id"], event["prompt_id"])
+        return
+
+    # Tool calls that do not target a file carry no file to check.
     if event["file"] is None:
         return
 

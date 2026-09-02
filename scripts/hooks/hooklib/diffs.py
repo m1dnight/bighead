@@ -22,7 +22,7 @@ def inspect(file_path, message):
 
 
 # edit
-# file missing on disk?                        -> ignore
+# outside the repository, or missing on disk?  -> ignore
 # not tracked before?                          -> new entry, as the side recording it
 # unchanged?                                   -> ignore
 # changed?
@@ -33,16 +33,16 @@ def inspect(file_path, message):
 def detect_changes(cwd, file_path, version, session_id, prompt_id):
     """Detects if a file has changed, and stores changes accordingly."""
 
-    if not _file_exists(cwd, file_path):
-        inspect(file_path, "File does not exist")
+    if not _inside(cwd, file_path) or not _file_exists(cwd, file_path):
+        inspect(file_path, "File is outside the repository or does not exist")
         return
 
     last = repo.last_version(cwd, file_path)
     hash = git.store(cwd, file_path)
 
     if last is None:
-        inspect(file_path, "File was never tracked")
-        _store_new_version(cwd, file_path, session_id, prompt_id, version, hash)
+        print(f"First version of {file_path}")
+        repo.add_version(cwd, file_path, version, hash, session_id, prompt_id)
         return
 
     if last["hash"] == hash:
@@ -70,6 +70,11 @@ def _store_new_version(cwd, file_path, session_id, prompt_id, version, hash):
 def _update_hash(cwd, id, hash, session_id):
     print(f"Updating hash of {id}")
     repo.replace_hash(cwd, id, hash, session_id)
+
+
+def _inside(cwd, file_path):
+    """Whether the file lives under cwd; anything else is not ours to track."""
+    return (Path(cwd) / file_path).resolve().is_relative_to(Path(cwd).resolve())
 
 
 def _file_exists(cwd, file_path):

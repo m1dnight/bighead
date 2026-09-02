@@ -27,6 +27,7 @@ def parse(raw):
 
     return {
         "event": event,
+        "tool": payload.get("tool_name"),
         "file": _file_path(payload),
         "cwd": payload.get("cwd"),
         "session_id": payload.get("session_id"),
