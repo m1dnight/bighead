@@ -4,7 +4,7 @@ When the PostToolUse handler is invoked, it means the llm potentially modified a
 file. We log this file here with its hash.
 """
 
-from hooklib import git, repo, diffs
+from hooklib import diffs
 
 
 def handle(event):

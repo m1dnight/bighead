@@ -14,15 +14,13 @@ from hooklib import git, repo
 
 # edit
 # file missing on disk?                        -> ignore
-# not tracked before?                          -> new user version
+# not tracked before?                          -> new entry, as the side recording it
 # unchanged?                                   -> ignore
 # changed?
 #  -> user edit -> last entry by user          -> update
-#               -> last enry by llm            -> new entry
+#               -> last entry by llm           -> new entry
 #     llm edit  -> last entry llm, same prompt -> update
 #               -> anything else               -> new entry
-#
-#
 def detect_changes(cwd, file_path, version, session_id, prompt_id):
     """Detects if a file has changed, and stores changes accordingly."""
 
@@ -32,10 +30,9 @@ def detect_changes(cwd, file_path, version, session_id, prompt_id):
     last = repo.last_version(cwd, file_path)
     hash = git.store(cwd, file_path)
 
-    if not _file_tracked(cwd, file_path):
+    if last is None:
         _store_new_version(cwd, file_path, session_id, prompt_id, version, hash)
         return
-
 
     if last["hash"] == hash:
         return
@@ -51,20 +48,19 @@ def detect_changes(cwd, file_path, version, session_id, prompt_id):
         else:
             _store_new_version(cwd, file_path, session_id, prompt_id, version, hash)
 
-    return
-
 
 def _store_new_version(cwd, file_path, session_id, prompt_id, version, hash):
+    print(f"Storing new version of {file_path}")
     repo.add_version(cwd, file_path, version, hash, session_id, prompt_id)
 
+
 def _update_hash(cwd, id, hash, session_id):
+    print(f"Updating hash of {id}")
     repo.replace_hash(cwd, id, hash, session_id)
+
 
 def _file_exists(cwd, file_path):
     return (Path(cwd) / file_path).is_file()
-
-def _file_tracked(cwd, file_path):
-    return repo.last_version(cwd, file_path) is not None
 
 
 def transitions(cwd, file_path):

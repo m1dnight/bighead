@@ -14,7 +14,7 @@ def handle(event):
     # The stop hook is called when an llm is done editing. So it will have
     # modified a bunch of files. The user might have edited some files in the
     # meantime too. If we do a sweep here, all the llm-touched files will
-    # prbably be in their llm-generated state, and all other changes will be
+    # probably be in their llm-generated state, and all other changes will be
     # made by the user.
     drift.sweep(event["cwd"], "user", event["session_id"], event["prompt_id"])
 

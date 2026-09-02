@@ -2,7 +2,7 @@
 
 import sys
 import traceback
-from hooklib import git, payload, storage, repo
+from hooklib import git, payload, storage
 from hooklib.hook_handlers import (
     post_tool_use,
     pre_tool_use,
@@ -32,16 +32,16 @@ def process(raw_payload):
     payload_dict = payload.parse(raw_payload)
 
     # If the payload was None, we don't care about it.
-    if payload_dict == None:
+    if payload_dict is None:
         return None
-
-    # initialize storage if not yet done
-    storage.init(payload_dict["cwd"])
 
     # make sure it's a git repo, otherwise ignore
     if not git.is_repo(payload_dict["cwd"]):
         print("Not a .git repo, ignoring")
         return None
+
+    # initialize storage if not yet done
+    storage.init(payload_dict["cwd"])
 
     event = payload_dict["event"]
     result = HANDLERS[event](payload_dict)

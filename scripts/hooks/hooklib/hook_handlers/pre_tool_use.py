@@ -7,7 +7,7 @@ storage.
 This version is assumed to be a user-modified version, so we can compare it with the llm-edited version
 """
 
-from hooklib import git, repo, diffs
+from hooklib import diffs
 
 
 def handle(event):

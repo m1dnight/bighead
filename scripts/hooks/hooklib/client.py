@@ -8,9 +8,10 @@ BASE_URL = os.environ.get("MEM0_URL", "http://localhost:4001")
 
 TIMEOUT_SECONDS = 5
 
-# The transcript endpoint stores messages and extracts facts before replying,
-# and the extraction is an LLM call — give it room the JSON posts don't need.
-TRANSCRIPT_TIMEOUT_SECONDS = 60
+# The transcript endpoint parses and stores the whole file before replying;
+# extraction happens off the request path. A long session is a few MB and
+# thousands of rows, so give it more room than the small JSON posts.
+TRANSCRIPT_TIMEOUT_SECONDS = 15
 
 
 def post_diff(change):
