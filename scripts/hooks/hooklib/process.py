@@ -1,9 +1,9 @@
 """Process pending ledger changes into a durable change log.
 
-Going file by file, every llm -> user transition still in the ledger
-becomes a diff posted to the mem0 server and appended to changes.jsonl. The
-ledger is then compacted down to each file's latest version, which stays
-behind as the baseline for future diffs.
+Going file by file, every change still in the ledger becomes a diff posted
+to the mem0 server and appended to changes.jsonl. The ledger is then
+compacted down to each file's latest version, which stays behind as the
+untouched baseline for future diffs.
 """
 
 from hooklib import client, diffs, repo, storage

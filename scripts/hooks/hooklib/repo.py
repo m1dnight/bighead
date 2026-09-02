@@ -60,12 +60,14 @@ def files(cwd):
 
 
 def compact(cwd):
-    """Drop everything but each file's latest entry; returns rows deleted."""
+    """Keep only each file's latest entry, as the untouched baseline for
+    later diffs; returns rows deleted."""
     with closing(connect(cwd)) as conn, conn:
         cursor = conn.execute(
             "DELETE FROM file_versions WHERE id NOT IN"
             " (SELECT MAX(id) FROM file_versions GROUP BY file_path)"
         )
+        conn.execute("UPDATE file_versions SET version = 'untouched'")
 
     return cursor.rowcount
 

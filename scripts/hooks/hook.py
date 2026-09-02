@@ -2,6 +2,7 @@
 
 import sys
 import traceback
+
 from hooklib import git, payload, storage
 from hooklib.hook_handlers import (
     post_tool_use,
@@ -11,7 +12,6 @@ from hooklib.hook_handlers import (
     stop,
     user_prompt_submit,
 )
-
 
 real_stdout = sys.stdout
 sys.stdout = open("/tmp/log.txt", "a", buffering=1)
@@ -39,6 +39,11 @@ def process(raw_payload):
     if not git.is_repo(payload_dict["cwd"]):
         print("Not a .git repo, ignoring")
         return None
+
+    # A shell command can leave the session in a subdirectory, and the payload
+    # reports that as cwd. The ledger and the changed-file paths both hang off
+    # the repository root, so always work from there.
+    payload_dict["cwd"] = git.toplevel(payload_dict["cwd"])
 
     # initialize storage if not yet done
     storage.init(payload_dict["cwd"])

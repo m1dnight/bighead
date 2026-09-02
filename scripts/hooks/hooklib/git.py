@@ -29,6 +29,44 @@ def is_repo(cwd):
     return result.returncode == 0 and result.stdout.strip() == "true"
 
 
+def toplevel(cwd):
+    """Absolute path of the working tree root that contains cwd."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def head_blob(cwd, path):
+    """Hash of the file as committed at HEAD; the empty blob if it is not tracked."""
+    relative = (Path(cwd) / path).resolve().relative_to(Path(cwd).resolve())
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"HEAD:{relative.as_posix()}"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+
+    # Not in HEAD, so the baseline is no content at all: the empty blob,
+    # written so that git can diff against it.
+    result = subprocess.run(
+        ["git", "hash-object", "-w", "--stdin"],
+        cwd=cwd,
+        input="",
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
 def diff(cwd, old_hash, new_hash):
     """Unified diff between two blobs in the object store ('' if identical)."""
     result = subprocess.run(
