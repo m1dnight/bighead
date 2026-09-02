@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS file_versions (
     version TEXT NOT NULL,
     hash TEXT NOT NULL,
     session_id TEXT,
+    prompt_id TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS file_versions_by_file ON file_versions (file_path, id);
@@ -29,6 +30,10 @@ def connect(cwd):
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(_SCHEMA)
+    # ledgers created before prompt ids were recorded lack the column
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(file_versions)")}
+    if "prompt_id" not in columns:
+        conn.execute("ALTER TABLE file_versions ADD COLUMN prompt_id TEXT")
     return conn
 
 
@@ -36,7 +41,7 @@ def last_version(cwd, file_path):
     """The most recent entry for a file as a dict, or None if there is none."""
     with closing(connect(cwd)) as conn:
         row = conn.execute(
-            "SELECT id, file_path, version, hash, session_id, created_at"
+            "SELECT id, file_path, version, hash, session_id, prompt_id, created_at"
             " FROM file_versions WHERE file_path = ? ORDER BY id DESC LIMIT 1",
             (str(file_path),),
         ).fetchone()
@@ -69,7 +74,7 @@ def versions(cwd, file_path):
     """All entries for a file as dicts, oldest first."""
     with closing(connect(cwd)) as conn:
         rows = conn.execute(
-            "SELECT id, file_path, version, hash, session_id, created_at"
+            "SELECT id, file_path, version, hash, session_id, prompt_id, created_at"
             " FROM file_versions WHERE file_path = ? ORDER BY id",
             (str(file_path),),
         ).fetchall()
@@ -86,11 +91,11 @@ def replace_hash(cwd, version_id, file_hash, session_id=None):
         )
 
 
-def add_version(cwd, file_path, version, file_hash, session_id=None):
+def add_version(cwd, file_path, version, file_hash, session_id=None, prompt_id=None):
     """Append a new version entry for a file."""
     with closing(connect(cwd)) as conn, conn:
         conn.execute(
-            "INSERT INTO file_versions (file_path, version, hash, session_id)"
-            " VALUES (?, ?, ?, ?)",
-            (str(file_path), version, file_hash, session_id),
+            "INSERT INTO file_versions (file_path, version, hash, session_id, prompt_id)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (str(file_path), version, file_hash, session_id, prompt_id),
         )

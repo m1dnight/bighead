@@ -58,6 +58,24 @@ defmodule Mem0.Store.Facts do
   end
 
   @doc """
+  Returns all facts known for the given `(user, project)` pair across all of
+  its scopes, sorted by ascending id.
+
+  Options:
+   - `:kind` keeps only facts of that kind (`:fact` or `:guideline`); every
+     kind by default
+  """
+  @spec facts_for_project(String.t(), String.t(), keyword()) :: [Fact.t()]
+  def facts_for_project(user, project, opts \\ []) do
+    Fact
+    |> join(:inner, [f], s in assoc(f, :scope))
+    |> where([f, s], s.user == ^user and s.project == ^project)
+    |> filter_kind(opts[:kind])
+    |> order_by([f], asc: f.id)
+    |> Repo.all()
+  end
+
+  @doc """
   Fetches a fact by id. Returns `nil` when it does not exist.
   """
   @spec get(integer()) :: Fact.t() | nil

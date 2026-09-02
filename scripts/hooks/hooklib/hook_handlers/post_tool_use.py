@@ -17,15 +17,22 @@ def handle(event):
     file_path = event["file"]
 
     hash = git.store(event["cwd"], file_path)
-    # consecutive llm versions collapse into one entry holding the latest hash.
-    # Only if the last version was user-edited do we add a new version.
+    # if the previous version is an llm-generated one, and it also has the same
+    # prompt id, it means it's just the llm editing the file (e.g., making sure
+    # the tests pass etc).
+    #
+    # if the last change was a different prompt id, or it was a user, it's a
+    # change we need to capture. it could be the user who made an edit, or a new
+    # prompt telling the llm to make some change.
     last = repo.last_version(event["cwd"], file_path)
-    if last is not None and last["version"] == "llm":
+    if last is not None and last["version"] == "llm" and last["prompt_id"] == event["prompt_id"]:
         repo.replace_hash(event["cwd"], last["id"], hash, event["session_id"])
     else:
-        repo.add_version(event["cwd"], file_path, "llm", hash, event["session_id"])
+        repo.add_version(
+            event["cwd"], file_path, "llm", hash, event["session_id"], event["prompt_id"]
+        )
 
-    changes = diffs.llm_to_user(event["cwd"], file_path)
+    changes = diffs.from_llm(event["cwd"], file_path)
 
     for change in changes:
         print(f"\n###---###\nChange: {change['diff']}\n###---###\n")

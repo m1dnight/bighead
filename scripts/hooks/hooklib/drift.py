@@ -1,10 +1,10 @@
-"""Drift: user edits made while no tool call touched the file.
+"""
+Drift: when a user edits a file, we want to catch these changes at arbitrary
+points in time.
 
-The ledger only learns of a file when a tool call is about to touch it
-(PreToolUse) or just did (PostToolUse). A file the user edits by hand and
-Claude never touches again would never get its llm -> user transition
-recorded, so at a settle point every known file is rehashed and any that
-drifted gets a user version.
+Each file that is known to have changed in the datbase is looked at, and a new
+diff is made vs the current version. If the version has changed, we know it was
+a user edit and we store it as a diff made by the user.
 """
 
 import os
@@ -12,7 +12,7 @@ import os
 from hooklib import git, repo
 
 
-def sweep(cwd, session_id=None):
+def sweep(cwd, session_id=None, prompt_id=None):
     """Record a user version for every known file whose content drifted.
 
     Consecutive user versions collapse into one holding the latest hash, so
@@ -34,7 +34,7 @@ def sweep(cwd, session_id=None):
         if last["version"] == "user":
             repo.replace_hash(cwd, last["id"], hash, session_id)
         else:
-            repo.add_version(cwd, file_path, "user", hash, session_id)
+            repo.add_version(cwd, file_path, "user", hash, session_id, prompt_id)
         drifted.append(file_path)
 
     return drifted

@@ -3,7 +3,8 @@
 The ledger's interesting moments are the author transitions: a user
 version followed by an llm version is what the llm changed, and an llm
 version followed by a user version is what the user changed after the
-llm was done.
+llm was done. Two llm versions from different prompts count as well: the
+later one is what the llm changed on the user's next instruction.
 """
 
 import itertools
@@ -17,9 +18,9 @@ def transitions(cwd, file_path):
 
     found = []
     for before, after in itertools.pairwise(entries):
-        # a run of same-author versions is not a transition, and identical
-        # hashes (e.g. a no-op edit) have nothing to diff
-        if before["version"] == after["version"]:
+        # a run of same-author versions under one prompt is not a transition,
+        # and identical hashes (e.g. a no-op edit) have nothing to diff
+        if before["version"] == after["version"] and before["prompt_id"] == after["prompt_id"]:
             continue
         if before["hash"] == after["hash"]:
             continue
@@ -54,3 +55,12 @@ def user_to_llm(cwd, file_path):
 def llm_to_user(cwd, file_path):
     """One diff per llm -> user transition for a file, oldest first."""
     return [t for t in transitions(cwd, file_path) if t["direction"] == "llm_to_user"]
+
+
+def from_llm(cwd, file_path):
+    """One diff per transition away from an llm version, oldest first.
+
+    What replaced the llm's code: the user's hand edit, or the llm's own
+    edit on the user's next prompt.
+    """
+    return [t for t in transitions(cwd, file_path) if t["from"]["version"] == "llm"]

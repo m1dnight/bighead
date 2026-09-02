@@ -91,15 +91,20 @@ defmodule Mem0.Processor.Diffs do
     end
   end
 
-  # Console feedback for debugging: what the LLM pulled out of this diff,
-  # before reconciliation decides what to do with it.
+  # Console feedback for debugging: every diff and what the LLM pulled out
+  # of it, before reconciliation decides what to do with it. An empty
+  # result is logged too, so a quiet extractor is visible.
   @spec log_extracted(Diff.t(), Scope.t(), [String.t()]) :: :ok
-  defp log_extracted(_diff, _scope, []), do: :ok
-
   defp log_extracted(diff, scope, guidelines) do
+    extracted =
+      case guidelines do
+        [] -> "  (none)"
+        _ -> Enum.map_join(guidelines, "\n", &("  - " <> &1))
+      end
+
     Logger.error(
       "Extracted #{length(guidelines)} guideline(s) from diff #{diff.id} of #{diff.file} (session #{scope.session}):\n" <>
-        Enum.map_join(guidelines, "\n", &("  - " <> &1))
+        extracted <> "\nfrom diff:\n" <> String.trim_trailing(diff.diff)
     )
   end
 end

@@ -17,7 +17,7 @@ _SUPPORTED_EVENTS = (
 
 def parse(raw):
     """
-    Parse a raw hook payload into {event, file, cwd, session_id}.
+    Parse a raw hook payload into {event, file, cwd, session_id, prompt_id, ...}.
     """
     payload = json.loads(raw)
 
@@ -30,6 +30,8 @@ def parse(raw):
         "file": _file_path(payload),
         "cwd": payload.get("cwd"),
         "session_id": payload.get("session_id"),
+        # Which user prompt this event happened under; it changes every turn.
+        "prompt_id": payload.get("prompt_id"),
         "transcript_path": payload.get("transcript_path"),
         # Only UserPromptSubmit carries one; None everywhere else.
         "prompt": payload.get("prompt"),

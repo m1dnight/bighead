@@ -31,4 +31,6 @@ def handle(event):
     if last is not None and last["version"] == "user":
         repo.replace_hash(event["cwd"], last["id"], hash, event["session_id"])
     else:
-        repo.add_version(event["cwd"], file_path, "user", hash, event["session_id"])
+        repo.add_version(
+            event["cwd"], file_path, "user", hash, event["session_id"], event["prompt_id"]
+        )

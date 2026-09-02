@@ -36,6 +36,18 @@ defmodule Mem0.Store.Scopes do
   def list, do: Repo.all(Scope)
 
   @doc """
+  Returns every distinct `(user, project)` pair, sorted by user then project.
+  """
+  @spec projects() :: [%{user: String.t(), project: String.t() | nil}]
+  def projects do
+    Scope
+    |> select([s], %{user: s.user, project: s.project})
+    |> distinct(true)
+    |> order_by([s], asc: s.user, asc: s.project)
+    |> Repo.all()
+  end
+
+  @doc """
   Returns the scopes with messages past their extraction watermark — the
   work set for a refresh pass. A `nil` watermark means never extracted, so
   any message at all makes the scope stale.
