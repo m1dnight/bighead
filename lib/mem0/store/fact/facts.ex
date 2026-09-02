@@ -43,11 +43,16 @@ defmodule Mem0.Store.Facts do
 
   @doc """
   Returns all facts known for the given scope, sorted by ascending id.
+
+  Options:
+   - `:kind` keeps only facts of that kind (`:fact` or `:guideline`); every
+     kind by default
   """
-  @spec facts_for(integer()) :: [Fact.t()]
-  def facts_for(scope_id) do
+  @spec facts_for(integer(), keyword()) :: [Fact.t()]
+  def facts_for(scope_id, opts \\ []) do
     Fact
     |> where([f], f.scope_id == ^scope_id)
+    |> filter_kind(opts[:kind])
     |> order_by([f], asc: f.id)
     |> Repo.all()
   end
@@ -70,13 +75,19 @@ defmodule Mem0.Store.Facts do
   Each entry is a `{similarity, fact}` tuple where similarity is
   `1 - cosine_distance`, so higher is closer. Facts whose embedding has not
   been computed yet are skipped. Thresholding is the caller's job.
+
+  Options:
+   - `:kind` keeps only facts of that kind (`:fact` or `:guideline`); every
+     kind by default
   """
-  @spec most_similar([float()], pos_integer()) :: [{float(), Fact.t()}]
-  def most_similar(embedding, n) when is_list(embedding) and is_integer(n) and n > 0 do
+  @spec most_similar([float()], pos_integer(), keyword()) :: [{float(), Fact.t()}]
+  def most_similar(embedding, n, opts \\ [])
+      when is_list(embedding) and is_integer(n) and n > 0 do
     vector = Pgvector.new(embedding)
 
     Fact
     |> where([f], not is_nil(f.embedding_768))
+    |> filter_kind(opts[:kind])
     |> order_by([f], asc: cosine_distance(f.embedding_768, ^vector))
     |> limit(^n)
     |> select([f], {cosine_distance(f.embedding_768, ^vector), f})
@@ -103,4 +114,9 @@ defmodule Mem0.Store.Facts do
   def delete(%Fact{} = fact) do
     Repo.delete(fact, stale_error_field: :id)
   end
+
+  # Narrows a query to one kind of fact; no kind means every kind.
+  @spec filter_kind(Ecto.Query.t(), :fact | :guideline | nil) :: Ecto.Query.t()
+  defp filter_kind(query, nil), do: query
+  defp filter_kind(query, kind), do: where(query, [f], f.kind == ^kind)
 end

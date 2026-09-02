@@ -30,7 +30,12 @@ defmodule Mem0Web.RecallApiSpec do
          type: :object,
          required: [:prompt],
          properties: %{
-           prompt: %Schema{type: :string, minLength: 1, description: "The user's prompt"}
+           prompt: %Schema{type: :string, minLength: 1, description: "The user's prompt"},
+           kind: %Schema{
+             type: :string,
+             enum: ["fact", "guideline"],
+             description: "Only facts of this kind; every kind when absent"
+           }
          },
          example: %{"prompt" => "what am I working on?"}
        }, required: true},
@@ -45,18 +50,27 @@ defmodule Mem0Web.RecallApiSpec do
                type: :array,
                items: %Schema{
                  type: :object,
-                 required: [:id, :fact],
+                 required: [:id, :fact, :kind],
                  properties: %{
                    id: %Schema{type: :integer, description: "Id of the stored fact"},
-                   fact: %Schema{type: :string, description: "The fact text"}
+                   fact: %Schema{type: :string, description: "The fact text"},
+                   kind: %Schema{
+                     type: :string,
+                     enum: ["fact", "guideline"],
+                     description: "fact from a conversation, guideline from a code edit"
+                   }
                  }
                }
              }
            },
-           example: %{"facts" => [%{"id" => 3, "fact" => "The user prefers plain typespecs."}]}
+           example: %{
+             "facts" => [
+               %{"id" => 3, "fact" => "The user prefers plain typespecs.", "kind" => "fact"}
+             ]
+           }
          }},
       unprocessable_entity:
-        {"The payload is not the expected shape — missing, non-string, or empty prompt",
+        {"The payload is not the expected shape — missing, non-string, or empty prompt, or an unknown kind",
          "application/json", @error_schema},
       bad_gateway: {"The embedder upstream is down", "application/json", @error_schema}
     ]

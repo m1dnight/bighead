@@ -45,28 +45,8 @@ defmodule Mem0.Processor.Diffs do
   @spec process_scope(integer()) :: {:ok, [Fact.t()], [Diff.t()]} | {:error, term()}
   def process_scope(scope_id) do
     case Scopes.get(scope_id) do
-      nil ->
-        {:error, :scope_does_not_exist}
-
-      %Scope{} = scope ->
-        scope.id
-        |> Diffs.for_scope(from: scope.last_extracted_diff_id)
-        |> Enum.reduce_while({:ok, scope, [], []}, fn diff, {:ok, scope, facts, diffs} ->
-          case process_diff(diff, scope) do
-            {:ok, scope, new_facts} ->
-              {:cont, {:ok, scope, facts ++ new_facts, [diff | diffs]}}
-
-            err ->
-              {:halt, err}
-          end
-        end)
-        |> case do
-          {:ok, _scope, facts, diffs} ->
-            {:ok, facts, Enum.reverse(diffs)}
-
-          err ->
-            err
-        end
+      nil -> {:error, :scope_does_not_exist}
+      %Scope{} = scope -> process_new_diffs(scope)
     end
   end
 
@@ -74,14 +54,37 @@ defmodule Mem0.Processor.Diffs do
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
 
-  # Extract, reconcile against the scope's facts, embed, then move the
+  # Runs the scope's diffs past the watermark in order, oldest first.
+  @spec process_new_diffs(Scope.t()) :: {:ok, [Fact.t()], [Diff.t()]} | {:error, term()}
+  defp process_new_diffs(scope) do
+    scope.id
+    |> Diffs.for_scope(from: scope.last_extracted_diff_id)
+    |> Enum.reduce_while({:ok, scope, [], []}, fn diff, {:ok, scope, facts, diffs} ->
+      case process_diff(diff, scope) do
+        {:ok, scope, new_facts} ->
+          {:cont, {:ok, scope, facts ++ new_facts, [diff | diffs]}}
+
+        err ->
+          {:halt, err}
+      end
+    end)
+    |> case do
+      {:ok, _scope, facts, diffs} ->
+        {:ok, facts, Enum.reverse(diffs)}
+
+      err ->
+        err
+    end
+  end
+
+  # Extract, reconcile against the scope's guidelines, embed, then move the
   # watermark: the same steps a message batch takes in `Mem0.Processor`.
   @spec process_diff(Diff.t(), Scope.t()) :: {:ok, Scope.t(), [Fact.t()]} | {:error, term()}
   defp process_diff(diff, scope) do
     with {:ok, guidelines} <- CodeExtractor.extract_guidelines(diff),
          :ok = log_extracted(diff, scope, guidelines),
-         old_facts = Facts.facts_for(scope.id),
-         facts = Reconciler.reconcile_facts(guidelines, old_facts, scope.id),
+         old_facts = Facts.facts_for(scope.id, kind: :guideline),
+         facts = Reconciler.reconcile_facts(guidelines, old_facts, scope.id, :guideline),
          {:ok, facts} <- Embeddings.embed_facts(facts),
          {:ok, scope} <- Scopes.set_last_extracted_diff(scope, diff.id) do
       {:ok, scope, facts}

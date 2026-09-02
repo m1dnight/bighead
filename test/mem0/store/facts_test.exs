@@ -28,6 +28,16 @@ defmodule Mem0.Store.FactsTest do
       assert [_only_one] = Facts.list()
     end
 
+    test "is a fact unless told otherwise", %{scope: scope} do
+      assert {:ok, fact} = Facts.create(%{fact: "Prefers Elixir", scope_id: scope.id})
+      assert fact.kind == :fact
+
+      assert {:ok, guideline} =
+               Facts.create(%{fact: "Use with", scope_id: scope.id, kind: :guideline})
+
+      assert guideline.kind == :guideline
+    end
+
     test "a missing fact fails validation", %{scope: scope} do
       assert {:error, changeset} = Facts.create(%{scope_id: scope.id})
       assert %{fact: ["can't be blank"]} = errors_on(changeset)
@@ -39,7 +49,7 @@ defmodule Mem0.Store.FactsTest do
     end
   end
 
-  describe "facts_for/1" do
+  describe "facts_for/2" do
     test "returns only the scope's facts, oldest first", %{scope: scope} do
       {:ok, other} = Scopes.create(%{user: "u", project: "/w", session: "session-2"})
 
@@ -53,6 +63,17 @@ defmodule Mem0.Store.FactsTest do
 
     test "a scope with nothing known yet is an empty list", %{scope: scope} do
       assert Facts.facts_for(scope.id) == []
+    end
+
+    test ":kind keeps only that kind", %{scope: scope} do
+      {:ok, fact} = Facts.create(%{fact: "a fact", scope_id: scope.id})
+
+      {:ok, guideline} =
+        Facts.create(%{fact: "a guideline", scope_id: scope.id, kind: :guideline})
+
+      assert [%{id: a}] = Facts.facts_for(scope.id, kind: :fact)
+      assert [%{id: b}] = Facts.facts_for(scope.id, kind: :guideline)
+      assert {a, b} == {fact.id, guideline.id}
     end
   end
 
@@ -85,7 +106,7 @@ defmodule Mem0.Store.FactsTest do
     end
   end
 
-  describe "most_similar/2" do
+  describe "most_similar/3" do
     test "orders by similarity and skips facts without an embedding", %{scope: scope} do
       {:ok, same} = embedded_fact(scope, "same direction", basis(0))
       {:ok, orthogonal} = embedded_fact(scope, "orthogonal", basis(1))
@@ -106,10 +127,18 @@ defmodule Mem0.Store.FactsTest do
 
       assert [{_score, %{fact: "same direction"}}] = Facts.most_similar(basis(0), 1)
     end
+
+    test ":kind keeps only that kind", %{scope: scope} do
+      {:ok, _fact} = embedded_fact(scope, "a fact", basis(0))
+      {:ok, guideline} = embedded_fact(scope, "a guideline", basis(0), :guideline)
+
+      assert [{_score, only}] = Facts.most_similar(basis(0), 10, kind: :guideline)
+      assert only.id == guideline.id
+    end
   end
 
-  defp embedded_fact(scope, text, embedding) do
-    {:ok, fact} = Facts.create(%{fact: text, scope_id: scope.id})
+  defp embedded_fact(scope, text, embedding, kind \\ :fact) do
+    {:ok, fact} = Facts.create(%{fact: text, scope_id: scope.id, kind: kind})
     Facts.update(fact, %{embedding_768: embedding})
   end
 

@@ -20,17 +20,20 @@ defmodule Mem0.Recaller do
    - `:limit` (default #{@limit}) caps how many facts come back
    - `:min_similarity` (default #{@min_similarity}) drops facts less similar
      than the floor. No relevant facts is `{:ok, []}`, not an error.
+   - `:kind` keeps only facts of that kind (`:fact` or `:guideline`); every
+     kind by default
   """
   @spec recall(String.t(), keyword()) :: {:ok, [Fact.t()]} | {:error, :failed_to_embed_prompt}
   def recall(prompt, opts \\ []) do
     limit = Keyword.get(opts, :limit, @limit)
     min_similarity = Keyword.get(opts, :min_similarity, @min_similarity)
+    kind = Keyword.get(opts, :kind)
 
     case Embedder.embed([prompt]) do
       {:ok, [embedding]} ->
         facts =
           embedding
-          |> Facts.most_similar(limit)
+          |> Facts.most_similar(limit, kind: kind)
           |> Enum.filter(fn {similarity, _fact} -> similarity >= min_similarity end)
           |> Enum.map(fn {_similarity, fact} -> fact end)
 

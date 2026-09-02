@@ -32,6 +32,28 @@ defmodule Mem0Web.RecallControllerTest do
       assert %{"facts" => []} = json_response(conn, 200)
     end
 
+    test "kind narrows the reply, and each fact says which kind it is", %{
+      conn: conn,
+      scope: scope
+    } do
+      {:ok, _fact} = embedded_fact(scope, "a fact", basis(0))
+      {:ok, guideline} = embedded_fact(scope, "a guideline", basis(0), :guideline)
+
+      Embedder.Stub.set({:ok, [basis(0)]})
+
+      conn = post(conn, ~p"/v1/recall", %{"prompt" => "anything", "kind" => "guideline"})
+
+      assert %{"facts" => [%{"id" => id, "kind" => "guideline"}]} = json_response(conn, 200)
+      assert id == guideline.id
+    end
+
+    test "an unknown kind is refused", %{conn: conn} do
+      assert %{"error" => _} =
+               conn
+               |> post(~p"/v1/recall", %{"prompt" => "anything", "kind" => "rule"})
+               |> json_response(422)
+    end
+
     test "a missing, blank or non-binary prompt is refused", %{conn: conn} do
       assert %{"error" => _} = conn |> post(~p"/v1/recall", %{}) |> json_response(422)
 
@@ -51,8 +73,8 @@ defmodule Mem0Web.RecallControllerTest do
     end
   end
 
-  defp embedded_fact(scope, text, embedding) do
-    {:ok, fact} = Facts.create(%{fact: text, scope_id: scope.id})
+  defp embedded_fact(scope, text, embedding, kind \\ :fact) do
+    {:ok, fact} = Facts.create(%{fact: text, scope_id: scope.id, kind: kind})
     Facts.update(fact, %{embedding_768: embedding})
   end
 

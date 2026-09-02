@@ -23,10 +23,11 @@ defmodule Mem0.ReconcilerTest do
     %{scope: scope, facts: [vim, mem0], vim: vim}
   end
 
-  describe "reconcile_facts/3" do
+  describe "reconcile_facts/4" do
     test "no stored facts stores every candidate, and costs no call", %{scope: scope} do
-      assert [added] = Reconciler.reconcile_facts([@candidate], [], scope.id)
+      assert [added] = Reconciler.reconcile_facts([@candidate], [], scope.id, :fact)
       assert added.fact == @candidate
+      assert added.kind == :fact
       assert Facts.get!(added.id).scope_id == scope.id
       assert LLM.Stub.calls() == []
     end
@@ -34,10 +35,17 @@ defmodule Mem0.ReconcilerTest do
     test "ADD stores the candidate as a new fact", %{scope: scope, facts: facts} do
       set_verdict("ADD", nil)
 
-      assert [added] = Reconciler.reconcile_facts([@candidate], facts, scope.id)
+      assert [added] = Reconciler.reconcile_facts([@candidate], facts, scope.id, :fact)
       assert added.fact == @candidate
       assert Facts.get!(added.id).scope_id == scope.id
       assert length(Facts.list()) == 3
+    end
+
+    test "ADD stores the candidate with the given kind", %{scope: scope, facts: facts} do
+      set_verdict("ADD", nil)
+
+      assert [added] = Reconciler.reconcile_facts([@candidate], facts, scope.id, :guideline)
+      assert added.kind == :guideline
     end
 
     test "UPDATE rewrites the referenced fact with the candidate's text", %{
@@ -47,7 +55,7 @@ defmodule Mem0.ReconcilerTest do
     } do
       set_verdict("UPDATE", vim.id)
 
-      assert [updated] = Reconciler.reconcile_facts([@candidate], facts, scope.id)
+      assert [updated] = Reconciler.reconcile_facts([@candidate], facts, scope.id, :fact)
       assert updated.id == vim.id
       assert Facts.get!(vim.id).fact == @candidate
       assert length(Facts.list()) == 2
@@ -56,14 +64,14 @@ defmodule Mem0.ReconcilerTest do
     test "DELETE removes the referenced fact", %{scope: scope, facts: facts, vim: vim} do
       set_verdict("DELETE", vim.id)
 
-      assert [] = Reconciler.reconcile_facts([@candidate], facts, scope.id)
+      assert [] = Reconciler.reconcile_facts([@candidate], facts, scope.id, :fact)
       assert Facts.get(vim.id) == nil
     end
 
     test "NOOP stores nothing", %{scope: scope, facts: facts} do
       set_verdict("NOOP", nil)
 
-      assert [] = Reconciler.reconcile_facts([@candidate], facts, scope.id)
+      assert [] = Reconciler.reconcile_facts([@candidate], facts, scope.id, :fact)
       assert length(Facts.list()) == 2
     end
 
@@ -74,7 +82,7 @@ defmodule Mem0.ReconcilerTest do
     } do
       set_verdict("NOOP", nil)
 
-      assert [] = Reconciler.reconcile_facts([@candidate], facts, scope.id)
+      assert [] = Reconciler.reconcile_facts([@candidate], facts, scope.id, :fact)
 
       assert [request] = LLM.Stub.calls()
       assert request.system == Prompt.system_prompt()

@@ -49,9 +49,9 @@ defmodule Mem0.Processor do
          # Extract facts from the messages.
          {:ok, facts} <- Extractor.extract_facts(messages, ""),
          # Fetch old facts, to reconcile.
-         old_facts = Facts.facts_for(scope.id),
+         old_facts = Facts.facts_for(scope.id, kind: :fact),
          # Reconcile the new facts with the known ones.
-         facts = Reconciler.reconcile_facts(facts, old_facts, scope.id),
+         facts = Reconciler.reconcile_facts(facts, old_facts, scope.id, :fact),
          :ok <- log_facts(facts),
          # Embed the facts
          {:ok, facts} <- Embeddings.embed_facts(facts),

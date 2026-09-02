@@ -12,7 +12,6 @@ defmodule Mem0Web.DiffController do
 
   alias Mem0.Refresher
   alias Mem0.Store.Diffs
-  alias Mem0.Store.Scope
   alias Mem0.Store.Scopes
 
   defdelegate open_api_operation(action), to: Mem0Web.DiffApiSpec
@@ -27,9 +26,10 @@ defmodule Mem0Web.DiffController do
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def create(conn, %{"file" => file, "diff" => diff, "project" => project, "session" => session})
       when is_binary(file) and is_binary(diff) and is_binary(project) and is_binary(session) do
-    with {:ok, scope} <- scope(project, session),
+    with :ok <- refuse_blank([file, diff, project, session]),
+         {:ok, scope} <- Scopes.create(%{user: "default", project: project, session: session}),
          {:ok, stored} <- Diffs.create(%{file: file, diff: diff, scope_id: scope.id}) do
-        IO.puts "Got some diffs yo"
+      IO.puts("Got some diffs yo")
       Refresher.poke()
 
       render(conn, :create, diff: stored)
@@ -47,16 +47,12 @@ defmodule Mem0Web.DiffController do
   #                                Helpers                                     #
   # ---------------------------------------------------------------------------#
 
-  # The scope changeset only requires a user, so blank project or session
-  # values are refused here rather than stored as a junk scope.
-  @spec scope(String.t(), String.t()) ::
-          {:ok, Scope.t()} | {:error, :blank_scope | Ecto.Changeset.t()}
-  defp scope(project, session) do
-    if String.trim(project) == "" or String.trim(session) == "" do
-      {:error, :blank_scope}
-    else
-      Scopes.create(%{user: "default", project: project, session: session})
-    end
+  # The scope is created before the diff is validated, so a blank value in
+  # any field is refused up front rather than leaving a junk scope behind a
+  # 422. The scope changeset itself only requires a user.
+  @spec refuse_blank([String.t()]) :: :ok | {:error, :blank_value}
+  defp refuse_blank(values) do
+    if Enum.any?(values, &(String.trim(&1) == "")), do: {:error, :blank_value}, else: :ok
   end
 
   @spec invalid_payload(Plug.Conn.t()) :: Plug.Conn.t()

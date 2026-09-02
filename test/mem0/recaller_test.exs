@@ -55,14 +55,24 @@ defmodule Mem0.RecallerTest do
     assert only.id == same.id
   end
 
+  test "restricts to :kind", %{scope: scope} do
+    {:ok, _fact} = embedded_fact(scope, "a fact", basis(0))
+    {:ok, guideline} = embedded_fact(scope, "a guideline", basis(0), :guideline)
+
+    Embedder.Stub.set({:ok, [basis(0)]})
+
+    assert {:ok, [only]} = Recaller.recall("anything", kind: :guideline)
+    assert only.id == guideline.id
+  end
+
   test "an embedder failure is reported, not swallowed" do
     Embedder.Stub.set({:error, {:transport_error, :econnrefused}})
 
     assert {:error, :failed_to_embed_prompt} = Recaller.recall("anything")
   end
 
-  defp embedded_fact(scope, text, embedding) do
-    {:ok, fact} = Facts.create(%{fact: text, scope_id: scope.id})
+  defp embedded_fact(scope, text, embedding, kind \\ :fact) do
+    {:ok, fact} = Facts.create(%{fact: text, scope_id: scope.id, kind: kind})
     Facts.update(fact, %{embedding_768: embedding})
   end
 

@@ -10,7 +10,7 @@ defmodule Mem0Web.RecallJSON do
   """
   @spec create(%{facts: [Fact.t()]}) :: map()
   def create(%{facts: facts}) do
-    %{facts: Enum.map(facts, fn fact -> %{id: fact.id, fact: fact.fact} end)}
+    %{facts: Enum.map(facts, fn fact -> %{id: fact.id, fact: fact.fact, kind: fact.kind} end)}
   end
 
   @doc """

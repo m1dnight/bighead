@@ -29,16 +29,21 @@ defmodule Mem0.Reconciler do
     "type" => "object"
   }
 
-  @spec reconcile_facts([String.t()], [Fact.t()], integer()) :: [Fact.t()]
-  def reconcile_facts(new_facts, [], scope_id) do
+  @doc """
+  Reconciles `new_facts` against `old_facts` and stores the outcome in
+  `scope_id`. Every fact this creates is of `kind`, so `old_facts` should be
+  the scope's facts of that same kind.
+  """
+  @spec reconcile_facts([String.t()], [Fact.t()], integer(), :fact | :guideline) :: [Fact.t()]
+  def reconcile_facts(new_facts, [], scope_id, kind) do
     new_facts
     |> Enum.map(fn new_fact ->
-      {:ok, fact} = Facts.create(%{fact: new_fact, scope_id: scope_id})
+      {:ok, fact} = Facts.create(%{fact: new_fact, scope_id: scope_id, kind: kind})
       fact
     end)
   end
 
-  def reconcile_facts(new_facts, old_facts, scope_id) do
+  def reconcile_facts(new_facts, old_facts, scope_id, kind) do
     new_facts
     |> Enum.map(&reconcile_fact(&1, old_facts))
     |> Enum.dedup_by(fn
@@ -46,7 +51,7 @@ defmodule Mem0.Reconciler do
       {_fact, {op, id, _reason}} -> {op, id}
     end)
     |> Enum.reduce([], fn {fact, operation}, facts ->
-      case update_fact(operation, fact, old_facts, scope_id) do
+      case update_fact(operation, fact, old_facts, scope_id, kind) do
         {:ok, :deleted} ->
           facts
 
@@ -76,9 +81,9 @@ defmodule Mem0.Reconciler do
     end
   end
 
-  @spec update_fact(operation(), String.t(), [Fact.t()], integer()) ::
+  @spec update_fact(operation(), String.t(), [Fact.t()], integer(), :fact | :guideline) ::
           {:ok, Fact.t() | :noop | :deleted} | {:error, term()}
-  defp update_fact({:delete, id, _reason}, _fact, facts, _scope_id) do
+  defp update_fact({:delete, id, _reason}, _fact, facts, _scope_id, _kind) do
     case Enum.find(facts, &(&1.id == id)) do
       nil ->
         {:error, :fact_to_delete_not_found}
@@ -89,7 +94,7 @@ defmodule Mem0.Reconciler do
     end
   end
 
-  defp update_fact({:update, id, _reason}, new_fact, facts, _scope_id) do
+  defp update_fact({:update, id, _reason}, new_fact, facts, _scope_id, _kind) do
     case Enum.find(facts, &(&1.id == id)) do
       nil ->
         {:error, :fact_to_update_not_found}
@@ -99,11 +104,11 @@ defmodule Mem0.Reconciler do
     end
   end
 
-  defp update_fact({:add, _id, _reason}, new_fact, _facts, scope_id) do
-    Facts.create(%{fact: new_fact, scope_id: scope_id})
+  defp update_fact({:add, _id, _reason}, new_fact, _facts, scope_id, kind) do
+    Facts.create(%{fact: new_fact, scope_id: scope_id, kind: kind})
   end
 
-  defp update_fact({:noop, _id, _reason}, _new_fact, _facts, _scope_id) do
+  defp update_fact({:noop, _id, _reason}, _new_fact, _facts, _scope_id, _kind) do
     {:ok, :noop}
   end
 
