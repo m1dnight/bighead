@@ -78,6 +78,54 @@ is augmented with information retrieval in mem0.
 5. The prompt is sent to the LLM.
 
 
+## Ingestion Pipeline
+
+Mem0 gets its data purely through hooks (although you can submit backlogs of transcripts). There are two signals Mem0 aims to ingest: transcripts and code changes.
+
+
+### Transcripts
+
+A transcript is a chat history with your agent. They are encoded as JSON Lines files. Each line contains a lot of meta data about your message; who sent it, what was the text, which session etc. Mem0 ingests your intire transcript and filters server-side to only keep track of the useful bits. Each transcript exists within a "scope." A scope defines what the context of that transcript is: the user, the project you're working on, and the LLM session it is from.
+
+The pipeline is roughly as follows:
+
+```text
+Post transcript to /v1/transcripts
+--> decode json and extract the scope
+--> extract relevant messages (only messages typed by the user, and sent by the agent)
+```
+
+At this point, only the actual messages are stored in the database. The actual processing of messages happens asynchronously.
+
+```text
+for all scopes that have new messages since last processing:
+ - get all the messages (this is ~= your conversation with the llm)
+ - Fetch all the known facts for this scope.
+ - callout to LLM to extract natural language facts from the new messages.
+ - for each new fact, reconcile them with the old facts:
+   - for each pair of (new fact, old facts), call out to an LLM and ask it which facts are superseded, outdated, or new
+   - store/update/delete facts based on the LLM's reply.
+   - create an embedding for each new or updated fact
+```
+
+So assuming we have a set of facts for a given scope, we can now retrieve facts. Each time a user submits a prompt, the following happens.
+
+```text
+ - Create an embedding of the prompt the user is sending to your LLM.
+ - Find facts that are relevant to this prompt in the database
+ - Inject these facts into the prompt before passing it back to your LLM.
+```
+
+### Diffs
+
+Another signal Mem0 ingests is code diffs. This might not work for everyone, and especially not for full agentic coding, but it helps for us normies who still do prompt-guided developing. The idea is as follows. Each time you ask your LLM to generate a change to your project, Mem0 listens for the changes it made. It keeps this version in mind. Next time anything happens, the file is revisited and a diff is made between the current version and the last written version by the LLM. The diff from this is a signal that contains what you think the LLM did wrong, and should do better in the future. Mem0 keeps track of these diffs and sends them to the Mem0 endpoint periodically. These diffs are processed as follows.
+
+```text
+ - For each new diff in the database:
+    - Ask an LLM what this change contains. General changes that should be carried over to subsequent changes made by the LLM.
+    - Store this guideline in the datbase.
+```
+
 ## Improvements
 
 - Improve search (the way mem0 actually does it). Build a separate index for words (e.g., names, tech vocabulary, ..) and then do a word search, meaning search, and name search. This will yield a bigger set of potentially relevant resources.

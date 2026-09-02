@@ -22,7 +22,7 @@ defmodule Mem0.MixProject do
   def application do
     [
       mod: {Mem0.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :xmerl]
     ]
   end
 
@@ -84,6 +84,7 @@ defmodule Mem0.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
+      {:open_api_spex, "~> 3.21"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:pgvector, "~> 0.4"},

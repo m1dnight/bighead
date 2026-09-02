@@ -1,6 +1,8 @@
 defmodule Mem0Web.Router do
   use Mem0Web, :router
 
+  alias OpenApiSpex.Plug.PutApiSpec
+  alias OpenApiSpex.Plug.RenderSpec
   alias Plug.Swoosh.MailboxPreview
 
   pipeline :browser do
@@ -14,37 +16,38 @@ defmodule Mem0Web.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug PutApiSpec, module: Mem0Web.ApiSpec
   end
 
   scope "/", Mem0Web do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live "/projects", ProjectLive.Index, :index
+    live "/projects/:user", ProjectLive.Show, :show
   end
 
-  # Bound to loopback in dev (see `config/dev.exs`), and that matters more now
-  # than it will later: this accepts conversation transcripts and, until bearer
-  # tokens land, no credentials at all. It should not be reachable off-box by
-  # accident.
-  scope "/hooks", Mem0Web do
-    pipe_through :api
-
-    post "/user-prompt-submit", HooksController, :user_prompt_submit
-    post "/stop", HooksController, :stop
-
-    # mem0's own, not Claude Code hook events. `lines-seen` is a read and takes
-    # its scope from the query string; `backfill` writes.
-    get "/lines-seen", HooksController, :lines_seen
-    post "/backfill", HooksController, :backfill
-  end
-
-  # An operator's tool, not hook machinery: a whole session file as raw JSON
-  # Lines, and the full write path — messages stored, facts extracted and
-  # reconciled — runs in one request. Same no-credentials caveat as `/hooks`.
-  scope "/", Mem0Web do
+  # `/transcripts` is capture: the hook script posts the whole session
+  # transcript there on `Stop` and `SessionEnd`, and an operator posts there
+  # to backfill a file by hand. No credentials on either route.
+  scope "/v1", Mem0Web do
     pipe_through :api
 
     post "/transcripts", TranscriptController, :create
+    post "/diffs", DiffController, :create
+
+    # `/recall` is the read side: the hook posts the user's prompt here on
+    # `UserPromptSubmit` and injects the facts that come back as context.
+    post "/recall", RecallController, :create
+  end
+
+  # The spec route sits outside the `Mem0Web` scope: `RenderSpec` is a plug
+  # from `open_api_spex`, not one of our controllers.
+  scope "/v1" do
+    pipe_through :api
+
+    get "/openapi", RenderSpec, []
   end
 
   # Other scopes may use custom stacks.

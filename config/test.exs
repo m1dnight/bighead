@@ -6,13 +6,13 @@ alias Swoosh.Adapters.Test
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+# In test we don't send emails
+# to provide built-in test partitioning in CI environment.
 # Configure your database
+# Run `mix help test` for more information.
 #
 # The MIX_TEST_PARTITION environment variable can be used
 
-# In test we don't send emails
-# to provide built-in test partitioning in CI environment.
-# Run `mix help test` for more information.
 config :mem0, Mem0.Mailer, adapter: Test
 
 config :mem0, Mem0.Repo,
@@ -39,7 +39,10 @@ config :mem0, :embedder, adapter: Stub, dimensions: 768
 config :mem0, :llm, adapter: Mem0.LLM.Stub, model: "stub-model", max_tokens: 1024
 
 # Never log payloads under test, whatever the environment says.
+# No background sweeps in test: the refresher would query the database on its
+# own timer, outside any test's sandbox ownership. See `Mem0.Application`.
 config :mem0, :log_llm_payloads, false
+config :mem0, :start_refresher, false
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime

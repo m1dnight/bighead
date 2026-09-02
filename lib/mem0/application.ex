@@ -5,22 +5,12 @@ defmodule Mem0.Application do
 
   use Application
 
-  alias Mem0.Summarize.TaskSupervisor
-
   @impl true
   def start(_type, _args) do
     children = [
       Mem0Web.Telemetry,
       {DNSCluster, query: Application.get_env(:mem0, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Mem0.PubSub},
-      # Runs `Mem0.Summarize.refresh/2` off the hook request path. Tasks are
-      # `:temporary` (the default): restarting a failed LLM call helps nobody,
-      # and the next turn's pulse is the retry.
-      {Task.Supervisor, name: TaskSupervisor},
-      # Runs `Mem0.Reconcile.pulse/2` off the same path, with the same
-      # posture: `:temporary`, and the next `Stop` re-extracts whatever an
-      # abandoned pulse left behind the cursor.
-      {Task.Supervisor, name: Mem0.Reconcile.TaskSupervisor},
       # Start to serve requests, typically the last entry
       Mem0Web.Endpoint
     ]
@@ -28,15 +18,24 @@ defmodule Mem0.Application do
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Mem0.Supervisor]
-    Supervisor.start_link(repo_children() ++ children, opts)
+    Supervisor.start_link(repo_children() ++ children ++ refresher_children(), opts)
   end
 
   # `mix test.core` sets this to `false`: the functional core's suite touches no
   # database, and a connection pool retrying against a stopped container fills
   # an otherwise-passing run with red. Everything else leaves it alone and gets
   # the Repo, so this cannot silently disable persistence in dev or prod.
+  @spec repo_children() :: [module()]
   defp repo_children do
     if Application.get_env(:mem0, :start_repo, true), do: [Mem0.Repo], else: []
+  end
+
+  # `config/test.exs` sets this to `false`: the refresher queries the database
+  # on its own timer, outside any test's sandbox ownership, and would call the
+  # LLM besides. Dev and prod leave it alone and get the sweep.
+  @spec refresher_children() :: [module()]
+  defp refresher_children do
+    if Application.get_env(:mem0, :start_refresher, true), do: [Mem0.Refresher], else: []
   end
 
   # Tell Phoenix to update the endpoint configuration

@@ -5,6 +5,7 @@ defmodule Mem0Web.Telemetry do
 
   alias Telemetry.Metrics.ConsoleReporter
 
+  @spec start_link(term()) :: Supervisor.on_start()
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
@@ -21,6 +22,7 @@ defmodule Mem0Web.Telemetry do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
+  @spec metrics() :: [Telemetry.Metrics.t()]
   def metrics do
     [
       # Phoenix Metrics
@@ -175,6 +177,7 @@ defmodule Mem0Web.Telemetry do
     ]
   end
 
+  @spec reporters() :: [Supervisor.child_spec() | {module(), term()}]
   defp reporters do
     if Application.get_env(:mem0, :telemetry_console_reporter, false) do
       [{ConsoleReporter, metrics: metrics()}]
@@ -183,6 +186,7 @@ defmodule Mem0Web.Telemetry do
     end
   end
 
+  @spec periodic_measurements() :: [{module(), atom(), [term()]}]
   defp periodic_measurements do
     [
       # A module, function and arguments to be invoked periodically.

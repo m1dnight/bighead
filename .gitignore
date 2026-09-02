@@ -47,3 +47,10 @@ npm-debug.log
 
 
 __pycache__/
+
+.transcripts/
+# Per-session file snapshots taken by scripts/hooks/snapshot.py.
+/.claude/snapshots/
+
+# Per-session shadow git indices used by scripts/hooks/user_prompt_submit.py.
+/.claude/indices/

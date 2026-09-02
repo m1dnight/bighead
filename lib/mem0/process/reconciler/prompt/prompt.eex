@@ -1,0 +1,8 @@
+#--- The known facts as <id>: <fact>
+
+<%= for fact <- @facts do %>
+<%= fact.id %>: <%= fact.fact %>
+<% end %>
+
+#--- The new fact:
+<%= @fact %>
