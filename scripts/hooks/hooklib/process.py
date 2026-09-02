@@ -1,7 +1,7 @@
 """Process pending ledger changes into a durable change log.
 
-Going file by file, every author transition still in the ledger becomes
-a diff posted to the mem0 server and appended to changes.jsonl. The
+Going file by file, every llm -> user transition still in the ledger
+becomes a diff posted to the mem0 server and appended to changes.jsonl. The
 ledger is then compacted down to each file's latest version, which stays
 behind as the baseline for future diffs.
 """
@@ -18,8 +18,11 @@ def run(cwd):
     """Process all pending changes; returns the appended change records."""
     print("Processing diffs")
     changes = []
+    # only what the user changed after the llm was done: the other direction
+    # is the llm's own edits, which the guideline extractor must not read as
+    # corrections
     for file_path in repo.files(cwd):
-        changes.extend(diffs.transitions(cwd, file_path))
+        changes.extend(diffs.llm_to_user(cwd, file_path))
 
     # submit all diffs, but if theyre not all delivered, keep the log, and try
     # again later. server dedupes anyway.

@@ -48,11 +48,11 @@ defmodule Mem0.Processor do
          messages = next_messages(scope, @max_text_length),
          # Extract facts from the messages.
          {:ok, facts} <- Extractor.extract_facts(messages, ""),
-         :ok = log_extracted(scope, facts),
          # Fetch old facts, to reconcile.
          old_facts = Facts.facts_for(scope.id),
          # Reconcile the new facts with the known ones.
          facts = Reconciler.reconcile_facts(facts, old_facts, scope.id),
+         :ok <- log_facts(facts),
          # Embed the facts
          {:ok, facts} <- Embeddings.embed_facts(facts),
          # Bump the scope's watermark to remember where it stopped.
@@ -85,15 +85,15 @@ defmodule Mem0.Processor do
     |> Enum.reverse()
   end
 
-  # Console feedback for debugging: what the LLM pulled out of this batch,
-  # before reconciliation decides what to do with it.
-  @spec log_extracted(Scope.t(), [String.t()]) :: :ok
-  defp log_extracted(_scope, []), do: :ok
+  # Console feedback for debugging: the facts the reconciler added or
+  # updated for this batch, so the old ones it kept do not repeat.
+  @spec log_facts([Fact.t()]) :: :ok
+  defp log_facts([]), do: :ok
 
-  defp log_extracted(scope, facts) do
+  defp log_facts(facts) do
     Logger.error(
-      "Extracted #{length(facts)} fact(s) from session #{scope.session}:\n" <>
-        Enum.map_join(facts, "\n", &("  - " <> &1))
+      "Stored #{length(facts)} new fact(s) in scope #{hd(facts).scope_id}:\n" <>
+        Enum.map_join(facts, "\n", &("  - " <> &1.fact))
     )
   end
 

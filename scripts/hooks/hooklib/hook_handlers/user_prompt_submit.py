@@ -5,16 +5,22 @@ prompt and hand them back as context: whatever this handler returns is
 written to the hook's real stdout, which Claude Code injects into the
 session on a UserPromptSubmit.
 
-Settle point: edits made between turns are the user's, so this is a good
-moment to sweep claude-authored files for drift once that logic exists.
+Settle point: edits made between turns are the user's, so known files are
+swept for drift first and any diffs that surfaces are pushed right away.
 """
 
-from hooklib import client
+from hooklib import client, drift, process
 
 
 def handle(event):
     """Handle a parsed UserPromptSubmit payload."""
     print("handle UserPromptSubmit")
+
+    # Some files may have changed in the meantime, and this hook is called most
+    # often, so fire off a sweep now to catch any changes made in the meantime
+    # by the user.
+    drift.sweep(event["cwd"], event["session_id"])
+    process.run(event["cwd"])
 
     if event["transcript_path"]:
         client.post_transcript(event["transcript_path"])

@@ -29,9 +29,7 @@ defmodule Mem0Web.DiffController do
       when is_binary(file) and is_binary(diff) and is_binary(project) and is_binary(session) do
     with {:ok, scope} <- scope(project, session),
          {:ok, stored} <- Diffs.create(%{file: file, diff: diff, scope_id: scope.id}) do
-      # Fire-and-forget, as on the transcript route: extraction happens off
-      # the request path, and a cast to a refresher that is not running
-      # (test) is a silent no-op.
+        IO.puts "Got some diffs yo"
       Refresher.poke()
 
       render(conn, :create, diff: stored)

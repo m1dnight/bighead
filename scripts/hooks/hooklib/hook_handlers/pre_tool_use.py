@@ -20,8 +20,15 @@ def handle(event):
     file_path = event["file"]
 
     hash = git.store(event["cwd"], file_path)
+
     # mark the file as current version owned by the user, but only when the
-    # content actually drifted from the last recorded version
+    # content actually drifted from the last recorded version. If the last
+    # version was a user version as well, just update its hash to reflect the
+    # latest version.
     last = repo.last_version(event["cwd"], file_path)
-    if last is None or last["hash"] != hash:
+    if last is not None and last["hash"] == hash:
+        return
+    if last is not None and last["version"] == "user":
+        repo.replace_hash(event["cwd"], last["id"], hash, event["session_id"])
+    else:
         repo.add_version(event["cwd"], file_path, "user", hash, event["session_id"])
