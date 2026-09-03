@@ -19,7 +19,7 @@ defmodule Mem0Web.ConversationLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} max_width="max-w-4xl">
       <.header>Conversations</.header>
 
       <p :if={@scopes == []} class="text-sm opacity-70">No conversations yet.</p>
@@ -29,9 +29,17 @@ defmodule Mem0Web.ConversationLive.Index do
         rows={@scopes}
         row_click={fn scope -> JS.navigate(~p"/conversations/#{scope.session}") end}
       >
-        <:col :let={scope} label="User">{scope.user}</:col>
-        <:col :let={scope} label="Project">{scope.project}</:col>
-        <:col :let={scope} label="Session">{scope.session}</:col>
+        <:col :let={scope} label="User">
+          <span class="badge badge-ghost">{scope.user}</span>
+        </:col>
+        <:col :let={scope} label="Project">
+          <span class="font-mono text-xs">{scope.project}</span>
+        </:col>
+        <:col :let={scope} label="Session">
+          <span class="block max-w-40 truncate font-mono text-xs" title={scope.session}>
+            {scope.session}
+          </span>
+        </:col>
         <:action :let={scope}>
           <.link navigate={~p"/conversations/#{scope.session}"}>Show</.link>
         </:action>

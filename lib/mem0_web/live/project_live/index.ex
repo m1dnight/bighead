@@ -14,14 +14,18 @@ defmodule Mem0Web.ProjectLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} max_width="max-w-4xl">
       <.header>Projects</.header>
 
       <p :if={@projects == []} class="text-sm opacity-70">No projects yet.</p>
 
       <.table id="projects" rows={@projects} row_click={fn project -> JS.navigate(project_path(project)) end}>
-        <:col :let={project} label="User">{project.user}</:col>
-        <:col :let={project} label="Project">{project.project}</:col>
+        <:col :let={project} label="User">
+          <span class="badge badge-ghost">{project.user}</span>
+        </:col>
+        <:col :let={project} label="Project">
+          <span class="font-mono text-xs">{project.project}</span>
+        </:col>
         <:action :let={project}>
           <.link navigate={project_path(project)}>Show</.link>
         </:action>
