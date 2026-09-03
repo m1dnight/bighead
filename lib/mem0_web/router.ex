@@ -26,6 +26,9 @@ defmodule Mem0Web.Router do
 
     live "/projects", ProjectLive.Index, :index
     live "/projects/:user", ProjectLive.Show, :show
+
+    live "/conversations", ConversationLive.Index, :index
+    live "/conversations/:session", ConversationLive.Show, :show
   end
 
   # `/transcripts` is capture: the hook script posts the whole session

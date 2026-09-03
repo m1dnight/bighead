@@ -39,8 +39,10 @@ defmodule Mem0Web.Layouts do
   def app(assigns) do
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
+      <div class="flex-1 space-x-4">
         <.link navigate={~p"/projects"} class="text-sm font-semibold">mem0</.link>
+        <.link navigate={~p"/projects"} class="text-sm">Projects</.link>
+        <.link navigate={~p"/conversations"} class="text-sm">Conversations</.link>
       </div>
       <div class="flex-none">
         <.theme_toggle />
