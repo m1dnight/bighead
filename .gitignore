@@ -35,7 +35,8 @@ bighead-*.tar
 npm-debug.log
 /assets/node_modules/
 
-/bighead/
+# Upstream mem0 reference clone — keeps its original name.
+/mem0/
 
 # Local environment files. `.env.example` is committed; nothing else is.
 .env

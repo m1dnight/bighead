@@ -1,14 +1,14 @@
-# Bighead / Bighead^g — Conceptual Notes for Implementation
+# Mem0 / Mem0^g — Conceptual Notes for Implementation
 
-Source: Chhikara, Khant, Aryan, Singh, Yadav — *Bighead: Building Production-Ready AI Agents
+Source: Chhikara, Khant, Aryan, Singh, Yadav — *Mem0: Building Production-Ready AI Agents
 with Scalable Long-Term Memory* (arXiv:2504.19413v1, 28 Apr 2025).
 
 Scope: the theoretical and architectural content. Benchmark tables, baseline comparisons and
 latency measurements are omitted except where a result directly informs a design decision.
 
-**Both architectures are covered in full.** The paper presents Bighead and Bighead^g as
-complementary, and Bighead^g's own answer-generation prompt consumes the output of *both*
-pipelines. Bighead is a prerequisite for the graph variant, not an alternative to it.
+**Both architectures are covered in full.** The paper presents Mem0 and Mem0^g as
+complementary, and Mem0^g's own answer-generation prompt consumes the output of *both*
+pipelines. Mem0 is a prerequisite for the graph variant, not an alternative to it.
 
 ---
 
@@ -29,15 +29,15 @@ is relevant.
 
 Two architectures are proposed:
 
-- **Bighead** — dense natural-language memories, extracted incrementally from message pairs and
+- **Mem0** — dense natural-language memories, extracted incrementally from message pairs and
   reconciled against existing memories through ADD / UPDATE / DELETE / NOOP.
-- **Bighead^g** — a **directed labeled graph** of entities and relationships, built with the same
+- **Mem0^g** — a **directed labeled graph** of entities and relationships, built with the same
   incremental philosophy, aimed at reasoning that traverses relational paths and at temporal
   reasoning over superseded facts.
 
 ### 1.1 How the two relate
 
-| | Bighead | Bighead^g |
+| | Mem0 | Mem0^g |
 |---|---|---|
 | Unit of storage | natural-language fact | entity node / relation edge |
 | Reconciliation | four-way LLM operation choice | node resolution + conflict resolution |
@@ -48,7 +48,7 @@ Two architectures are proposed:
 | Weakest at | temporal ordering of superseded facts | adds nothing on single-hop / multi-hop |
 
 They run over the **same conversation** and are merged only at answer time. The paper's
-Bighead^g prompt supplies, per participant, a `Memories for user {id}` section (base) *and* a
+Mem0^g prompt supplies, per participant, a `Memories for user {id}` section (base) *and* a
 `Relations for user {id}` section (graph). Neither replaces the other.
 
 The results are worth internalising because they cut against intuition: the graph does **not**
@@ -59,7 +59,7 @@ edges — and on open-domain breadth.
 
 ---
 
-## 2. Bighead (base)
+## 2. Mem0 (base)
 
 Two phases, running **per message pair** rather than per session. This incremental processing
 paradigm is the load-bearing design decision: memory stays current during an ongoing
@@ -161,7 +161,7 @@ supplied at answer time. Scoping is architectural, not an afterthought.
 
 ### 2.5 Answer generation
 
-The base Bighead prompt instructs the answering model to:
+The base Mem0 prompt instructs the answering model to:
 
 - Analyse memories from **both speakers**.
 - Pay special attention to **timestamps** in determining the answer.
@@ -179,7 +179,7 @@ relative-to-absolute conversion has nothing to anchor on.
 
 ---
 
-## 3. Bighead^g — graph memory
+## 3. Mem0^g — graph memory
 
 ### 3.1 Representation
 
@@ -257,7 +257,7 @@ removed**. The graph is append-mostly. This retains the record of what was belie
 which is precisely what enables temporal reasoning — "where did she live *before* she moved?"
 is answerable only if the superseded `lives_in` edge still exists, flagged as no longer valid.
 
-This is a direct contrast with base Bighead's `DELETE`, which does remove. The graph variant
+This is a direct contrast with base Mem0's `DELETE`, which does remove. The graph variant
 trades storage for a queryable history, and that trade is where its temporal advantage comes
 from.
 
@@ -289,12 +289,12 @@ person care about" (semantic-triplet).
 
 ### 3.5 Answer generation
 
-The Bighead^g prompt is the base prompt plus one extra instruction and two extra context
+The Mem0^g prompt is the base prompt plus one extra instruction and two extra context
 sections. Per participant:
 
 ```
-Memories for user {id}:   {natural-language memories}     ← base Bighead
-Relations for user {id}:  {graph triplets / subgraph}     ← Bighead^g
+Memories for user {id}:   {natural-language memories}     ← base Mem0
+Relations for user {id}:  {graph triplets / subgraph}     ← Mem0^g
 ```
 
 The added instruction: *"Analyze the knowledge graph relations to understand the user's
@@ -304,13 +304,13 @@ from §2.5.
 
 ### 3.6 Operational characteristics
 
-- Footprint roughly **doubles** versus base Bighead (~14k vs ~7k tokens per conversation), from
+- Footprint roughly **doubles** versus base Mem0 (~14k vs ~7k tokens per conversation), from
   storing nodes and relationships alongside the natural-language memories.
 - Graph construction completes **in under a minute** even worst-case. The paper contrasts this
   pointedly with systems whose graph construction runs as extended asynchronous background
   work and is not reliably queryable for hours — a memory you cannot read back immediately
   after writing is not usable in an interactive agent.
-- Search latency is higher than base Bighead but still low in absolute terms; the graph's cost is
+- Search latency is higher than base Mem0 but still low in absolute terms; the graph's cost is
   moderate, not prohibitive.
 
 ---
@@ -334,11 +334,11 @@ and they are served by different parts of the system.
 
 Utterance time is what powers the prompt's relative-to-absolute conversion — "last year" is
 meaningless without knowing when it was said. Event time is content. **Validity time is the one
-base Bighead has no representation for at all**, and it is where the graph's advantage comes from.
+base Mem0 has no representation for at all**, and it is where the graph's advantage comes from.
 
-### 4.2 Why base Bighead loses temporal information
+### 4.2 Why base Mem0 loses temporal information
 
-Base Bighead's update phase resolves contradiction with `DELETE`. When "I moved to New York"
+Base Mem0's update phase resolves contradiction with `DELETE`. When "I moved to New York"
 arrives and contradicts "User lives in San Francisco", the San Francisco memory is **removed
 from the store**.
 
@@ -365,7 +365,7 @@ the paper's append-mostly policy and is the headline mechanism.
 **(b) Supersession encodes ordering even without dates.** This is the non-obvious one. When edge
 A is invalidated *by* edge B, the graph has recorded that A preceded B — even if neither carries
 an explicit date and the conversation never stated when the change happened. The **sequence of
-updates is itself temporal information**. Base Bighead generates exactly the same signal during its
+updates is itself temporal information**. Base Mem0 generates exactly the same signal during its
 update phase and then discards it: a `DELETE` knows that the removed memory came before the one
 replacing it, and that knowledge is thrown away with the row.
 
@@ -390,7 +390,7 @@ Mar 2023  "Work's been rough — Acme laid off half the team but I survived."
 Jun 2023  "I'm leaving SF, moving to New York. Got an offer from Belltown."
 ```
 
-**Base Bighead store afterwards** (contradictions deleted):
+**Base Mem0 store afterwards** (contradictions deleted):
 
 ```
 "User lives in New York"                                    (Jun 2023)
@@ -412,7 +412,7 @@ Acme  -had_event-> layoff     -happened_on-> Mar 2023
 
 Now run four questions through both:
 
-| Question | Base Bighead | Graph |
+| Question | Base Mem0 | Graph |
 |---|---|---|
 | "Where do I live?" | **wins** — one memory, unambiguous, cheap | works, but must filter on validity |
 | "Where did I live before New York?" | **cannot answer** — fact deleted | **wins** — the edge with `valid_to = Jun 23` |
@@ -476,7 +476,7 @@ anchoring fails but the triplet still resembles the query.
 ### 4.7 Implementation consequences
 
 1. **Do not unify the two removal semantics.** Base deletes; the graph invalidates. The
-   asymmetry *is* the temporal advantage. Making base Bighead soft-delete would be a reasonable
+   asymmetry *is* the temporal advantage. Making base Mem0 soft-delete would be a reasonable
    independent improvement, but do not make the graph hard-delete.
 2. **Prefer an interval to a boolean.** `valid_from` / `valid_to` / `superseded_by` answers
    "before", "during", and "as of"; an `is_valid` flag answers only "now".
@@ -506,7 +506,7 @@ anchoring fails but the triplet still resembles the query.
    accuracy gain (less noise reaching the LLM) and the cost gain. The paper explicitly
    criticises caching a full abstractive summary at every node *while also* storing facts on
    edges — massive redundancy for no benefit.
-4. **Two different removal semantics, deliberately.** Base Bighead deletes; the graph invalidates
+4. **Two different removal semantics, deliberately.** Base Mem0 deletes; the graph invalidates
    and keeps. Don't unify them — the difference is the source of the graph's temporal
    advantage.
 5. **Two embedding roles.** Node embeddings serve entity resolution and query anchoring;
@@ -540,7 +540,7 @@ anchoring fails but the triplet still resembles the query.
 This is a systems paper; several mechanics are described at the level of intent only. These
 are the decisions left to the implementer.
 
-### 6.1 Base Bighead
+### 6.1 Base Mem0
 
 - **How `S` is generated and refreshed.** "Periodically" — on a timer, every N messages, or on
   a staleness measure. Also whether it is regenerated from the full history each time or
@@ -560,7 +560,7 @@ are the decisions left to the implementer.
 - **Concurrency.** Two message pairs ingesting simultaneously for one scope will race on the
   same retrieved candidates.
 
-### 6.2 Bighead^g
+### 6.2 Mem0^g
 
 - **Conflict detection scope.** *How* candidate conflicting edges are found before the LLM
   resolver judges them. The natural reading is edges sharing a source node and relation label,

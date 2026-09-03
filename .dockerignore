@@ -51,7 +51,7 @@ erl_crash.dump
 # Everything here is large, secret, or irrelevant to building the release.
 
 # Upstream Python reference implementation (~100 MB, gitignored, kept locally).
-/bighead/
+/mem0/
 
 # Editor/tooling caches.
 /.expert/
