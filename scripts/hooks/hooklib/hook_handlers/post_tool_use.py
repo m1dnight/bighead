@@ -10,6 +10,10 @@ from hooklib import diffs, drift
 def handle(event):
     """Handle a parsed PostToolUse payload."""
     print("handle PostToolUse")
+    # Diffing is all this handler does, and it needs a repo.
+    if not event["in_repo"]:
+        return
+
     # A shell command can touch any file, so look at the whole working tree.
     if event["tool"] == "Bash":
         drift.sweep(event["cwd"], "llm", event["session_id"], event["prompt_id"])

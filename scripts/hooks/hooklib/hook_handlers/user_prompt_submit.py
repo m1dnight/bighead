@@ -19,8 +19,9 @@ def handle(event):
     # Some files may have changed in the meantime, and this hook is called most
     # often, so fire off a sweep now to catch any changes made in the meantime
     # by the user.
-    drift.sweep(event["cwd"], "user", event["session_id"], event["prompt_id"])
-    process.run(event["cwd"])
+    if event["in_repo"]:
+        drift.sweep(event["cwd"], "user", event["session_id"], event["prompt_id"])
+        process.run(event["cwd"])
 
     if event["transcript_path"]:
         client.post_transcript(event["transcript_path"])

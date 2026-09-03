@@ -15,4 +15,5 @@ def handle(event):
     if event["transcript_path"]:
         client.post_transcript(event["transcript_path"])
 
-    process.run(event["cwd"])
+    if event["in_repo"]:
+        process.run(event["cwd"])

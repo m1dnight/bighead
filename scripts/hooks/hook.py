@@ -35,18 +35,18 @@ def process(raw_payload):
     if payload_dict is None:
         return None
 
-    # make sure it's a git repo, otherwise ignore
-    if not git.is_repo(payload_dict["cwd"]):
-        print("Not a .git repo, ignoring")
-        return None
+    # Without a git repo there is no baseline to diff against, so the handlers
+    # skip the diffing work; the conversation itself is still tracked.
+    payload_dict["in_repo"] = git.is_repo(payload_dict["cwd"])
 
-    # A shell command can leave the session in a subdirectory, and the payload
-    # reports that as cwd. The ledger and the changed-file paths both hang off
-    # the repository root, so always work from there.
-    payload_dict["cwd"] = git.toplevel(payload_dict["cwd"])
+    if payload_dict["in_repo"]:
+        # A shell command can leave the session in a subdirectory, and the payload
+        # reports that as cwd. The ledger and the changed-file paths both hang off
+        # the repository root, so always work from there.
+        payload_dict["cwd"] = git.toplevel(payload_dict["cwd"])
 
-    # initialize storage if not yet done
-    storage.init(payload_dict["cwd"])
+        # initialize storage if not yet done
+        storage.init(payload_dict["cwd"])
 
     event = payload_dict["event"]
     result = HANDLERS[event](payload_dict)

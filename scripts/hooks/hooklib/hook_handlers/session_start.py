@@ -10,4 +10,5 @@ from hooklib import storage
 def handle(event):
     """Handle a parsed SessionStart payload."""
     print("handle SessionStart")
-    storage.init(event["cwd"])
+    if event["in_repo"]:
+        storage.init(event["cwd"])
