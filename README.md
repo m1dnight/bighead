@@ -2,6 +2,40 @@
 
 Implementation of Mem0 in Elixir.
 
+
+## Install
+
+If you have the Mem0 process running at `http://localhost:4001`, configure it as follows.
+
+#### Claude
+
+```bash
+# Install the environment variable of your Mem0 endpoint.
+export f=~/.claude/settings.json
+jq '.env += {"MEM0_URL": "http://localhost:4001"}' "$f" > "$f.tmp"
+mv "$f.tmp" "$f"
+unset f
+```
+
+Move the scripts to your local `.claude` folder and hook them up in Claude.
+
+```bash
+mkdir -p ~/.claude/hooks/mem0 && cp -r scripts/hooks ~/.claude/hooks/mem0
+export f=~/.claude/settings.json
+cmd="$HOME/.claude/hooks/mem0/hooks/hook.py"
+jq --arg cmd "$cmd" '
+  def h: {"hooks": [{"type": "command", "command": $cmd}]};
+  def files: {"matcher": "Edit|Write|NotebookEdit|Bash"} + h;
+  .hooks.SessionStart     += [h]
+  | .hooks.UserPromptSubmit += [h]
+  | .hooks.Stop             += [h]
+  | .hooks.SessionEnd       += [h]
+  | .hooks.PreToolUse       += [files]
+  | .hooks.PostToolUse      += [files]
+' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+unset f
+```
+
 ## Mem0 Summary
 
 Mem0 is a long-term memory store for LLMs so that they can retrieve information
