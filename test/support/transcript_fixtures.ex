@@ -1,4 +1,4 @@
-defmodule Mem0.TranscriptFixtures do
+defmodule Bighead.TranscriptFixtures do
   @moduledoc """
   Loads the captured transcript fixtures in `test/support/fixtures/transcripts`.
 

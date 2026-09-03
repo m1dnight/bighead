@@ -1,16 +1,16 @@
-defmodule Mem0.Store.DiffsTest do
+defmodule Bighead.Store.DiffsTest do
   @moduledoc """
   The diffs context: dedup on `(file, diff)` and reads per file.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Store.Diffs
-  alias Mem0.Store.Scopes
+  alias Bighead.Store.Diffs
+  alias Bighead.Store.Scopes
 
   @diff """
   @@ -1,2 +1,2 @@
   -def hello, do: :world
-  +def hello, do: :mem0
+  +def hello, do: :bighead
   """
 
   setup do

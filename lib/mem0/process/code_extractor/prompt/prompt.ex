@@ -1,4 +1,4 @@
-defmodule Mem0.CodeExtractor.Prompt do
+defmodule Bighead.CodeExtractor.Prompt do
   @moduledoc """
   Renders a batch of diffs — for each the file it touches, how the change
   came about and the diff text — into the user prompt of the code extractor.

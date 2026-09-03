@@ -1,10 +1,10 @@
-defmodule Mem0Web.TranscriptJSON do
+defmodule BigheadWeb.TranscriptJSON do
   @moduledoc """
-  Renders `Mem0Web.TranscriptController` responses.
+  Renders `BigheadWeb.TranscriptController` responses.
   """
 
-  alias Mem0.Store.Message
-  alias Mem0.Store.Scope
+  alias Bighead.Store.Message
+  alias Bighead.Store.Scope
 
   @doc """
   Renders a stored transcript: how many messages, and the scope they landed

@@ -1,9 +1,9 @@
-defmodule Mem0Web.RecallJSON do
+defmodule BigheadWeb.RecallJSON do
   @moduledoc """
-  Renders `Mem0Web.RecallController` responses.
+  Renders `BigheadWeb.RecallController` responses.
   """
 
-  alias Mem0.Store.Fact
+  alias Bighead.Store.Fact
 
   @doc """
   Renders the recalled facts, most relevant first.

@@ -1,28 +1,28 @@
 # `docker compose --env-file .env.secret up --build` runs the full stack: the
-# mem0 release on http://localhost:4000, Postgres, and Ollama for embeddings.
+# bighead release on http://localhost:4000, Postgres, and Ollama for embeddings.
 # `docker compose up db` still works for host-side development.
 services:
   app:
     build: .
     ports: ["4000:4000"]
     environment:
-      DATABASE_URL: ecto://postgres:postgres@db/mem0_dev
+      DATABASE_URL: ecto://postgres:postgres@db/bighead_dev
       # Local default; override for anything reachable from another machine.
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:-8c7nI6sqeZirCQ+0a20tCWafOrH4UUM6Ih67i7DP3PGJFUIuXeYniM0bJ2DsMICm}
       PHX_HOST: localhost
-      MEM0_EMBEDDER_PROVIDER: ollama
+      BIGHEAD_EMBEDDER_PROVIDER: ollama
       OLLAMA_BASE_URL: http://ollama:11434
-      MEM0_LLM_PROVIDER:
+      BIGHEAD_LLM_PROVIDER:
       ANTHROPIC_API_KEY:
       OPENROUTER_API_KEY:
-      MEM0_LLM_BASE_URL:
-      MEM0_LLM_MODEL:
-      MEM0_LLM_MAX_TOKENS:
-      MEM0_LLM_EFFORT:
-      MEM0_EMBEDDING_MODEL:
-      MEM0_EMBEDDING_DIMENSIONS:
-      MEM0_DEFAULT_USER_ID:
-      MEM0_LOG_LLM_PAYLOADS:
+      BIGHEAD_LLM_BASE_URL:
+      BIGHEAD_LLM_MODEL:
+      BIGHEAD_LLM_MAX_TOKENS:
+      BIGHEAD_LLM_EFFORT:
+      BIGHEAD_EMBEDDING_MODEL:
+      BIGHEAD_EMBEDDING_DIMENSIONS:
+      BIGHEAD_DEFAULT_USER_ID:
+      BIGHEAD_LOG_LLM_PAYLOADS:
     command: ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/server"]
     depends_on:
       db:
@@ -35,9 +35,9 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mem0_dev
+      POSTGRES_DB: bighead_dev
     ports: ["5432:5432"]
-    volumes: [mem0_pgdata:/var/lib/postgresql]
+    volumes: [bighead_pgdata:/var/lib/postgresql]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -55,7 +55,7 @@ services:
         until ollama ls >/dev/null 2>&1; do sleep 1; done
         ollama pull nomic-embed-text
         wait
-    volumes: [mem0_ollama:/root/.ollama]
+    volumes: [bighead_ollama:/root/.ollama]
     healthcheck:
       test: ["CMD", "ollama", "ls"]
       interval: 5s
@@ -63,5 +63,5 @@ services:
       retries: 10
 
 volumes:
-  mem0_pgdata:
-  mem0_ollama:
+  bighead_pgdata:
+  bighead_ollama:

@@ -1,4 +1,4 @@
-defmodule Mem0.Ingester do
+defmodule Bighead.Ingester do
   @moduledoc """
   An ingester is what takes in raw transcript json from an agent, and parses it
   into messages we care about.
@@ -10,7 +10,7 @@ defmodule Mem0.Ingester do
 
   @typedoc """
   The shape into which all messages from all agents have to be put in order for
-  them to go further into the Mem0 pipeline. This means that transcripts from
+  them to go further into the Bighead pipeline. This means that transcripts from
   Claude, Codex, .. all have to be able to be transformed into this shape.
   """
   @type message :: %{
@@ -22,7 +22,7 @@ defmodule Mem0.Ingester do
 
   @typedoc """
   The scope a transcript belongs to, as attrs for
-  `Mem0.Store.Scope.changeset/2`.
+  `Bighead.Store.Scope.changeset/2`.
   """
   @type scope :: %{project: String.t(), session: String.t()}
 

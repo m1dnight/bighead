@@ -1,11 +1,11 @@
-defmodule Mem0.ReqEcho do
+defmodule Bighead.ReqEcho do
   @moduledoc """
   A `Req` adapter that hands the fully-built request back to the caller.
 
   `Req.Test` answers a request; this inspects one. It is the only place a
   request-level option such as `receive_timeout` is still visible — a `Plug`
   sees what came off the socket, not the configuration that shaped it. Set it
-  with `req_options: [adapter: Mem0.ReqEcho]` and read the message:
+  with `req_options: [adapter: Bighead.ReqEcho]` and read the message:
 
       assert_received {:req_request, request}
       assert request.options.receive_timeout == to_timeout(minute: 2)

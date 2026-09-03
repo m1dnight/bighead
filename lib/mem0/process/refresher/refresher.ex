@@ -1,4 +1,4 @@
-defmodule Mem0.Refresher do
+defmodule Bighead.Refresher do
   @moduledoc """
   Runs fact extraction over whatever the ingestion side accumulated.
 
@@ -15,7 +15,7 @@ defmodule Mem0.Refresher do
 
   use GenServer
 
-  alias Mem0.Processor
+  alias Bighead.Processor
 
   require Logger
 

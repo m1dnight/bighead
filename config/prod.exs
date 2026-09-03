@@ -13,9 +13,9 @@ alias Swoosh.ApiClient.Req
 # before starting your production server.
 config :logger, level: :info
 
-config :mem0, Mem0Web.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
+config :bighead, BigheadWeb.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
 
-config :mem0, Mem0Web.Endpoint,
+config :bighead, BigheadWeb.Endpoint,
   force_ssl: [
     rewrite_on: [:x_forwarded_proto],
     exclude: [

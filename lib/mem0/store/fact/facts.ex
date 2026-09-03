@@ -1,4 +1,4 @@
-defmodule Mem0.Store.Facts do
+defmodule Bighead.Store.Facts do
   @moduledoc """
   Context module to retrieve/update/store facts in the database.
   """
@@ -6,8 +6,8 @@ defmodule Mem0.Store.Facts do
   import Ecto.Query
   import Pgvector.Ecto.Query
 
-  alias Mem0.Repo
-  alias Mem0.Store.Fact
+  alias Bighead.Repo
+  alias Bighead.Store.Fact
 
   @doc """
   Inserts a new fact.

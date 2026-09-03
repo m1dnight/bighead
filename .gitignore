@@ -23,7 +23,7 @@ erl_crash.dump
 /tmp/
 
 # Ignore package tarball (built via "mix hex.build").
-mem0-*.tar
+bighead-*.tar
 
 # Ignore assets that are produced by build tools.
 /priv/static/assets/
@@ -35,7 +35,7 @@ mem0-*.tar
 npm-debug.log
 /assets/node_modules/
 
-/mem0/
+/bighead/
 
 # Local environment files. `.env.example` is committed; nothing else is.
 .env
@@ -54,3 +54,6 @@ __pycache__/
 
 # Per-session shadow git indices used by scripts/hooks/user_prompt_submit.py.
 /.claude/indices/
+
+
+/mem0

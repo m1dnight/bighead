@@ -1,7 +1,7 @@
-defmodule Mem0.Ingester.CodexTest do
+defmodule Bighead.Ingester.CodexTest do
   @moduledoc """
   The contract of the Codex ingester, exercised through
-  `Mem0.Ingester.decode_transcript/2` and the behaviour callbacks it is built
+  `Bighead.Ingester.decode_transcript/2` and the behaviour callbacks it is built
   from: conversation lives in `response_item` message payloads, the scope in
   the `session_meta` record, machinery everywhere else.
   """
@@ -9,8 +9,8 @@ defmodule Mem0.Ingester.CodexTest do
 
   import ExUnit.CaptureLog
 
-  alias Mem0.Ingester
-  alias Mem0.Ingester.Codex
+  alias Bighead.Ingester
+  alias Bighead.Ingester.Codex
 
   @timestamp "2026-08-24T09:00:00.000Z"
 

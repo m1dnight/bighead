@@ -1,31 +1,31 @@
-defmodule Mem0.LLM.Stub do
+defmodule Bighead.LLM.Stub do
   @moduledoc """
-  `Mem0.LLM` that answers from a canned reply and records what it was asked.
+  `Bighead.LLM` that answers from a canned reply and records what it was asked.
 
   Lives in `test/support/` rather than `lib/`: it is test infrastructure, and
   putting it in `lib/` ships it. `config/test.exs` points `:llm` here, so every
   test gets it by default and no test suite can silently reach a live provider.
 
       test "sends the system prompt" do
-        Mem0.LLM.Stub.start!(reply: {:ok, response("ok")})
+        Bighead.LLM.Stub.start!(reply: {:ok, response("ok")})
 
         assert {:ok, %{content: "ok"}} =
-                 Mem0.LLM.complete(%{messages: [%{role: :user, content: "hi"}], system: "be terse"})
+                 Bighead.LLM.complete(%{messages: [%{role: :user, content: "hi"}], system: "be terse"})
 
-        assert [%{system: "be terse"}] = Mem0.LLM.Stub.calls()
+        assert [%{system: "be terse"}] = Bighead.LLM.Stub.calls()
       end
   """
 
-  @behaviour Mem0.LLM
+  @behaviour Bighead.LLM
 
-  alias Mem0.PortStub
+  alias Bighead.PortStub
 
-  @key :mem0_llm_stub
+  @key :bighead_llm_stub
 
   @doc """
-  A well-formed `t:Mem0.LLM.response/0`, for tests that only care about the text.
+  A well-formed `t:Bighead.LLM.response/0`, for tests that only care about the text.
   """
-  @spec response(String.t()) :: Mem0.LLM.response()
+  @spec response(String.t()) :: Bighead.LLM.response()
   def response(content) do
     %{content: content, model: "stub-model", usage: %{input_tokens: 0, output_tokens: 0}}
   end
@@ -47,9 +47,9 @@ defmodule Mem0.LLM.Stub do
   def set(reply), do: PortStub.set(@key, reply)
 
   @doc "Every request the stub received, oldest first."
-  @spec calls() :: [Mem0.LLM.request()]
+  @spec calls() :: [Bighead.LLM.request()]
   def calls, do: PortStub.calls(@key)
 
-  @impl Mem0.LLM
+  @impl Bighead.LLM
   def complete(request, opts), do: PortStub.call(@key, request, opts)
 end

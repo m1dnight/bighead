@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.CreateDiffs do
+defmodule Bighead.Repo.Migrations.CreateDiffs do
   use Ecto.Migration
 
   def change do

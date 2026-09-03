@@ -1,11 +1,11 @@
-# Attic — the graph channel (Mem0^g)
+# Attic — the graph channel (Bighead^g)
 
 **Dropped 2026-08-21, before any of it was built.** Kept because the analysis is the reason to
 revisit, not because the design is live. Nothing in `lib/` implements any of this.
 
 ## Why it was dropped
 
-Upstream mem0 abandoned it. As of v2.0.18 the OSS package ships no graph memory at all, and the
+Upstream bighead abandoned it. As of v2.0.18 the OSS package ships no graph memory at all, and the
 platform's "Graph Memory" is a different thing entirely: entities extracted with spaCy (typed
 `PROPER | QUOTED | TOPIC | IDENTIFIER`, not `Person`/`City`), linked to the memories that mention
 them, used as a ranking boost. Their own docs are explicit that it *"does not assign typed, labeled
@@ -73,7 +73,7 @@ pick it.
 ### Relations
 
 ```elixir
-defmodule Mem0.Core.Graph.Relation do
+defmodule Bighead.Core.Graph.Relation do
   use TypedStruct
 
   @type id :: String.t()
@@ -123,7 +123,7 @@ output of node resolution given scored candidates and threshold `t`.
 The `:existing` arm carries the candidate ref forward rather than dropping it. The ref's surface
 form is what `aliases` records, and its `type` is what lets someone notice that this extraction
 called `Acme` an `Organization` where the stored node says `Company`. The paper does not say what
-to do about that (notes §7, Mem0^g: node type conflicts), so this phase makes sure the information
+to do about that (notes §7, Bighead^g: node type conflicts), so this phase makes sure the information
 survives long enough for someone to have the choice. Discarding it at resolution time is a decision
 made by omission, and it is the same mistake `aliases` exists to avoid one field over.
 - `Graph.Operation` —

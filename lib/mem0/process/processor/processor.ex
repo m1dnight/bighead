@@ -1,19 +1,19 @@
-defmodule Mem0.Processor do
+defmodule Bighead.Processor do
   @moduledoc """
   Concerns itself with making sure all sessions in the database are properly extracted.
   """
 
   import Util
 
-  alias Mem0.Embeddings
-  alias Mem0.Extractor
-  alias Mem0.Reconciler
-  alias Mem0.Store.Fact
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Message
-  alias Mem0.Store.Messages
-  alias Mem0.Store.Scope
-  alias Mem0.Store.Scopes
+  alias Bighead.Embeddings
+  alias Bighead.Extractor
+  alias Bighead.Reconciler
+  alias Bighead.Store.Fact
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Message
+  alias Bighead.Store.Messages
+  alias Bighead.Store.Scope
+  alias Bighead.Store.Scopes
 
   require Logger
 

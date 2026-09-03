@@ -1,4 +1,4 @@
-defmodule Mem0.Processor.Diffs do
+defmodule Bighead.Processor.Diffs do
   @moduledoc """
   Extracts code guidelines from stored diffs and files them as facts: what
   the developer changed, or asked to change, in code the agent wrote.
@@ -6,15 +6,15 @@ defmodule Mem0.Processor.Diffs do
 
   import Util
 
-  alias Mem0.CodeExtractor
-  alias Mem0.Embeddings
-  alias Mem0.Reconciler
-  alias Mem0.Store.Diff
-  alias Mem0.Store.Diffs
-  alias Mem0.Store.Fact
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Scope
-  alias Mem0.Store.Scopes
+  alias Bighead.CodeExtractor
+  alias Bighead.Embeddings
+  alias Bighead.Reconciler
+  alias Bighead.Store.Diff
+  alias Bighead.Store.Diffs
+  alias Bighead.Store.Fact
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Scope
+  alias Bighead.Store.Scopes
 
   require Logger
 
@@ -98,7 +98,7 @@ defmodule Mem0.Processor.Diffs do
 
   # Extract from one batch, reconcile against the scope's guidelines, embed,
   # then move the watermark to the batch's last diff: the same steps a
-  # message batch takes in `Mem0.Processor`.
+  # message batch takes in `Bighead.Processor`.
   @spec process_batch([Diff.t()], Scope.t()) :: {:ok, Scope.t(), [Fact.t()]} | {:error, term()}
   defp process_batch(batch, scope) do
     with {:ok, guidelines} <- CodeExtractor.extract_guidelines(with_context(batch, scope)),

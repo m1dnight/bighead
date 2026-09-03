@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.RecreateMessagesWithScope do
+defmodule Bighead.Repo.Migrations.RecreateMessagesWithScope do
   use Ecto.Migration
 
   def change do

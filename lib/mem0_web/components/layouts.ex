@@ -1,9 +1,9 @@
-defmodule Mem0Web.Layouts do
+defmodule BigheadWeb.Layouts do
   @moduledoc """
   This module holds layouts and related functionality
   used by your application.
   """
-  use Mem0Web, :html
+  use BigheadWeb, :html
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
@@ -42,7 +42,7 @@ defmodule Mem0Web.Layouts do
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
       <div class="flex-1 space-x-4">
-        <.link navigate={~p"/projects"} class="text-sm font-semibold">mem0</.link>
+        <.link navigate={~p"/projects"} class="text-sm font-semibold">bighead</.link>
         <.link navigate={~p"/projects"} class="text-sm">Projects</.link>
         <.link navigate={~p"/conversations"} class="text-sm">Conversations</.link>
       </div>

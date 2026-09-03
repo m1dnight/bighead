@@ -1,4 +1,4 @@
-defmodule Mem0Web.ConnCase do
+defmodule BigheadWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule Mem0Web.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use Mem0Web.ConnCase, async: true`, although
+  by setting `use BigheadWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -19,25 +19,25 @@ defmodule Mem0Web.ConnCase do
 
   using do
     quote do
-      # See the note in `Mem0.DataCase`: the setup below checks out a sandbox
+      # See the note in `Bighead.DataCase`: the setup below checks out a sandbox
       # connection, so these tests need the container too.
-      use Mem0Web, :verified_routes
+      use BigheadWeb, :verified_routes
 
-      import Mem0Web.ConnCase
+      import BigheadWeb.ConnCase
       import Phoenix.ConnTest
       import Plug.Conn
 
       @moduletag :db
 
       # The default endpoint for testing
-      @endpoint Mem0Web.Endpoint
+      @endpoint BigheadWeb.Endpoint
 
       # Import conveniences for testing with connections
     end
   end
 
   setup tags do
-    Mem0.DataCase.setup_sandbox(tags)
+    Bighead.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

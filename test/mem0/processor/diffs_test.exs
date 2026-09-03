@@ -1,18 +1,18 @@
-defmodule Mem0.Processor.DiffsTest do
+defmodule Bighead.Processor.DiffsTest do
   @moduledoc """
   The extract-then-embed pass over one scope's diffs, with both ports
   stubbed: a batch of diffs goes to the extractor in one call, guidelines
   land in the store as embedded facts, and the diff watermark moves so the
   next pass reads nothing twice.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Embedder
-  alias Mem0.LLM
-  alias Mem0.Processor
-  alias Mem0.Store.Diffs
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Scopes
+  alias Bighead.Embedder
+  alias Bighead.LLM
+  alias Bighead.Processor
+  alias Bighead.Store.Diffs
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Scopes
 
   setup do
     LLM.Stub.start!()

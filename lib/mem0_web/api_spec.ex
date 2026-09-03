@@ -1,4 +1,4 @@
-defmodule Mem0Web.ApiSpec do
+defmodule BigheadWeb.ApiSpec do
   @moduledoc """
   The OpenAPI document for the API, assembled from the operations each
   controller defines next to itself (`*_api_spec.ex` in the controller's
@@ -15,9 +15,9 @@ defmodule Mem0Web.ApiSpec do
   @impl OpenApiSpex.OpenApi
   def spec do
     %OpenApi{
-      servers: [Server.from_endpoint(Mem0Web.Endpoint)],
-      info: %Info{title: "Mem0", version: "1.0.0"},
-      paths: Paths.from_router(Mem0Web.Router)
+      servers: [Server.from_endpoint(BigheadWeb.Endpoint)],
+      info: %Info{title: "Bighead", version: "1.0.0"},
+      paths: Paths.from_router(BigheadWeb.Router)
     }
     |> OpenApiSpex.resolve_schema_modules()
   end

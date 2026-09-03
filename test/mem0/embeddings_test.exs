@@ -1,14 +1,14 @@
-defmodule Mem0.EmbeddingsTest do
+defmodule Bighead.EmbeddingsTest do
   @moduledoc """
   Backfilling embeddings through the stubbed embedder: only unembedded facts
   are sent, one per call, and a failure leaves its fact untouched.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Embedder
-  alias Mem0.Embeddings
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Scopes
+  alias Bighead.Embedder
+  alias Bighead.Embeddings
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Scopes
 
   setup do
     Embedder.Stub.start!()

@@ -1,6 +1,6 @@
-# Mem0 in Elixir — Implementation Plan
+# Bighead in Elixir — Implementation Plan
 
-An Elixir implementation of Mem0 and Mem0^g (see [mem0-paper-notes.md](../docs/mem0-paper-notes.md)),
+An Elixir implementation of Bighead and Bighead^g (see [bighead-paper-notes.md](../docs/bighead-paper-notes.md)),
 exposed to coding agents such as Claude Code.
 
 ## Sequencing principle
@@ -13,12 +13,12 @@ The layering follows DFTBLW — **D**ata, **F**unctional core, **T**ests, **B**o
 2. **Ports before pipelines.** The LLM and embedder behaviours land in Phase 3 so that phases 4–7
    are testable with stub adapters and no network. Without this, every later phase drags a live
    API dependency into its test suite.
-3. **One memory channel, not two.** The paper's `Mem0^g` graph channel is dropped — see
+3. **One memory channel, not two.** The paper's `Bighead^g` graph channel is dropped — see
    [attic/graph-channel.md](attic/graph-channel.md) for the design and why. Temporal reasoning lives
    on memories themselves (event intervals, supersession) rather than on graph edges, which is the
-   direction upstream mem0 itself took.
+   direction upstream bighead itself took.
 4. **Surfaces last.** REST, MCP and the Claude Code hooks are thin wrappers over a
-   `Mem0` boundary module. They are cheap once the boundary is right and worthless before.
+   `Bighead` boundary module. They are cheap once the boundary is right and worthless before.
 
 ## Phases
 
@@ -27,7 +27,7 @@ The layering follows DFTBLW — **D**ata, **F**unctional core, **T**ests, **B**o
 | 1 | Scaffolding | Tooling, pgvector dev DB, CI, Dockerfile | [01-scaffolding.md](01-scaffolding.md) |
 | 2 | Domain data | Core structs and their invariants — no persistence | [02-domain-data.md](02-domain-data.md) |
 | 3 | Ports | LLM + embedder behaviours, config from env, stub and real adapters | [03-ports.md](03-ports.md) |
-| 4 | Hook ingress | A Claude Code session posts its transcript; mem0 normalises it to `Message`s | [04-hook-ingress.md](04-hook-ingress.md) |
+| 4 | Hook ingress | A Claude Code session posts its transcript; bighead normalises it to `Message`s | [04-hook-ingress.md](04-hook-ingress.md) |
 | 5 | Fact extraction | `Message`s in, candidate `Fact`s out, in one LLM call — not wired to anything | [05-fact-extraction.md](05-fact-extraction.md) |
 | 6 | Message storage | The `messages` table and its store — `Message`s in, the same `Message`s out | [06-message-storage.md](06-message-storage.md) |
 | 7 | Summaries | The running summary `S` — regenerated from the run's stored messages, wired to nothing | [07-summaries.md](07-summaries.md) |

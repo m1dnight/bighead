@@ -1,4 +1,4 @@
-defmodule Mem0.LLM do
+defmodule Bighead.LLM do
   @moduledoc """
   An LLM behavior used to execute regular text prompts and get back a result.
   """
@@ -20,7 +20,7 @@ defmodule Mem0.LLM do
   `:effort` overrides the configured reasoning effort for one call — one of
   `t:effort/0`, spending a larger or smaller share of the `:max_tokens` budget
   on thinking. An adapter with no effort mechanism ignores it; today only
-  `Mem0.LLM.OpenRouter` reads it.
+  `Bighead.LLM.OpenRouter` reads it.
   """
   @type request :: %{
           required(:messages) => [message()],
@@ -54,7 +54,7 @@ defmodule Mem0.LLM do
   @typedoc """
   Why a call failed.
 
-  A closed set for the same reason `Mem0.Core.MemoryOperation`'s reason type is
+  A closed set for the same reason `Bighead.Core.MemoryOperation`'s reason type is
   one: a caller that must branch on failure needs to tell "the model declined"
   from "the network broke" from "the key is wrong", and `t:term/0` documents
   none of it.
@@ -85,7 +85,7 @@ defmodule Mem0.LLM do
   is the only place that reads the environment behind it.
   """
   @spec config() :: keyword()
-  def config, do: Application.get_env(:mem0, :llm, [])
+  def config, do: Application.get_env(:bighead, :llm, [])
 
   @doc "The configured adapter module."
   @spec adapter() :: module()

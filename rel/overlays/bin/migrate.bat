@@ -1,1 +1,1 @@
-call "%~dp0\mem0" eval Mem0.Release.migrate
+call "%~dp0\bighead" eval Bighead.Release.migrate

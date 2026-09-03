@@ -1,4 +1,4 @@
-defmodule Mem0.CodeExtractorTest do
+defmodule Bighead.CodeExtractorTest do
   @moduledoc """
   Extraction through the stubbed LLM: what gets asked and what comes back.
   The extractor is pure over the diffs it is handed — no database, no side
@@ -6,10 +6,10 @@ defmodule Mem0.CodeExtractorTest do
   """
   use ExUnit.Case, async: true
 
-  alias Mem0.CodeExtractor
-  alias Mem0.CodeExtractor.Prompt
-  alias Mem0.LLM
-  alias Mem0.Store.Diff
+  alias Bighead.CodeExtractor
+  alias Bighead.CodeExtractor.Prompt
+  alias Bighead.LLM
+  alias Bighead.Store.Diff
 
   @foo %Diff{
     id: 2,

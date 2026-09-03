@@ -1,12 +1,12 @@
-defmodule Mem0Web do
+defmodule BigheadWeb do
   @moduledoc """
   The entrypoint for defining your web interface, such
   as controllers, components, channels, and so on.
 
   This can be used in your application as:
 
-      use Mem0Web, :controller
-      use Mem0Web, :html
+      use BigheadWeb, :controller
+      use BigheadWeb, :html
 
   The definitions below will be executed for every controller,
   component, etc, so keep them short and clean, focused
@@ -44,7 +44,7 @@ defmodule Mem0Web do
   def controller do
     quote do
       use Phoenix.Controller, formats: [:html, :json]
-      use Gettext, backend: Mem0Web.Gettext
+      use Gettext, backend: BigheadWeb.Gettext
 
       import Plug.Conn
 
@@ -88,14 +88,14 @@ defmodule Mem0Web do
   defp html_helpers do
     quote do
       # Translation
-      use Gettext, backend: Mem0Web.Gettext
+      use Gettext, backend: BigheadWeb.Gettext
 
-      import Mem0Web.CoreComponents
+      import BigheadWeb.CoreComponents
 
       # HTML escaping functionality
       import Phoenix.HTML
       # Core UI components
-      alias Mem0Web.Layouts
+      alias BigheadWeb.Layouts
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
@@ -109,9 +109,9 @@ defmodule Mem0Web do
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,
-        endpoint: Mem0Web.Endpoint,
-        router: Mem0Web.Router,
-        statics: Mem0Web.static_paths()
+        endpoint: BigheadWeb.Endpoint,
+        router: BigheadWeb.Router,
+        statics: BigheadWeb.static_paths()
     end
   end
 

@@ -1,18 +1,18 @@
-# Mem0
+# Bighead
 
-Implementation of Mem0 in Elixir.
+Implementation of Bighead in Elixir.
 
 
 ## Install
 
-If you have the Mem0 process running at `http://localhost:4000`, configure it as follows.
+If you have the Bighead process running at `http://localhost:4000`, configure it as follows.
 
 #### Claude
 
 ```bash
-# Install the environment variable of your Mem0 endpoint.
+# Install the environment variable of your Bighead endpoint.
 export f=~/.claude/settings.json
-jq '.env += {"MEM0_URL": "http://localhost:4000"}' "$f" > "$f.tmp"
+jq '.env += {"BIGHEAD_URL": "http://localhost:4000"}' "$f" > "$f.tmp"
 mv "$f.tmp" "$f"
 unset f
 ```
@@ -20,9 +20,9 @@ unset f
 Move the scripts to your local `.claude` folder and hook them up in Claude.
 
 ```bash
-mkdir -p ~/.claude/hooks/mem0 && cp -r scripts/hooks ~/.claude/hooks/mem0
+mkdir -p ~/.claude/hooks/bighead && cp -r scripts/hooks ~/.claude/hooks/bighead
 export f=~/.claude/settings.json
-cmd="$HOME/.claude/hooks/mem0/hooks/hook.py"
+cmd="$HOME/.claude/hooks/bighead/hooks/hook.py"
 jq --arg cmd "$cmd" '
   def h: {"hooks": [{"type": "command", "command": $cmd}]};
   def files: {"matcher": "Edit|Write|NotebookEdit|Bash"} + h;
@@ -36,9 +36,9 @@ jq --arg cmd "$cmd" '
 unset f
 ```
 
-## Mem0 Summary
+## Bighead Summary
 
-Mem0 is a long-term memory store for LLMs so that they can retrieve information
+Bighead is a long-term memory store for LLMs so that they can retrieve information
 from older conversations without relying on gigantic context windows.
 
 There are three types of knowledge that an LLM can benefit from: content
@@ -61,9 +61,9 @@ external memory (i.e., the model itself, or tools). E.g., "I like Alice Cooper"
 is a fact. Using open domain reasoning the model can deduce that the user likes
 rock music.
 
-## Mem0 Architecture
+## Bighead Architecture
 
-Mem0 ingests the conversations a user has with an LLM. A conversation `C` consists
+Bighead ingests the conversations a user has with an LLM. A conversation `C` consists
 of a list of `n` messages (`m_1..m_n`).
 
 For each conversation `C` a summary `S` is generated. This is like a continuous
@@ -71,7 +71,7 @@ compaction of the pervious conversation.
 
 ### Extraction
 
-If a new question/answer pair is sent to Mem0 (i.e., a user asked something, and
+If a new question/answer pair is sent to Bighead (i.e., a user asked something, and
 the llm responded), a new message pair `m_n+1, m_n+2` is available.
 
 A "prompt" `P` is a triple `(S, C, m_n+1, m_n+2)`.
@@ -100,26 +100,26 @@ session gets a unique id.
 
 ### Search
 
-Search is how an agent consults Mem0 to get information to build its context.
+Search is how an agent consults Bighead to get information to build its context.
 Assume the user sends a prompt `m_1`. Before it is being sent to the agent, it
-is augmented with information retrieval in mem0.
+is augmented with information retrieval in bighead.
 
 1. User types in prompt `m_1`.
-2. Mem0 fetches the last 6 messages that came before `m_1` and adds them as is
+2. Bighead fetches the last 6 messages that came before `m_1` and adds them as is
   to the query.
-3. Mem0 is searched in different ways to fetch relevant memories.
+3. Bighead is searched in different ways to fetch relevant memories.
 4. These memories are added to the prompt as plain text.
 5. The prompt is sent to the LLM.
 
 
 ## Ingestion Pipeline
 
-Mem0 gets its data purely through hooks (although you can submit backlogs of transcripts). There are two signals Mem0 aims to ingest: transcripts and code changes.
+Bighead gets its data purely through hooks (although you can submit backlogs of transcripts). There are two signals Bighead aims to ingest: transcripts and code changes.
 
 
 ### Transcripts
 
-A transcript is a chat history with your agent. They are encoded as JSON Lines files. Each line contains a lot of meta data about your message; who sent it, what was the text, which session etc. Mem0 ingests your intire transcript and filters server-side to only keep track of the useful bits. Each transcript exists within a "scope." A scope defines what the context of that transcript is: the user, the project you're working on, and the LLM session it is from.
+A transcript is a chat history with your agent. They are encoded as JSON Lines files. Each line contains a lot of meta data about your message; who sent it, what was the text, which session etc. Bighead ingests your intire transcript and filters server-side to only keep track of the useful bits. Each transcript exists within a "scope." A scope defines what the context of that transcript is: the user, the project you're working on, and the LLM session it is from.
 
 The pipeline is roughly as follows:
 
@@ -152,7 +152,7 @@ So assuming we have a set of facts for a given scope, we can now retrieve facts.
 
 ### Diffs
 
-Another signal Mem0 ingests is code diffs. This might not work for everyone, and especially not for full agentic coding, but it helps for us normies who still do prompt-guided developing. The idea is as follows. Each time you ask your LLM to generate a change to your project, Mem0 listens for the changes it made. It keeps this version in mind. Next time anything happens, the file is revisited and a diff is made between the current version and the last written version by the LLM. The diff from this is a signal that contains what you think the LLM did wrong, and should do better in the future. Mem0 keeps track of these diffs and sends them to the Mem0 endpoint periodically. These diffs are processed as follows.
+Another signal Bighead ingests is code diffs. This might not work for everyone, and especially not for full agentic coding, but it helps for us normies who still do prompt-guided developing. The idea is as follows. Each time you ask your LLM to generate a change to your project, Bighead listens for the changes it made. It keeps this version in mind. Next time anything happens, the file is revisited and a diff is made between the current version and the last written version by the LLM. The diff from this is a signal that contains what you think the LLM did wrong, and should do better in the future. Bighead keeps track of these diffs and sends them to the Bighead endpoint periodically. These diffs are processed as follows.
 
 ```text
  - For each new diff in the database:
@@ -162,9 +162,9 @@ Another signal Mem0 ingests is code diffs. This might not work for everyone, and
 
 ## Improvements
 
-- Improve search (the way mem0 actually does it). Build a separate index for words (e.g., names, tech vocabulary, ..) and then do a word search, meaning search, and name search. This will yield a bigger set of potentially relevant resources.
+- Improve search (the way bighead actually does it). Build a separate index for words (e.g., names, tech vocabulary, ..) and then do a word search, meaning search, and name search. This will yield a bigger set of potentially relevant resources.
 - Look into how these system prompts can be injected across claude/codex etc. Claude has the option to append system messages, for example.
-- We currently only store facts as memories, and do not store the graph search anymore. Mem0 itself no longer does it, and I have to investigate why. They now do event co-occurency storage or something similar: [https://mem0.ai/blog/introducing-temporal-reasoning-in-mem0](https://mem0.ai/blog/introducing-temporal-reasoning-in-mem0)
+- We currently only store facts as memories, and do not store the graph search anymore. Bighead itself no longer does it, and I have to investigate why. They now do event co-occurency storage or something similar: [https://bighead.ai/blog/introducing-temporal-reasoning-in-bighead](https://bighead.ai/blog/introducing-temporal-reasoning-in-bighead)
 - Currently we don't take branching of conversations into account. We assume the conversation is one long list.
 - Work out a nice macro to measure the execution of function calls
 - Maybe track the total token usage and actual USD cost as reported by the LLM.

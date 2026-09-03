@@ -1,15 +1,15 @@
-defmodule Mem0.ReconcilerTest do
+defmodule Bighead.ReconcilerTest do
   @moduledoc """
   Reconciliation through the stubbed LLM: each verdict the model can return,
   applied against stored facts.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.LLM
-  alias Mem0.Reconciler
-  alias Mem0.Reconciler.Prompt
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Scopes
+  alias Bighead.LLM
+  alias Bighead.Reconciler
+  alias Bighead.Reconciler.Prompt
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Scopes
 
   @candidate "Prefers Neovim"
 
@@ -18,9 +18,9 @@ defmodule Mem0.ReconcilerTest do
 
     {:ok, scope} = Scopes.create(%{user: "u", project: "/w", session: "session-1"})
     {:ok, vim} = Facts.create(%{fact: "Uses Vim", scope_id: scope.id})
-    {:ok, mem0} = Facts.create(%{fact: "Works on mem0", scope_id: scope.id})
+    {:ok, bighead} = Facts.create(%{fact: "Works on bighead", scope_id: scope.id})
 
-    %{scope: scope, facts: [vim, mem0], vim: vim}
+    %{scope: scope, facts: [vim, bighead], vim: vim}
   end
 
   describe "reconcile_facts/4" do

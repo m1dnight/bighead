@@ -11,15 +11,15 @@ the Phase 6 argument, verbatim.
 The similarity read belongs in a *storage* phase, not despite the name but because of it: a
 memories table you can only read back in insertion order has no exit criterion beyond a round
 trip. Retrieval by vector is the only read that matters to this table's one consumer, and it is
-also where `Mem0.Core.ScopeQuery` and `Mem0.Core.Scored` — both built in Phase 2 and both idle
+also where `Bighead.Core.ScopeQuery` and `Bighead.Core.Scored` — both built in Phase 2 and both idle
 since — finally earn their keep.
 
 Two standing decisions do most of the shaping here. **Append-mostly** (00-overview): the paper's
 DELETE removes the row and with it the audit trail and the ordering signal, so here it becomes
 supersession — `superseded_at` set, row kept, every read filtered to active. And **no embedding
-field in the core**: `Mem0.Core.Memory` stays vectorless (the layering test enforces it), so
+field in the core**: `Bighead.Core.Memory` stays vectorless (the layering test enforces it), so
 vectors cross this store's API as plain arguments and live only in the row. The store does not
-call `Mem0.Embedder` either — who embeds, and when, is the update phase's composition question;
+call `Bighead.Embedder` either — who embeds, and when, is the update phase's composition question;
 a store that takes vectors as arguments is testable with hand-built ones and no stub at all.
 
 The vocabulary follows the semantics. The store keeps the paper's names wherever its row-level
@@ -27,7 +27,7 @@ effect *is* the paper's operation — `add` inserts a fresh row, `update` keeps 
 the content — and renames the one arm whose effect diverges: a function called `delete` that runs
 `UPDATE … SET superseded_at` and leaves the row readable would misdescribe its own effect to
 every future reader. The decision vocabulary stays the paper's in full, in
-`Mem0.Core.MemoryOperation`; the update phase is the visible translation between the two —
+`Bighead.Core.MemoryOperation`; the update phase is the visible translation between the two —
 `{:delete, id}` becomes `supersede(id, at)` — and keeping that mapping explicit is what keeps
 the store performing rather than deciding.
 
@@ -68,7 +68,7 @@ create index(:memories, [:user_id, :app_id, :run_id], where: "superseded_at IS N
 
 Each choice that is not obvious:
 
-- **`id` is `:uuid`, and this phase answers the question `Mem0.Core.Memory.id/0` parked.** The
+- **`id` is `:uuid`, and this phase answers the question `Bighead.Core.Memory.id/0` parked.** The
   typedoc left UUID-versus-bigserial "a question for whoever first needs a fact to survive a
   restart" — that is now. UUID, because the id leaks outward by design (`Decision.considered_ids`,
   telemetry metadata) and an integer there reads as a count and tempts ordering games; time-order
@@ -82,7 +82,7 @@ Each choice that is not obvious:
   a memory is found by the only read that matters; a memory without one is unfindable, which is a
   bug, and `NOT NULL` turns that bug into a constraint violation at write time instead of a
   silent retrieval gap. Same 768, hardcoded with the same comment naming
-  `config :mem0, :embedder, :dimensions` as its source — a migration that changes shape with
+  `config :bighead, :embedder, :dimensions` as its source — a migration that changes shape with
   runtime configuration is not a migration.
 - **`superseded_at` + `superseded_by_id`, no deleted anything.** Active means
   `superseded_at IS NULL`; every read this store exposes filters on it. `superseded_by_id` is
@@ -103,10 +103,10 @@ Each choice that is not obvious:
   `ORDER BY embedding <=> $1` is *correct*, the scan is bounded by one user's active memories,
   and an ANN index is an optimization with a measurable trigger (open questions).
 
-## 10.2 `Mem0.Memories.Row` — the table, not a second domain type
+## 10.2 `Bighead.Memories.Row` — the table, not a second domain type
 
-Same discipline as Phase 6: one Ecto schema, and `Mem0.Memories` is the only module allowed to
-know it exists. Public functions take and return `Mem0.Core.Memory`.
+Same discipline as Phase 6: one Ecto schema, and `Bighead.Memories` is the only module allowed to
+know it exists. Public functions take and return `Bighead.Core.Memory`.
 
 ```elixir
 @primary_key {:id, Ecto.UUID, autogenerate: false}
@@ -134,7 +134,7 @@ end
   is provably always `nil`. Rebuilds `%Scope{}` with `Scope.new/1`, idempotent over its own
   output, as in Phase 6.
 
-## 10.3 `Mem0.Memories` — the store
+## 10.3 `Bighead.Memories` — the store
 
 ```elixir
 @spec add(Fact.t(), [float()], DateTime.t()) :: {:ok, Memory.t()} | {:error, Exception.t()}
@@ -201,7 +201,7 @@ been destroyed by an UPDATE — only replaced, with the replacement's provenance
 
 ## Tests
 
-`Mem0.MemoriesTest` through `Mem0.DataCase`, `async: true`. No LLM stub, no embedder stub —
+`Bighead.MemoriesTest` through `Bighead.DataCase`, `async: true`. No LLM stub, no embedder stub —
 vectors are arguments, so the tests hand-build them: a `unit_vector(i)` fixture helper
 (768-wide, 1.0 at position `i`) makes cosine scores *exact* — orthogonal vectors score 0.0,
 identical ones 1.0 — so search assertions are equalities, not tolerances.
@@ -226,13 +226,13 @@ identical ones 1.0 — so search assertions are equalities, not tolerances.
 
 ## Exit criteria
 
-- [ ] `add/3` → `active/1`/`search/3` round-trips `Mem0.Core.Memory` structs identical to what
+- [ ] `add/3` → `active/1`/`search/3` round-trips `Bighead.Core.Memory` structs identical to what
       `Memory.from_fact/3` built, microseconds included
 - [ ] `search/3` over hand-built vectors returns exactly the expected candidates, scores, and
       order — asserted as equalities
 - [ ] `supersede/3` removes a memory from every read this store exposes and deletes nothing —
       the row is still in the table
-- [ ] Nothing outside `Mem0.Memories` references `Mem0.Memories.Row`; nothing in `lib/mem0/core/`
+- [ ] Nothing outside `Bighead.Memories` references `Bighead.Memories.Row`; nothing in `lib/bighead/core/`
       gained an embedding, a `Repo`, or a clock — layering test green
 - [ ] No memory content in any log at default dev configuration, Ecto's parameter logging
       included

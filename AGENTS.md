@@ -9,17 +9,17 @@ This is a web application written using the Phoenix web framework.
   `compile --warnings-as-errors`, `deps.unlock --unused`, `format --force`, `credo --strict`,
   `test` and `dialyzer` — in that order. Dialyzer joined the alias in Phase 2, when a functional
   core first gave it something to analyse: a remote type written `Scope.t()` where
-  `Mem0.Core.Scope.t()` was meant compiles clean even under `--warnings-as-errors`, and Dialyzer is
+  `Bighead.Core.Scope.t()` was meant compiles clean even under `--warnings-as-errors`, and Dialyzer is
   the only thing that reports it. The first run after a dependency change builds the PLT and is
   slow; subsequent runs are not.
 - **`mix test.core` runs the functional core alone** — `test --exclude db`, no `ecto.create`, no
-  `ecto.migrate` — and passes with the Postgres container stopped. `Mem0.DataCase` and
-  `Mem0Web.ConnCase` both set `@moduletag :db`, so a test needing the database is tagged by the
-  fact that it uses one of them. It also starts no `Repo` at all (see `Mem0.Application`), so a
+  `ecto.migrate` — and passes with the Postgres container stopped. `Bighead.DataCase` and
+  `BigheadWeb.ConnCase` both set `@moduletag :db`, so a test needing the database is tagged by the
+  fact that it uses one of them. It also starts no `Repo` at all (see `Bighead.Application`), so a
   stopped container produces no connection noise either. Bare `mix test` still runs everything and
   still needs the container.
-- **Nothing under `lib/mem0/core/` may touch Ecto, `Repo`, a process or an HTTP client, hold an
-  `embedding` field, or read a clock** — time arrives as an argument. `test/mem0/core/layering_test.exs`
+- **Nothing under `lib/bighead/core/` may touch Ecto, `Repo`, a process or an HTTP client, hold an
+  `embedding` field, or read a clock** — time arrives as an argument. `test/bighead/core/layering_test.exs`
   enforces all three against the BEAM import table, which catches what grep cannot.
 - **`mix format` rewrites your code beyond whitespace.** Quokka is a formatter plugin, so every
   `mix format` reorders aliases and directives, rewrites pipelines, and applies the style rules
@@ -30,9 +30,9 @@ This is a web application written using the Phoenix web framework.
 - **LLM-derived strings never become atoms.** Entity types and relation labels come from model
   output; interning them grows the atom table without bound and it is never GC'd.
   `Credo.Check.Warning.UnsafeToAtom` is enabled to enforce this.
-- **Never log prompts, completions or memory contents.** Telemetry events under `[:mem0, ...]` carry
+- **Never log prompts, completions or memory contents.** Telemetry events under `[:bighead, ...]` carry
   metadata only — latency, token counts, model name, operation counts. Payload logging is behind
-  `config :mem0, :log_llm_payloads`, which defaults to `false` everywhere and is hard-`false` in
+  `config :bighead, :log_llm_payloads`, which defaults to `false` everywhere and is hard-`false` in
   test.
 - **Tests must not hit the network or spend money.** `config/test.exs` points the LLM and embedder
   at stub adapters. Tests that genuinely need a live API are tagged `:live`, excluded by default,
@@ -44,11 +44,11 @@ This is a web application written using the Phoenix web framework.
 - **`config/runtime.exs` is the only place that reads the environment.** Every adapter takes its
   configuration as a keyword list, which is what makes adapters testable without a live provider,
   and `.env.example` lists every variable the application reads. The provider variables
-  (`MEM0_LLM_PROVIDER`, `MEM0_EMBEDDER_PROVIDER`) raise on an unrecognised value rather than
+  (`BIGHEAD_LLM_PROVIDER`, `BIGHEAD_EMBEDDER_PROVIDER`) raise on an unrecognised value rather than
   falling back, because a typo that boots on the stub fails at the first call instead of at boot.
-- **Only `Mem0.LLM.Anthropic` and `Mem0.Embedder.Ollama` may speak HTTP.** They are the adapters
-  behind the `Mem0.LLM` and `Mem0.Embedder` behaviours; everything else goes through the port.
-  `test/mem0/core/layering_test.exs` enforces this against the BEAM import table.
+- **Only `Bighead.LLM.Anthropic` and `Bighead.Embedder.Ollama` may speak HTTP.** They are the adapters
+  behind the `Bighead.LLM` and `Bighead.Embedder` behaviours; everything else goes through the port.
+  `test/bighead/core/layering_test.exs` enforces this against the BEAM import table.
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 
 ### Phoenix v1.8 guidelines

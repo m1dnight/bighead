@@ -7,7 +7,7 @@ claude --settings '{
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+            "command": "/Users/christophe/Documents/Code/elixir/bighead/scripts/hooks/hook.py"
           }
         ]
       }
@@ -17,7 +17,7 @@ claude --settings '{
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+            "command": "/Users/christophe/Documents/Code/elixir/bighead/scripts/hooks/hook.py"
           }
         ]
       }
@@ -28,7 +28,7 @@ claude --settings '{
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+            "command": "/Users/christophe/Documents/Code/elixir/bighead/scripts/hooks/hook.py"
           }
         ]
       }
@@ -39,7 +39,7 @@ claude --settings '{
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+            "command": "/Users/christophe/Documents/Code/elixir/bighead/scripts/hooks/hook.py"
           }
         ]
       }
@@ -49,7 +49,7 @@ claude --settings '{
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+            "command": "/Users/christophe/Documents/Code/elixir/bighead/scripts/hooks/hook.py"
           }
         ]
       }
@@ -59,7 +59,7 @@ claude --settings '{
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/christophe/Documents/Code/elixir/mem0/scripts/hooks/hook.py"
+            "command": "/Users/christophe/Documents/Code/elixir/bighead/scripts/hooks/hook.py"
           }
         ]
       }

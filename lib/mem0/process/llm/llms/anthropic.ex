@@ -1,15 +1,15 @@
-defmodule Mem0.LLM.Anthropic do
+defmodule Bighead.LLM.Anthropic do
   @moduledoc """
-  `Mem0.LLM` over the Anthropic Messages API.
+  `Bighead.LLM` over the Anthropic Messages API.
   """
 
-  @behaviour Mem0.LLM
+  @behaviour Bighead.LLM
 
   @endpoint "https://api.anthropic.com/v1/messages"
   @api_version "2023-06-01"
   @receive_timeout to_timeout(minute: 2)
 
-  @impl Mem0.LLM
+  @impl Bighead.LLM
   def complete(request, opts) do
     url = Keyword.get(opts, :base_url, @endpoint)
 
@@ -38,7 +38,7 @@ defmodule Mem0.LLM.Anthropic do
     end
   end
 
-  @spec body(Mem0.LLM.request(), keyword()) :: map()
+  @spec body(Bighead.LLM.request(), keyword()) :: map()
   defp body(request, opts) do
     %{
       model: Keyword.fetch!(opts, :model),
@@ -60,7 +60,7 @@ defmodule Mem0.LLM.Anthropic do
   # A refusal is a 200. Check it before reading content, which may be absent.
   # `stop_details` is informational and may itself be null, hence `get_in/2`
   # rather than a match: the category is a hint for the caller, not a contract.
-  @spec decode(term()) :: {:ok, Mem0.LLM.response()} | {:error, Mem0.LLM.reason()}
+  @spec decode(term()) :: {:ok, Bighead.LLM.response()} | {:error, Bighead.LLM.reason()}
   defp decode(%{"stop_reason" => "refusal"} = body) do
     {:error, {:refusal, get_in(body, ["stop_details", "category"])}}
   end

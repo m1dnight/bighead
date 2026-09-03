@@ -1,9 +1,9 @@
-defmodule Mem0Web.RecallControllerTest do
-  use Mem0Web.ConnCase, async: true
+defmodule BigheadWeb.RecallControllerTest do
+  use BigheadWeb.ConnCase, async: true
 
-  alias Mem0.Embedder
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Scopes
+  alias Bighead.Embedder
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Scopes
 
   setup do
     Embedder.Stub.start!()

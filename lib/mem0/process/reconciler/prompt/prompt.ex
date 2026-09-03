@@ -1,4 +1,4 @@
-defmodule Mem0.Reconciler.Prompt do
+defmodule Bighead.Reconciler.Prompt do
   @moduledoc """
   Renders a prompt to reconcile facts.
   """

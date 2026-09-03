@@ -1,14 +1,14 @@
-defmodule Mem0 do
+defmodule Bighead do
   @moduledoc """
-  Mem0 keeps the contexts that define your domain
+  Bighead keeps the contexts that define your domain
   and business logic.
 
   Contexts are also responsible for managing your data, regardless
   if it comes from the database, an external API or others.
   """
-  alias Mem0.Ingester.Claude
-  alias Mem0.Ingester.Codex
-  alias Mem0.Store.Scopes
+  alias Bighead.Ingester.Claude
+  alias Bighead.Ingester.Codex
+  alias Bighead.Store.Scopes
 
   @spec import() :: [:ok]
   def import do
@@ -19,7 +19,7 @@ defmodule Mem0 do
   @spec process_all_sessions() :: [term()]
   def process_all_sessions do
     Enum.map(Scopes.list(), fn scope ->
-      Mem0.Processor.process_session(scope.id)
+      Bighead.Processor.process_session(scope.id)
     end)
   end
 
@@ -29,7 +29,7 @@ defmodule Mem0 do
     |> Enum.map(fn path ->
       content = File.read!(path)
 
-      case Mem0.Importer.import_transcript(content, ingester) do
+      case Bighead.Importer.import_transcript(content, ingester) do
         {:ok, _scope, _messages} ->
           :ok
 
@@ -42,7 +42,7 @@ defmodule Mem0 do
   @doc """
   Computes the factorial of a non-negative integer.
 
-      iex> Mem0.factorial(5)
+      iex> Bighead.factorial(5)
       120
   """
   @spec factorial(non_neg_integer()) :: pos_integer()
@@ -55,7 +55,7 @@ defmodule Mem0 do
   @doc """
   Returns the lowest number in a non-empty list.
 
-      iex> Mem0.lowest([3, 1, 2])
+      iex> Bighead.lowest([3, 1, 2])
       1
   """
   @spec lowest([number(), ...]) :: number()

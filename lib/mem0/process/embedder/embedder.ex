@@ -1,4 +1,4 @@
-defmodule Mem0.Embedder do
+defmodule Bighead.Embedder do
   @moduledoc """
   The embedded is a behavior that is used to implement an embedding endpoint.
 
@@ -9,7 +9,7 @@ defmodule Mem0.Embedder do
   @typedoc """
   Why a call failed.
 
-  The same closed set as `t:Mem0.LLM.reason/0` minus `{:refusal, category}`: an
+  The same closed set as `t:Bighead.LLM.reason/0` minus `{:refusal, category}`: an
   embedder has no opinion about what it is asked to embed.
   """
   @type reason ::
@@ -39,7 +39,7 @@ defmodule Mem0.Embedder do
   is the only place that reads the environment behind it.
   """
   @spec config() :: keyword()
-  def config, do: Application.get_env(:mem0, :embedder, [])
+  def config, do: Application.get_env(:bighead, :embedder, [])
 
   @doc "The configured adapter module."
   @spec adapter() :: module()

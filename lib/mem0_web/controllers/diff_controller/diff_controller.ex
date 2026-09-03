@@ -1,20 +1,20 @@
-defmodule Mem0Web.DiffController do
+defmodule BigheadWeb.DiffController do
   @moduledoc """
   Accepts a code diff for one file and stores it under the scope of the
   session it happened in.
 
-  Same posture as `Mem0Web.TranscriptController`: the submitter waits for the
+  Same posture as `BigheadWeb.TranscriptController`: the submitter waits for the
   reply, so it answers honestly — 422 for a payload that is not the expected
   shape — rather than the always-200 the hook routes owe a blocked session.
   """
 
-  use Mem0Web, :controller
+  use BigheadWeb, :controller
 
-  alias Mem0.Refresher
-  alias Mem0.Store.Diffs
-  alias Mem0.Store.Scopes
+  alias Bighead.Refresher
+  alias Bighead.Store.Diffs
+  alias Bighead.Store.Scopes
 
-  defdelegate open_api_operation(action), to: Mem0Web.DiffApiSpec
+  defdelegate open_api_operation(action), to: BigheadWeb.DiffApiSpec
 
   @doc """
   Stores one diff.

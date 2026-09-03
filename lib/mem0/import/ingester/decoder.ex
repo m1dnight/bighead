@@ -1,4 +1,4 @@
-defmodule Mem0.Ingester.Decoder do
+defmodule Bighead.Ingester.Decoder do
   @moduledoc """
   Decodes strings from the transcripts into plain strings.
   """

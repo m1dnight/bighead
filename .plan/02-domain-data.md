@@ -1,6 +1,6 @@
 # Phase 2 — Domain data
 
-**Goal:** every noun in Mem0 and Mem0^g exists as an Elixir type under `lib/mem0/core/`, with its
+**Goal:** every noun in Bighead and Bighead^g exists as an Elixir type under `lib/bighead/core/`, with its
 *shape* enforced at construction — required keys present, no field silently defaulted from another.
 No persistence, no schemas, no migrations, no LLM, no embedder, no processes.
 
@@ -38,15 +38,15 @@ with no `vector(N)` column to declare, it stays one.
 ## 2.1 Layout and rules
 
 ```
-lib/mem0/core/          pure structs and functions — no Ecto, no Repo, no processes, no IO
+lib/bighead/core/          pure structs and functions — no Ecto, no Repo, no processes, no IO
 ```
 
 Three rules that make the phase checkable rather than aspirational.
 
 **No `Ecto`, `Repo`, `Req` or `GenServer` anywhere under `core/`.** Not grep — grep misses
 `apply/3`, aliased calls and macro-generated references. `mix xref graph --sink Ecto --format plain`
-gives the real answer, and a test that enumerates `Mem0.Core.*` from
-`:application.get_key(:mem0, :modules)` and asserts none of them reach the forbidden set makes it a
+gives the real answer, and a test that enumerates `Bighead.Core.*` from
+`:application.get_key(:bighead, :modules)` and asserts none of them reach the forbidden set makes it a
 CI failure rather than a habit.
 
 **No struct under `core/` has an `embedding` field.** Similarity is computed by whatever holds the
@@ -55,7 +55,7 @@ vectors; what the decision rules consume is the *score*. Candidates reach the co
 one line. The payoff is at test time: a fixture for the update decision is
 `{0.91, %Memory{content: "User lives in SF"}}`, not a 1536-element list.
 
-`Mem0.Core.Scored` owns that shape rather than leaving it a prose convention, because it is the most
+`Bighead.Core.Scored` owns that shape rather than leaving it a prose convention, because it is the most
 reused type in the system — the `s` update candidates (notes §2.2), node resolution's scored nodes
 (§3.3), triplet search results (§3.4) — and Dialyzer cannot check a shape with no `@type`:
 
@@ -104,7 +104,7 @@ writing both yields `(String.t() | nil) | nil`. Both forms compile clean, so not
 runtime gap: `struct!` still accepts an explicit `nil` there, and only Dialyzer objects.
 
 **The alias trap, and why it matters here.** A snippet writing `field :scope, Scope.t()` inside
-`Mem0.Core.Fact` compiles clean *even with `--warnings-as-errors*`, because Elixir does not resolve
+`Bighead.Core.Fact` compiles clean *even with `--warnings-as-errors*`, because Elixir does not resolve
 remote types at compile time. It means `Elixir.Scope.t()`, which does not exist. Only Dialyzer
 catches it, reporting `Unknown types: 'Elixir.Scope':t/0`. Same for a bare local `id()` used as a
 field type — that is a hard compile error unless the module declares `@type id`. Since this phase
@@ -121,17 +121,17 @@ puts Dialyzer on the critical path, both are real defects rather than shorthand.
 
 | Seen  | Module                       | Role                                              | Source           |
 | ----- | ---------------------------- | ------------------------------------------------- | ---------------- |
-| - [x] | `Mem0.Core.Scope`            | write address — user / app / run                  | README           |
-| - [x] | `Mem0.Core.ScopeQuery`       | read filter over the same three levels            | README           |
-| - [x] | `Mem0.Core.Scored`           | `{score, thing}` — the shape candidates arrive in | notes §2.2, §3.3 |
-| - [x] | `Mem0.Core.Message`          | one message in a conversation                     | notes §2.1       |
-| - [x] | `Mem0.Core.Summary`          | `S`, the conversation summary                     | notes §2.1       |
-| - [x] | `Mem0.Core.Prompt`           | `P = (S, {m_{t-m}..m_{t-2}}, m_{t-1}, m_t)`       | notes §2.1       |
-| - [x] | `Mem0.Core.Fact`             | a candidate `ω` from `Φ`, not yet reconciled      | notes §2.1       |
-| - [x] | `Mem0.Core.Extraction`       | `Ω`, the output of one `Φ` call                   | notes §2.1       |
-| - [x] | `Mem0.Core.Memory`           | a reconciled fact the system holds                | notes §2.2, §2.4 |
-| - [x] | `Mem0.Core.MemoryOperation`  | ADD / UPDATE / DELETE / NOOP                      | notes §2.2, §2.3 |
-| - [x] | `Mem0.Core.Decision`         | an operation plus why it was chosen               | notes §7         |
+| - [x] | `Bighead.Core.Scope`            | write address — user / app / run                  | README           |
+| - [x] | `Bighead.Core.ScopeQuery`       | read filter over the same three levels            | README           |
+| - [x] | `Bighead.Core.Scored`           | `{score, thing}` — the shape candidates arrive in | notes §2.2, §3.3 |
+| - [x] | `Bighead.Core.Message`          | one message in a conversation                     | notes §2.1       |
+| - [x] | `Bighead.Core.Summary`          | `S`, the conversation summary                     | notes §2.1       |
+| - [x] | `Bighead.Core.Prompt`           | `P = (S, {m_{t-m}..m_{t-2}}, m_{t-1}, m_t)`       | notes §2.1       |
+| - [x] | `Bighead.Core.Fact`             | a candidate `ω` from `Φ`, not yet reconciled      | notes §2.1       |
+| - [x] | `Bighead.Core.Extraction`       | `Ω`, the output of one `Φ` call                   | notes §2.1       |
+| - [x] | `Bighead.Core.Memory`           | a reconciled fact the system holds                | notes §2.2, §2.4 |
+| - [x] | `Bighead.Core.MemoryOperation`  | ADD / UPDATE / DELETE / NOOP                      | notes §2.2, §2.3 |
+| - [x] | `Bighead.Core.Decision`         | an operation plus why it was chosen               | notes §7         |
 
 ---
 
@@ -141,7 +141,7 @@ The address of everything. Per the README: user id (OS user), app id (repo or di
 (Claude session).
 
 ```elixir
-defmodule Mem0.Core.Scope do
+defmodule Bighead.Core.Scope do
   use TypedStruct
 
   typedstruct enforce: true do
@@ -161,15 +161,15 @@ the user. A real, deliberate value.
 Same shape, opposite semantics, one bug away from a session-local scratch note leaking into every
 project the user works on. So there are two types:
 
-- `Mem0.Core.Scope` — a write address. `user_id` required *and non-nil*; nil `app_id`/`run_id` means
+- `Bighead.Core.Scope` — a write address. `user_id` required *and non-nil*; nil `app_id`/`run_id` means
 "general". `user_id: nil` would address every user at once, which is the one value that must be
 unconstructible, and `struct!/2` will not do that for us.
-- `Mem0.Core.ScopeQuery` — a read filter. `nil` at a level means *any value at that level*.
+- `Bighead.Core.ScopeQuery` — a read filter. `nil` at a level means *any value at that level*.
 
 `Scope.covering/1` takes the concrete address a read happens at and returns `[ScopeQuery.t()]` — the
 ladder that read should see, **widening**: exact run, then app-level (any run), then user-level (any
 app). Search needs it to rank a session-specific memory above a global one; any surface answering
-"what does mem0 know here?" needs it too.
+"what does bighead know here?" needs it too.
 
 It lives on `Scope`, not on `ScopeQuery`, and that placement is the whole point. Generating the
 ladder requires reading a nil as *"this level does not apply"*, which is only true on the write side.
@@ -191,9 +191,9 @@ assemble it:
 
 | Struct              | Fields                                                           |
 | ------------------- | ---------------------------------------------------------------- |
-| `Mem0.Core.Message` | `id`, `scope`, `role`, `content`, `said_at`, `seq`               |
-| `Mem0.Core.Summary` | `scope`, `text`, `generated_at`, `through_seq` — plus `stale?/2` |
-| `Mem0.Core.Prompt`  | `scope`, `summary` (optional), `recent`, `pair`, `at`            |
+| `Bighead.Core.Message` | `id`, `scope`, `role`, `content`, `said_at`, `seq`               |
+| `Bighead.Core.Summary` | `scope`, `text`, `generated_at`, `through_seq` — plus `stale?/2` |
+| `Bighead.Core.Prompt`  | `scope`, `summary` (optional), `recent`, `pair`, `at`            |
 
 `Message` needs **both** `id` and `seq`, and they are not the same thing. `seq` is the ordering
 within one conversation — what `Summary.through_seq` compares against and what selects the `m`
@@ -228,14 +228,14 @@ The candidate/identified split, which is the spine of the base channel:
 
 | Type                        | What it is                                   | Identified? |
 | --------------------------- | -------------------------------------------- | ----------- |
-| `Mem0.Core.Fact`            | a candidate `ω` from `Φ`, not yet reconciled | no          |
-| `Mem0.Core.Extraction`      | the set `Ω` from one `Φ` call                | —           |
-| `Mem0.Core.Memory`          | a reconciled fact the system holds           | yes         |
-| `Mem0.Core.MemoryOperation` | what to do                                   | —           |
-| `Mem0.Core.Decision`        | what to do, and why                          | —           |
+| `Bighead.Core.Fact`            | a candidate `ω` from `Φ`, not yet reconciled | no          |
+| `Bighead.Core.Extraction`      | the set `Ω` from one `Φ` call                | —           |
+| `Bighead.Core.Memory`          | a reconciled fact the system holds           | yes         |
+| `Bighead.Core.MemoryOperation` | what to do                                   | —           |
+| `Bighead.Core.Decision`        | what to do, and why                          | —           |
 
 ```elixir
-defmodule Mem0.Core.Fact do
+defmodule Bighead.Core.Fact do
   use TypedStruct
 
   typedstruct enforce: true do
@@ -257,13 +257,13 @@ to by name. That framing is what lets this phase define both without a database.
 crossed id. *Judgement: `@opaque` would catch it, at the cost of every module that touches an id*
 *needing an accessor. Not worth it at this size; revisit if a crossed id ever actually happens.*
 
-**`Mem0.Core.Extraction`** — the output of one `Φ` call: `scope`, `prompt_at`, `facts :: [Fact.t()]`,
+**`Bighead.Core.Extraction`** — the output of one `Φ` call: `scope`, `prompt_at`, `facts :: [Fact.t()]`,
 `source_message_ids`. `Ω` is a noun in the paper and it needs a shape, because the paper's update
 phase is a per-fact loop with *no coordination between facts from the same pair*: two candidates may
 target the same retrieved memory, or one may ADD something a later one would UPDATE (notes §7).
 Deciding that policy is not this phase's job. Having one struct to hang it on is.
 
-**`Mem0.Core.MemoryOperation`** holds the type and its parsing:
+**`Bighead.Core.MemoryOperation`** holds the type and its parsing:
 
 ```elixir
 @type t ::
@@ -291,7 +291,7 @@ judgement can be substituted later without moving the guard. **An `UPDATE` that 
 **degrades to `:noop` inside the core**, so the boundary never receives an operation it should not
 perform.
 
-**`Mem0.Core.Decision`** is a struct wrapping an operation with its audit metadata: `operation`,
+**`Bighead.Core.Decision`** is a struct wrapping an operation with its audit metadata: `operation`,
 `reason`, `considered_ids`, `decided_at`. **The core's update phase returns `Decision.t()`, not a**
 **bare `MemoryOperation.t()**` — the overview names the pivot by its most important field; this refines
 that rather than contradicting it. The boundary performs `decision.operation` and keeps the rest.
@@ -300,7 +300,7 @@ The LLM's justification is a property of the *decision*, not of the fact, and it
 deleted memory explainable — the audit trail notes §7 flags as absent. `considered_ids` records which
 of the `s` retrieved candidates were in front of the model, including on a `:noop`, where it is the
 only evidence the decision happened at all. On a `:delete` it also carries the id of the memory that
-replaced it, which is the ordering signal notes §4.3(b) observes base Mem0 generates and then throws
+replaced it, which is the ordering signal notes §4.3(b) observes base Bighead generates and then throws
 away.
 
 ### Ids in prompts, and who maps them back
@@ -401,7 +401,7 @@ intervals, and this is the cheapest phase in the project to try it in. *Judgemen
 
 ## Exit criteria
 
-- [ ] `mix xref graph --sink Ecto` reports nothing under `Mem0.Core.*`, and a test asserts the same
+- [ ] `mix xref graph --sink Ecto` reports nothing under `Bighead.Core.*`, and a test asserts the same
       for `Repo`, `GenServer` and HTTP clients
 - [ ] No core struct has an `embedding` field, and no core function calls `DateTime.utc_now/0`
 - [ ] `mix test.core` passes with the Postgres container stopped; every test file is `async: true`

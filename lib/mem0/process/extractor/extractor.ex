@@ -1,10 +1,10 @@
-defmodule Mem0.Extractor do
+defmodule Bighead.Extractor do
   @moduledoc """
   Extracts facts from the database.
   """
 
-  alias Mem0.Extractor.Prompt
-  alias Mem0.Store.Message
+  alias Bighead.Extractor.Prompt
+  alias Bighead.Store.Message
 
   @response_schema %{
     "additionalProperties" => false,
@@ -24,7 +24,7 @@ defmodule Mem0.Extractor do
 
   def extract_facts(messages, summary) do
     with {:ok, request} <- request(messages, summary),
-         {:ok, response} <- Mem0.LLM.complete(request),
+         {:ok, response} <- Bighead.LLM.complete(request),
          {:ok, facts} <- decode_response(response) do
       {:ok, facts}
     else
@@ -44,7 +44,7 @@ defmodule Mem0.Extractor do
 
   # generates the request to complete via the LLM.
   @spec request([Message.t()], String.t() | nil) ::
-          {:ok, Mem0.LLM.request()} | {:error, :no_messages_to_extract_from}
+          {:ok, Bighead.LLM.request()} | {:error, :no_messages_to_extract_from}
   def request([], _) do
     {:error, :no_messages_to_extract_from}
   end
@@ -61,7 +61,7 @@ defmodule Mem0.Extractor do
   end
 
   # decodes the response from the LLM into a list of facts.
-  @spec decode_response(Mem0.LLM.response()) ::
+  @spec decode_response(Bighead.LLM.response()) ::
           {:ok, [String.t()]} | {:error, :invalid_response_from_llm}
   defp decode_response(%{content: json_str}) do
     case Jason.decode(json_str) do

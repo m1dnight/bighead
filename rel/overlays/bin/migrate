@@ -2,4 +2,4 @@
 set -eu
 
 cd -P -- "$(dirname -- "$0")"
-exec ./mem0 eval Mem0.Release.migrate
+exec ./bighead eval Bighead.Release.migrate

@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.AddScopeToDiffs do
+defmodule Bighead.Repo.Migrations.AddScopeToDiffs do
   use Ecto.Migration
 
   def up do

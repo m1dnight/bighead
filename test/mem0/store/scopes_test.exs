@@ -1,13 +1,13 @@
-defmodule Mem0.Store.ScopesTest do
+defmodule Bighead.Store.ScopesTest do
   @moduledoc """
   The scopes context: upsert on the `(user, project, session)` triple, lookup
   by id and by session, and the extraction watermark.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Store.Diffs
-  alias Mem0.Store.Messages
-  alias Mem0.Store.Scopes
+  alias Bighead.Store.Diffs
+  alias Bighead.Store.Messages
+  alias Bighead.Store.Scopes
 
   @attrs %{user: "christophe", project: "/code/widget", session: "session-1"}
 

@@ -1,4 +1,4 @@
-defmodule Mem0Web.TranscriptController do
+defmodule BigheadWeb.TranscriptController do
   @moduledoc """
   Ingests a whole transcript file in one request. The single capture
   endpoint: the hook script posts here on `Stop` and `SessionEnd`, and an
@@ -10,13 +10,13 @@ defmodule Mem0Web.TranscriptController do
   processor's watermark refuses what it has already read.
   """
 
-  use Mem0Web, :controller
+  use BigheadWeb, :controller
 
-  alias Mem0.Importer
-  alias Mem0.Ingester.Claude
-  alias Mem0.Refresher
+  alias Bighead.Importer
+  alias Bighead.Ingester.Claude
+  alias Bighead.Refresher
 
-  defdelegate open_api_operation(action), to: Mem0Web.TranscriptApiSpec
+  defdelegate open_api_operation(action), to: BigheadWeb.TranscriptApiSpec
 
   # A whole transcript held in memory at once; past this the request is
   # refused rather than the VM grown without bound.

@@ -1,12 +1,12 @@
-defmodule Mem0.Store.Diffs do
+defmodule Bighead.Store.Diffs do
   @moduledoc """
   Context module to retrieve/update/store code diffs in the database.
   """
 
   import Ecto.Query
 
-  alias Mem0.Repo
-  alias Mem0.Store.Diff
+  alias Bighead.Repo
+  alias Bighead.Store.Diff
 
   @doc """
   Inserts a new diff, or returns the already-stored diff with the same

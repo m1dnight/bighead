@@ -1,5 +1,5 @@
-defmodule Mem0Web.Router do
-  use Mem0Web, :router
+defmodule BigheadWeb.Router do
+  use BigheadWeb, :router
 
   alias OpenApiSpex.Plug.PutApiSpec
   alias OpenApiSpex.Plug.RenderSpec
@@ -9,17 +9,17 @@ defmodule Mem0Web.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
-    plug :put_root_layout, html: {Mem0Web.Layouts, :root}
+    plug :put_root_layout, html: {BigheadWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
   end
 
   pipeline :api do
     plug :accepts, ["json"]
-    plug PutApiSpec, module: Mem0Web.ApiSpec
+    plug PutApiSpec, module: BigheadWeb.ApiSpec
   end
 
-  scope "/", Mem0Web do
+  scope "/", BigheadWeb do
     pipe_through :browser
 
     get "/", PageController, :home
@@ -34,7 +34,7 @@ defmodule Mem0Web.Router do
   # `/transcripts` is capture: the hook script posts the whole session
   # transcript there on `Stop` and `SessionEnd`, and an operator posts there
   # to backfill a file by hand. No credentials on either route.
-  scope "/v1", Mem0Web do
+  scope "/v1", BigheadWeb do
     pipe_through :api
 
     post "/transcripts", TranscriptController, :create
@@ -45,7 +45,7 @@ defmodule Mem0Web.Router do
     post "/recall", RecallController, :create
   end
 
-  # The spec route sits outside the `Mem0Web` scope: `RenderSpec` is a plug
+  # The spec route sits outside the `BigheadWeb` scope: `RenderSpec` is a plug
   # from `open_api_spex`, not one of our controllers.
   scope "/v1" do
     pipe_through :api
@@ -54,12 +54,12 @@ defmodule Mem0Web.Router do
   end
 
   # Other scopes may use custom stacks.
-  # scope "/api", Mem0Web do
+  # scope "/api", BigheadWeb do
   #   pipe_through :api
   # end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
-  if Application.compile_env(:mem0, :dev_routes) do
+  if Application.compile_env(:bighead, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put
     # it behind authentication and allow only admins to access it.
     # If your application does not have an admins-only section yet,
@@ -70,7 +70,7 @@ defmodule Mem0Web.Router do
     scope "/dev" do
       pipe_through :browser
 
-      live_dashboard "/dashboard", metrics: Mem0Web.Telemetry
+      live_dashboard "/dashboard", metrics: BigheadWeb.Telemetry
       forward "/mailbox", MailboxPreview
     end
   end

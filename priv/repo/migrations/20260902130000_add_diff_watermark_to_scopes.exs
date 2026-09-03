@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.AddDiffWatermarkToScopes do
+defmodule Bighead.Repo.Migrations.AddDiffWatermarkToScopes do
   use Ecto.Migration
 
   def change do

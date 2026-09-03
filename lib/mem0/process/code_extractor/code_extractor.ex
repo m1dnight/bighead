@@ -1,11 +1,11 @@
-defmodule Mem0.CodeExtractor do
+defmodule Bighead.CodeExtractor do
   @moduledoc """
   Extracts durable code guidelines from a batch of diffs: what the developer
   changed, or asked to change, in code a coding agent wrote.
   """
 
-  alias Mem0.CodeExtractor.Prompt
-  alias Mem0.Store.Diff
+  alias Bighead.CodeExtractor.Prompt
+  alias Bighead.Store.Diff
 
   @response_schema %{
     "additionalProperties" => false,
@@ -22,7 +22,7 @@ defmodule Mem0.CodeExtractor do
   @spec extract_guidelines([Diff.t()]) :: {:ok, [String.t()]} | {:error, term()}
   def extract_guidelines(diffs) do
     with {:ok, request} <- request(diffs),
-         {:ok, response} <- Mem0.LLM.complete(request),
+         {:ok, response} <- Bighead.LLM.complete(request),
          {:ok, guidelines} <- decode_response(response) do
       {:ok, guidelines}
     else
@@ -41,7 +41,7 @@ defmodule Mem0.CodeExtractor do
   # ---------------------------------------------------------------------------#
 
   # generates the request to complete via the LLM.
-  @spec request([Diff.t()]) :: {:ok, Mem0.LLM.request()} | {:error, :no_diff_to_extract_from}
+  @spec request([Diff.t()]) :: {:ok, Bighead.LLM.request()} | {:error, :no_diff_to_extract_from}
   def request(diffs) do
     diffs =
       diffs
@@ -72,7 +72,7 @@ defmodule Mem0.CodeExtractor do
   end
 
   # decodes the response from the LLM into a list of guidelines.
-  @spec decode_response(Mem0.LLM.response()) ::
+  @spec decode_response(Bighead.LLM.response()) ::
           {:ok, [String.t()]} | {:error, :invalid_response_from_llm}
   defp decode_response(%{content: json_str}) do
     case Jason.decode(json_str) do

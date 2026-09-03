@@ -1,9 +1,9 @@
-defmodule Mem0.Release do
+defmodule Bighead.Release do
   @moduledoc """
   Used for executing DB release tasks when run in production without Mix
   installed.
   """
-  @app :mem0
+  @app :bighead
 
   @spec migrate() :: [{:ok, term(), term()}]
   def migrate do

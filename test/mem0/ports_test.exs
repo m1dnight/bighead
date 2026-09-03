@@ -1,4 +1,4 @@
-defmodule Mem0.PortsTest do
+defmodule Bighead.PortsTest do
   @moduledoc """
   The stub-backed contract of both ports.
 
@@ -8,10 +8,10 @@ defmodule Mem0.PortsTest do
   """
   use ExUnit.Case, async: true
 
-  alias Mem0.Embedder
-  alias Mem0.LLM
+  alias Bighead.Embedder
+  alias Bighead.LLM
 
-  describe "Mem0.LLM through its stub" do
+  describe "Bighead.LLM through its stub" do
     setup do
       LLM.Stub.start!()
       :ok
@@ -82,7 +82,7 @@ defmodule Mem0.PortsTest do
     end
   end
 
-  describe "Mem0.Embedder through its stub" do
+  describe "Bighead.Embedder through its stub" do
     setup do
       Embedder.Stub.start!()
       :ok
@@ -134,7 +134,7 @@ defmodule Mem0.PortsTest do
   end
 
   test "a port with no stub running says so, rather than failing somewhere else" do
-    assert_raise RuntimeError, ~r/No :mem0_llm_stub stub is running/, fn ->
+    assert_raise RuntimeError, ~r/No :bighead_llm_stub stub is running/, fn ->
       LLM.complete(%{messages: []})
     end
   end

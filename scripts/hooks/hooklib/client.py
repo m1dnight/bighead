@@ -1,10 +1,10 @@
-"""Thin HTTP client for the mem0 server."""
+"""Thin HTTP client for the bighead server."""
 
 import json
 import os
 import urllib.request
 
-BASE_URL = os.environ.get("MEM0_URL", "http://localhost:4001")
+BASE_URL = os.environ.get("BIGHEAD_URL", "http://localhost:4001")
 
 TIMEOUT_SECONDS = 5
 

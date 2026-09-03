@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.CreateSummaries do
+defmodule Bighead.Repo.Migrations.CreateSummaries do
   use Ecto.Migration
 
   def change do
@@ -13,11 +13,11 @@ defmodule Mem0.Repo.Migrations.CreateSummaries do
     #
     # The default integer id stays: the table wants a primary key, it is the
     # `latest/1` tiebreak between two rows at the same watermark, and it never
-    # crosses the boundary — `Mem0.Core.Summary` has no id field.
+    # crosses the boundary — `Bighead.Core.Summary` has no id field.
     create table(:summaries) do
       add :user_id, :text, null: false
       # Nullable even though this phase only ever writes run-scoped rows.
-      # `Mem0.Core.Scope`'s optional ids are nullable by construction;
+      # `Bighead.Core.Scope`'s optional ids are nullable by construction;
       # per-run-ness is a policy of the callers this phase deliberately does
       # not have, and `null: false` on `run_id` would encode that policy where
       # only a migration can change it.

@@ -1,17 +1,17 @@
-defmodule Mem0.ExtractorTest do
+defmodule Bighead.ExtractorTest do
   @moduledoc """
   Extraction through the stubbed LLM: what gets asked and what comes back.
   The extractor is pure over the messages it is handed — watermark and scope
   concerns live in the processor. No test here spends money.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Extractor
-  alias Mem0.Extractor.Prompt
-  alias Mem0.LLM
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Messages
-  alias Mem0.Store.Scopes
+  alias Bighead.Extractor
+  alias Bighead.Extractor.Prompt
+  alias Bighead.LLM
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Messages
+  alias Bighead.Store.Scopes
 
   @epoch ~U[2026-08-24 09:00:00.000000Z]
 

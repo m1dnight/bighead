@@ -2,9 +2,9 @@
 
 **Goal:** Algorithm 1 finally runs. A `Stop` pulse turns the run's new exchange into memories:
 extract facts past a watermark, and for each fact retrieve → present → parse → perform against
-`Mem0.Memories`. This is the phase every prior phase deferred to by name — the cascade that
+`Bighead.Memories`. This is the phase every prior phase deferred to by name — the cascade that
 chooses between the store's verbs — and it is almost entirely composition: `Extract.facts_since/3`
-produces the facts, `MemoryOperation.parse/4` reads the verdicts, `Mem0.Memories` performs them,
+produces the facts, `MemoryOperation.parse/4` reads the verdicts, `Bighead.Memories` performs them,
 and the ports and stubs make the whole chain testable without a network. The only genuinely new
 pieces are the update request (the one prompt the system still lacks), a cursor so the pulse
 knows where it left off, and the boundary module that strings them together.
@@ -84,7 +84,7 @@ create unique_index(:extraction_state, [:user_id, :app_id, :run_id], nulls_disti
   second source of truth to drift. A future kind of per-scope state earns its column when it
   has a writer.
 
-### `Mem0.ExtractionState` — the store
+### `Bighead.ExtractionState` — the store
 
 ```elixir
 @spec through_seq(Scope.t()) :: non_neg_integer() | nil
@@ -104,12 +104,12 @@ create unique_index(:extraction_state, [:user_id, :app_id, :run_id], nulls_disti
 
 ## 11.2 The update request — the core's half of the conversation
 
-`Mem0.Core.MemoryOperation` already reads the model's answer (`parse/4`, ordinals, the
+`Bighead.Core.MemoryOperation` already reads the model's answer (`parse/4`, ordinals, the
 information-gain guard). This phase adds the question, in the same module — request and parse
 are two halves of one protocol, and splitting them invites drift:
 
 ```elixir
-@spec request(Fact.t(), [Memory.t()]) :: Mem0.LLM.request()
+@spec request(Fact.t(), [Memory.t()]) :: Bighead.LLM.request()
 @spec decode(String.t(), Fact.t(), [Memory.t()], DateTime.t()) ::
         {:ok, Decision.t()} | {:error, reason()}
 ```
@@ -132,7 +132,7 @@ are two halves of one protocol, and splitting them invites drift:
   and the only in-range answers are ADD and NOOP, which `parse/4` already guarantees because
   any ordinal is out of range against `[]`.
 
-## 11.3 `Mem0.Reconcile` — the boundary that performs
+## 11.3 `Bighead.Reconcile` — the boundary that performs
 
 ```elixir
 @spec pulse(Scope.t(), keyword()) :: {:ok, [Decision.t()]} | :nothing_new | {:error, term()}
@@ -141,7 +141,7 @@ are two halves of one protocol, and splitting them invites drift:
 ```
 
 - **`reconcile/2` drives one extraction's facts through the cascade, sequentially.** Per fact:
-  embed the content (`Mem0.Embedder.embed/2`, first real consumer of the port), retrieve
+  embed the content (`Bighead.Embedder.embed/2`, first real consumer of the port), retrieve
   `Memories.search(query, vector, @max_memories)`, ask, `MemoryOperation.decode/4`, perform.
   Sequential rather than concurrent on purpose: facts from one exchange are often *about the
   same thing*, and fact 2 must see the memory fact 1 just added or the cascade dedups nothing.
@@ -207,13 +207,13 @@ The core half through plain ExUnit, no stubs: `request/2` renders ordinals and c
 ids; `decode/4` builds a `Decision` carrying reason, considered ids in order, and the pulse
 instant; an empty candidate list decodes ADD and NOOP and refuses ordinals.
 
-`Mem0.ExtractionStateTest` through `DataCase`: a scope never pulsed reads `nil`; advance then
+`Bighead.ExtractionStateTest` through `DataCase`: a scope never pulsed reads `nil`; advance then
 read round-trips; **a bare `{user, nil, nil}` scope advanced twice holds one row** — the
 `nulls_distinct: false` proof, asserted through `Repo` on the row count; advance to 10 then to
 5 reads 10 — monotonicity as an equality; two scopes differing only in `run_id` do not share a
 cursor.
 
-`Mem0.ReconcileTest` through `DataCase` with `LLM.Stub` and `Embedder.Stub`, scripted verdicts:
+`Bighead.ReconcileTest` through `DataCase` with `LLM.Stub` and `Embedder.Stub`, scripted verdicts:
 
 - each arm end-to-end: ADD lands a memory `Memories.active/1` can read back; UPDATE keeps the
   id, replaces the content, and the memory is findable by the new content's vector; DELETE
@@ -226,7 +226,7 @@ cursor.
 - ids never reach the model: assert on `LLM.Stub.calls/0` that no candidate memory id appears
   in any request — the module-doc promise as a test rather than a sentence
 
-`Mem0Web.HooksControllerTest` through `ConnCase`: a `Stop` payload with a fresh exchange, stub
+`BigheadWeb.HooksControllerTest` through `ConnCase`: a `Stop` payload with a fresh exchange, stub
 adapters scripted to one fact and ADD, ends with a memory in the store and the cursor at the
 exchange's last seq — the phase, asserted through the public route with the `notify_pid` seam.
 
@@ -242,7 +242,7 @@ exchange's last seq — the phase, asserted through the public route with the `n
 - [ ] No fact content, memory content, or model reasoning in any log or telemetry metadata at
       default dev configuration
 - [ ] Layering tests green: new table owned by its store alone, core still clockless and
-      vectorless, `Mem0.Reconcile` reaches no `Row`
+      vectorless, `Bighead.Reconcile` reaches no `Row`
 - [ ] `mix test.core` green with the Postgres container stopped
 - [ ] `mix precommit` green
 

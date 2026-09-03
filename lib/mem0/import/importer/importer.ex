@@ -1,13 +1,13 @@
-defmodule Mem0.Importer do
+defmodule Bighead.Importer do
   @moduledoc """
   The importer ingests whole transcript files at once.
   """
 
-  alias Mem0.Ingester
-  alias Mem0.Store.Message
-  alias Mem0.Store.Messages
-  alias Mem0.Store.Scope
-  alias Mem0.Store.Scopes
+  alias Bighead.Ingester
+  alias Bighead.Store.Message
+  alias Bighead.Store.Messages
+  alias Bighead.Store.Scope
+  alias Bighead.Store.Scopes
 
   @doc """
   Given the content of transcript and an ingester, parses and stores all the

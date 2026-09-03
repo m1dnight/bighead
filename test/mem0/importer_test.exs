@@ -1,14 +1,14 @@
-defmodule Mem0.ImporterTest do
+defmodule Bighead.ImporterTest do
   @moduledoc """
   Whole-file import through the Claude ingester: one scope, its messages,
   and the idempotence that makes re-posting the same file safe.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Importer
-  alias Mem0.Ingester.Claude
-  alias Mem0.Store.Messages
-  alias Mem0.Store.Scopes
+  alias Bighead.Importer
+  alias Bighead.Ingester.Claude
+  alias Bighead.Store.Messages
+  alias Bighead.Store.Scopes
 
   @timestamp "2026-08-24T09:00:00.000Z"
 

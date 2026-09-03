@@ -1,4 +1,4 @@
-defmodule Mem0.Embedder.OllamaTest do
+defmodule Bighead.Embedder.OllamaTest do
   @moduledoc """
   Ollama has two endpoints one character apart with different field names in
   both directions, so the request-shape tests here are the ones that matter: a
@@ -7,7 +7,7 @@ defmodule Mem0.Embedder.OllamaTest do
   """
   use ExUnit.Case, async: true
 
-  alias Mem0.Embedder.Ollama
+  alias Bighead.Embedder.Ollama
 
   @opts [base_url: "http://localhost:11434", model: "nomic-embed-text", dimensions: 768]
 
@@ -36,7 +36,7 @@ defmodule Mem0.Embedder.OllamaTest do
     end
 
     test "an empty batch costs no round trip" do
-      assert {:ok, []} = Ollama.embed([], Keyword.put(@opts, :req_options, adapter: Mem0.ReqEcho))
+      assert {:ok, []} = Ollama.embed([], Keyword.put(@opts, :req_options, adapter: Bighead.ReqEcho))
       refute_received {:req_request, _request}
     end
   end
@@ -94,7 +94,7 @@ defmodule Mem0.Embedder.OllamaTest do
 
   @tag :live
   test "a well-formed call round-trips against a real local Ollama" do
-    config = Application.fetch_env!(:mem0, :live_embedder)
+    config = Application.fetch_env!(:bighead, :live_embedder)
 
     assert {:ok, [first, second]} = Ollama.embed(["a sentence", "a different sentence"], config)
     assert length(first) == Ollama.dimensions(config)
@@ -104,7 +104,7 @@ defmodule Mem0.Embedder.OllamaTest do
   end
 
   defp capture_request(texts, opts) do
-    Ollama.embed(texts, Keyword.put(opts, :req_options, adapter: Mem0.ReqEcho))
+    Ollama.embed(texts, Keyword.put(opts, :req_options, adapter: Bighead.ReqEcho))
 
     assert_received {:req_request, request}
     request

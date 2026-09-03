@@ -1,4 +1,4 @@
-"""Sqlite-backed ledger of file versions, kept in <cwd>/.claude/mem0/mem0.db.
+"""Sqlite-backed ledger of file versions, kept in <cwd>/.claude/bighead/bighead.db.
 
 Each row records "this file had this content hash, authored by user or
 claude". The stdlib sqlite3 module is all this needs; WAL mode keeps
@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS file_versions_by_file ON file_versions (file_path, id
 
 def connect(cwd):
     """Open the ledger database for this repository, creating it if needed."""
-    conn = sqlite3.connect(storage.storage_dir(cwd) / "mem0.db")
+    conn = sqlite3.connect(storage.storage_dir(cwd) / "bighead.db")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(_SCHEMA)

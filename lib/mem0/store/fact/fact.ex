@@ -1,9 +1,9 @@
-defmodule Mem0.Store.Fact do
+defmodule Bighead.Store.Fact do
   use Ecto.Schema
 
   import Ecto.Changeset
 
-  alias Mem0.Store.Scope
+  alias Bighead.Store.Scope
   alias Pgvector.Ecto.Vector
 
   @type t :: %__MODULE__{}

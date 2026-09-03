@@ -1,16 +1,16 @@
-defmodule Mem0.Embedder.Ollama do
+defmodule Bighead.Embedder.Ollama do
   @moduledoc """
-  `Mem0.Embedder` over a local Ollama server.
+  `Bighead.Embedder` over a local Ollama server.
   """
 
-  @behaviour Mem0.Embedder
+  @behaviour Bighead.Embedder
 
   @path "/api/embed"
   @receive_timeout to_timeout(second: 30)
 
   @type embedding :: [float()]
 
-  @impl Mem0.Embedder
+  @impl Bighead.Embedder
   def embed([], _opts), do: {:ok, []}
 
   def embed(texts, opts) when is_list(texts) do
@@ -30,7 +30,7 @@ defmodule Mem0.Embedder.Ollama do
     end
   end
 
-  @impl Mem0.Embedder
+  @impl Bighead.Embedder
   def dimensions(opts), do: Keyword.fetch!(opts, :dimensions)
 
   # ---------------------------------------------------------------------------#

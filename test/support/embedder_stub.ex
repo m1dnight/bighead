@@ -1,9 +1,9 @@
-defmodule Mem0.Embedder.Stub do
+defmodule Bighead.Embedder.Stub do
   @moduledoc """
-  `Mem0.Embedder` that returns deterministic vectors and records what it was asked.
+  `Bighead.Embedder` that returns deterministic vectors and records what it was asked.
 
   Lives in `test/support/` rather than `lib/` for the same reason
-  `Mem0.LLM.Stub` does. `config/test.exs` points `:embedder` here.
+  `Bighead.LLM.Stub` does. `config/test.exs` points `:embedder` here.
 
   The default reply derives each vector from a SHA-256 of the text, so equal
   texts embed equally and different texts do not — enough structure for a
@@ -12,11 +12,11 @@ defmodule Mem0.Embedder.Stub do
   `vector(N)` column the wrong shape.
   """
 
-  @behaviour Mem0.Embedder
+  @behaviour Bighead.Embedder
 
-  alias Mem0.PortStub
+  alias Bighead.PortStub
 
-  @key :mem0_embedder_stub
+  @key :bighead_embedder_stub
 
   @doc """
   Starts the stub for this test.
@@ -49,10 +49,10 @@ defmodule Mem0.Embedder.Stub do
     {:ok, Enum.map(texts, &vector(&1, width))}
   end
 
-  @impl Mem0.Embedder
+  @impl Bighead.Embedder
   def embed(texts, opts), do: PortStub.call(@key, texts, opts)
 
-  @impl Mem0.Embedder
+  @impl Bighead.Embedder
   def dimensions(opts), do: Keyword.get(opts, :dimensions, 768)
 
   defp vector(text, width) do

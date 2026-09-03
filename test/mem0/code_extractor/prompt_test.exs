@@ -1,11 +1,11 @@
-defmodule Mem0.CodeExtractor.PromptTest do
+defmodule Bighead.CodeExtractor.PromptTest do
   @moduledoc """
   The code-extraction prompt: each diff renders under its file name and
   origin, in the order given, and the system prompt carries the rules.
   """
   use ExUnit.Case, async: true
 
-  alias Mem0.CodeExtractor.Prompt
+  alias Bighead.CodeExtractor.Prompt
 
   describe "render/1" do
     test "renders every diff with its file name and origin, in order" do

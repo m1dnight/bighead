@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.CreateExtractionState do
+defmodule Bighead.Repo.Migrations.CreateExtractionState do
   use Ecto.Migration
 
   def change do

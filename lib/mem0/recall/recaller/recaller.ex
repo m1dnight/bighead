@@ -1,11 +1,11 @@
-defmodule Mem0.Recaller do
+defmodule Bighead.Recaller do
   @moduledoc """
   Recalls relevant facts for a given prompt.
   """
 
-  alias Mem0.Embedder
-  alias Mem0.Store.Fact
-  alias Mem0.Store.Facts
+  alias Bighead.Embedder
+  alias Bighead.Store.Fact
+  alias Bighead.Store.Facts
 
   # How many facts a prompt may pull in, and how similar a fact must be to
   # qualify. 0.5 is a coarse floor for 768-wide sentence embeddings: unrelated

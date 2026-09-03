@@ -1,6 +1,6 @@
-defmodule Mem0Web.RecallApiSpec do
+defmodule BigheadWeb.RecallApiSpec do
   @moduledoc """
-  OpenAPI operations for `Mem0Web.RecallController`. The controller
+  OpenAPI operations for `BigheadWeb.RecallController`. The controller
   delegates `open_api_operation/1` here so the spec lives next to the code
   it describes without crowding it.
   """

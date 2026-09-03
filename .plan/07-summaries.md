@@ -33,21 +33,21 @@ carry the arithmetic.
 ## The whole pipeline
 
 ```
-[Message.t()]  ──render──▶  prompt text  ──Mem0.LLM──▶  {"summary": s}  ──decode──▶  Summary.t()
+[Message.t()]  ──render──▶  prompt text  ──Bighead.LLM──▶  {"summary": s}  ──decode──▶  Summary.t()
     (pure)                                (boundary)                        (pure)
 
 Summary.t() ──put──▶ summaries table ──latest──▶ Summary.t() | nil
-                   (Mem0.Summaries, the only module that knows the table exists)
+                   (Bighead.Summaries, the only module that knows the table exists)
 ```
 
-Three modules, two seams. `Mem0.Summarize` speaks only to the LLM port; `Mem0.Summaries` speaks
+Three modules, two seams. `Bighead.Summarize` speaks only to the LLM port; `Bighead.Summaries` speaks
 only to the Repo; neither knows the other exists. Composing them — check `stale?/3`, read the
 run's messages, regenerate, put — is the wiring phase's whole job, and keeping them apart is what
 makes each exercisable alone from IEx and each test suite independent of the other's dependency.
 
 ---
 
-## 7.1 `Mem0.Core.Summary` — the pure half
+## 7.1 `Bighead.Core.Summary` — the pure half
 
 The struct and `stale?/3` already exist and do not change. The module gains the same four
 functions `Extraction` grew in Phase 5, because they are the same four jobs:
@@ -55,7 +55,7 @@ functions `Extraction` grew in Phase 5, because they are the same four jobs:
 ```elixir
 @spec system_prompt() :: String.t()
 @spec render([Message.t()]) :: String.t()
-@spec request([Message.t()]) :: Mem0.LLM.request()
+@spec request([Message.t()]) :: Bighead.LLM.request()
 @spec decode(String.t(), Scope.t(), DateTime.t(), non_neg_integer()) ::
         {:ok, t()} | {:error, :malformed_summary}
 ```
@@ -92,9 +92,9 @@ functions `Extraction` grew in Phase 5, because they are the same four jobs:
 No clock anywhere; `generated_at` and `through_seq` arrive as arguments. The layering test already
 polices this module and keeps doing so.
 
-## 7.2 `Mem0.Summarize` — the LLM boundary
+## 7.2 `Bighead.Summarize` — the LLM boundary
 
-`lib/mem0/summarize.ex`, a verb beside `Mem0.Ingest` and `Mem0.Extract`.
+`lib/bighead/summarize.ex`, a verb beside `Bighead.Ingest` and `Bighead.Extract`.
 
 ```elixir
 @spec regenerate([Message.t()], keyword()) :: {:ok, Summary.t()} | {:error, term()}
@@ -113,17 +113,17 @@ question (`Messages.for_run/1` will be the wiring phase's answer).
    watermark cannot depend on what order a caller happened to hold the list in.
 4. One `DateTime.utc_now/0` stamps `generated_at`.
 5. The request is `Summary.request(messages)` unmodified; `opts` passes through to
-   `Mem0.LLM.complete/2` untouched; port errors pass through unchanged.
+   `Bighead.LLM.complete/2` untouched; port errors pass through unchanged.
 
 What it deliberately does **not** do: read the `messages` table to find its own input, or write
 its result anywhere. Threading input and output through arguments is what keeps this module
-testable against `Mem0.LLM.Stub` alone, with no database in the test's dependency set.
+testable against `Bighead.LLM.Stub` alone, with no database in the test's dependency set.
 
-## 7.3 `Mem0.Summaries` — the store
+## 7.3 `Bighead.Summaries` — the store
 
 The Phase 6 pattern, smaller. A migration generated with `mix ecto.gen.migration
-create_summaries`, a `Mem0.Summaries.Row` schema only `Mem0.Summaries` may reference, and public
-functions that speak `Mem0.Core.Summary`:
+create_summaries`, a `Bighead.Summaries.Row` schema only `Bighead.Summaries` may reference, and public
+functions that speak `Bighead.Core.Summary`:
 
 ```elixir
 create table(:summaries) do
@@ -169,9 +169,9 @@ create index(:summaries, [:user_id, :app_id, :run_id, :through_seq])
   `latest/1` needs no silencing: its parameters are scope ids.
 - The layering test's persistence rule changes shape rather than just growing. Its current form —
   one flat list of persistence modules, one flat list of owners — was exact while there was one
-  store, but adding a second to both lists would quietly permit `Mem0.Messages` to reference
-  `Mem0.Summaries.Row` and the reverse. The rule becomes per-table ownership — a map from each
-  `Row` to the one module allowed to name it, with `Mem0.Repo` reachable from the stores alone —
+  store, but adding a second to both lists would quietly permit `Bighead.Messages` to reference
+  `Bighead.Summaries.Row` and the reverse. The rule becomes per-table ownership — a map from each
+  `Row` to the one module allowed to name it, with `Bighead.Repo` reachable from the stores alone —
   so "only the store knows the table" stays a CI failure per table, not per layer.
 
 ## 7.4 What this phase measured and did not fix
@@ -201,11 +201,11 @@ discovering them live.
   the char cap. `decode/4` has exactly two failure paths — unparseable and unusable — exercised with one
   input per enumerated shape: non-JSON, wrong shape, a non-binary `summary`, and blank after
   trim, plus a valid reply. Every failure is `{:error, :malformed_summary}`, never a raise.
-- **Boundary, against `Mem0.LLM.Stub`:** the request carries the system prompt and the schema
+- **Boundary, against `Bighead.LLM.Stub`:** the request carries the system prompt and the schema
   (assert via `Stub.calls/0`); `through_seq` is the max `seq` even when the list arrives
   shuffled; a canned reply becomes `{:ok, %Summary{}}` with the right scope and stamps; `[]`
   makes zero calls; a port error passes through.
-- **Store, `Mem0.DataCase`, `async: true`:** put-then-latest round-trips the struct, microseconds
+- **Store, `Bighead.DataCase`, `async: true`:** put-then-latest round-trips the struct, microseconds
   and multi-line unicode text intact; `latest/1` picks the highest `through_seq`, not the last row
   inserted; a second run in the same app is invisible; a `nil` `app_id`/`run_id` scope reads back
   still `nil`.
@@ -222,7 +222,7 @@ discovering them live.
       read by hand
 - [ ] `decode/4` never raises, on any of the malformed inputs above
 - [ ] `Summaries.put/1` then `latest/1` returns the same `Summary`, and nothing outside
-      `Mem0.Summaries` references `Mem0.Summaries.Row` — enforced by the layering test
+      `Bighead.Summaries` references `Bighead.Summaries.Row` — enforced by the layering test
 - [ ] No summary text reaches any log at default dev configuration, Ecto's included — checked the
       Phase 6 way: a canary regeneration under `MIX_ENV=dev`, output grepped for the canary string
 - [ ] `mix test.core` still passes with the Postgres container stopped
@@ -237,7 +237,7 @@ this phase but nothing reads it yet. No incremental refresh path, and no message
 render: both are the shapes this phase decided against, and reintroducing either is a decision for
 the phase that can measure what it buys. No summary embeddings: summaries are fetched by scope,
 never by similarity. No summaries at the app or user rungs of the covering ladder — `S` is
-per-run, the paper's shape. No retention, no deletion. No `lib/mem0.ex`.
+per-run, the paper's shape. No retention, no deletion. No `lib/bighead.ex`.
 
 ## Open questions this phase deliberately leaves open
 

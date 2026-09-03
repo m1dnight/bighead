@@ -54,14 +54,14 @@ HooksController.stop/2 ─ Ingest.scope/2 ─▶ Summarize.refresh_async/1 ─�
                                         true ──▶ for_run/1 ─▶ regenerate/2 ─▶ put/1
 ```
 
-One new supervision child, zero new modules. The composition goes in `Mem0.Summarize` because that
+One new supervision child, zero new modules. The composition goes in `Bighead.Summarize` because that
 module already owns the summary's impure step; a new module would be surface for one function, and
-putting it in `Mem0.Summaries` would fatten a deliberately thin store. Policy goes in
-`Mem0.Core.Summary` because that is where policy stays testable without a pipeline.
+putting it in `Bighead.Summaries` would fatten a deliberately thin store. Policy goes in
+`Bighead.Core.Summary` because that is where policy stays testable without a pipeline.
 
 ---
 
-## 8.1 `Mem0.Core.Summary.stale?/2` — rewritten, because its unit was the bug
+## 8.1 `Bighead.Core.Summary.stale?/2` — rewritten, because its unit was the bug
 
 `stale?/3` is rewritten, not wrapped. The add-a-new-function rule exists to protect callers, and
 `stale?/3` has none — Phase 7 says so in as many words — so preserving its arithmetic behind a
@@ -111,7 +111,7 @@ def stale?(pending, max_lag \\ @default_max_lag)
 - No clock, no store, same layering test. `needs_refresh?/3`, the wrapper an earlier draft of
   this plan proposed, is never born.
 
-## 8.2 `Mem0.Summarize.refresh/2` — the synchronous composition
+## 8.2 `Bighead.Summarize.refresh/2` — the synchronous composition
 
 `regenerate/2` stays exactly as it is. Beside it, the whole freshness pipeline in one named
 function — the API of this phase, the thing tests and IEx call:
@@ -142,7 +142,7 @@ defp maybe_regenerate(true = _stale, scope, opts) do
 end
 ```
 
-`Mem0.Messages` grows one read beside `for_run/1`, with the same exact-scope match:
+`Bighead.Messages` grows one read beside `for_run/1`, with the same exact-scope match:
 
 ```elixir
 @doc """
@@ -186,7 +186,7 @@ mid-regeneration and wastes the tokens spent so far, and Claude Code's own per-h
 above both. One supervised Task removes all three for the price of one infrastructure child.
 
 ```elixir
-@task_supervisor Mem0.Summarize.TaskSupervisor
+@task_supervisor Bighead.Summarize.TaskSupervisor
 
 @spec refresh_async(Scope.t(), keyword()) :: :ok
 def refresh_async(%Scope{} = scope, opts \\ []) do
@@ -201,7 +201,7 @@ defp measured_refresh(scope, opts) do
   {duration, result} = :timer.tc(__MODULE__, :refresh, [scope, opts])
 
   :telemetry.execute(
-    [:mem0, :summarize, :refresh],
+    [:bighead, :summarize, :refresh],
     %{duration: duration},
     %{outcome: outcome(result), user_id: scope.user_id, app_id: scope.app_id, run_id: scope.run_id}
   )
@@ -217,7 +217,7 @@ defp outcome({:error, _reason}), do: :error
 - **All logic stays in the synchronous `refresh/2`**; the async wrapper is a few lines of
   supervision, measurement and notification, which is exactly how much untestable surface it
   should have.
-- **`{Task.Supervisor, name: Mem0.Summarize.TaskSupervisor}`** goes in `application.ex` after the
+- **`{Task.Supervisor, name: Bighead.Summarize.TaskSupervisor}`** goes in `application.ex` after the
   Repo and before the Endpoint. Tasks are `:temporary` (the default): restarting a failed LLM
   call helps nobody, and the next turn's pulse is the retry.
 - **`start_child` is itself a synchronous call** to the supervisor — the back-pressure warning
@@ -313,11 +313,11 @@ the arithmetic.
 - **Core, `async: true`, no db, no network:** `stale?/2` — zero pending never stale, exactly
   `max_lag` pending not stale, one past it stale. The old head-arithmetic cases leave with the
   old arithmetic; the suite shrinks to one comparison's worth, which is the point.
-- **Store, `Mem0.DataCase`:** `count_since/2` against the gapped seqs that forced the rewrite —
+- **Store, `Bighead.DataCase`:** `count_since/2` against the gapped seqs that forced the rewrite —
   messages at seqs 3, 17 and 40 count 3 from −1, 2 from 3, 0 from 40; a second run in the same
   app is invisible; a `nil` `app_id`/`run_id` scope matches through the same `IS NULL` handling
   `for_run/1` uses.
-- **Boundary, `Mem0.DataCase` + `Mem0.LLM.Stub`** — the first suite that needs both stores and
+- **Boundary, `Bighead.DataCase` + `Bighead.LLM.Stub`** — the first suite that needs both stores and
   the stub, which is the point of the composition: a fresh run returns `:fresh` and
   `Stub.calls/0` stays empty; a run holding more than `max_lag` messages and no summary produces
   `{:ok, summary}`, `latest/1` now returns it, and `through_seq` equals the run's max `seq`; a
@@ -365,7 +365,7 @@ exactly where Phase 7 left them.
 
 | Question | Why not here | Shape it lands on |
 | --- | --- | --- |
-| Retuning `max_lag` past 10 | The value is back in its intended unit but still untuned; only live cadence data can rank token cost against usefulness | the `[:mem0, :summarize, :refresh]` outcome ratio, read after real use |
+| Retuning `max_lag` past 10 | The value is back in its intended unit but still untuned; only live cadence data can rank token cost against usefulness | the `[:bighead, :summarize, :refresh]` outcome ratio, read after real use |
 | Dead runs stay stale forever | Needs a reader to matter, and `S` has none yet | `refresh_async/1` from `user_prompt_submit` on a resumed run — the natural catch-up site once recall reads summaries |
 | A sender that never pulses | Repo-shipped script, local install; version skew is a deployment problem this phase does not have | a degraded fallback trigger from `backfill`, or versioning the hook API |
 | When `S` feeds recall and extraction | That is `Prompt` and φ(P), a phase of its own — and it sets the real freshness SLA (§8.5) | `Extract.facts/1` taking a `Prompt.t()`; `user_prompt_submit` reading `latest/1` up the covering ladder |

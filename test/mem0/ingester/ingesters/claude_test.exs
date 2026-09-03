@@ -1,7 +1,7 @@
-defmodule Mem0.Ingester.ClaudeTest do
+defmodule Bighead.Ingester.ClaudeTest do
   @moduledoc """
   The contract of the Claude ingester, exercised through
-  `Mem0.Ingester.decode_transcript/2` and the behaviour callbacks it is built
+  `Bighead.Ingester.decode_transcript/2` and the behaviour callbacks it is built
   from, plus a corpus check over every captured fixture.
   """
   use ExUnit.Case, async: true
@@ -10,9 +10,9 @@ defmodule Mem0.Ingester.ClaudeTest do
   # quiet (the corpus fixtures contain such entries).
   import ExUnit.CaptureLog
 
-  alias Mem0.Ingester
-  alias Mem0.Ingester.Claude
-  alias Mem0.TranscriptFixtures
+  alias Bighead.Ingester
+  alias Bighead.Ingester.Claude
+  alias Bighead.TranscriptFixtures
 
   @moduletag :capture_log
 

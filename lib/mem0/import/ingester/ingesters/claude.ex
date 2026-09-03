@@ -1,12 +1,12 @@
-defmodule Mem0.Ingester.Claude do
+defmodule Bighead.Ingester.Claude do
   @moduledoc """
   Ingests JSON entries form transcripts in a Claude chat, and converts them to
-  `t:Mem0.Ingester.message/0` maps.
+  `t:Bighead.Ingester.message/0` maps.
   """
 
-  @behaviour Mem0.Ingester
+  @behaviour Bighead.Ingester
 
-  alias Mem0.Ingester.Decoder
+  alias Bighead.Ingester.Decoder
 
   # The entry `type`s that are bookkeeping rather than conversation.
   @machinery_types ~w(

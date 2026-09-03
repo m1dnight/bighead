@@ -1,6 +1,6 @@
-defmodule Mem0.LLM.OpenRouter do
+defmodule Bighead.LLM.OpenRouter do
   @moduledoc """
-  `Mem0.LLM` over OpenRouter's chat-completions API.
+  `Bighead.LLM` over OpenRouter's chat-completions API.
 
   OpenRouter speaks the OpenAI wire format, not Anthropic's, and the
   differences are exactly the facts this adapter exists to absorb:
@@ -23,12 +23,12 @@ defmodule Mem0.LLM.OpenRouter do
     as the answer — `high` hands roughly 80% of the budget to thinking.
   """
 
-  @behaviour Mem0.LLM
+  @behaviour Bighead.LLM
 
   @endpoint "https://openrouter.ai/api/v1/chat/completions"
   @receive_timeout to_timeout(minute: 2)
 
-  @impl Mem0.LLM
+  @impl Bighead.LLM
   def complete(request, opts) do
     url = Keyword.get(opts, :base_url, @endpoint)
 
@@ -54,7 +54,7 @@ defmodule Mem0.LLM.OpenRouter do
     end
   end
 
-  @spec body(Mem0.LLM.request(), keyword()) :: map()
+  @spec body(Bighead.LLM.request(), keyword()) :: map()
   defp body(request, opts) do
     %{
       model: Keyword.fetch!(opts, :model),
@@ -69,7 +69,7 @@ defmodule Mem0.LLM.OpenRouter do
   # `max_tokens` has. Absent both, the field is omitted entirely and the
   # model's own default stands — an explicit `"none"` is how a caller turns
   # reasoning off, so nil must not be spelled that way.
-  @spec reasoning(Mem0.LLM.request(), keyword()) :: map() | nil
+  @spec reasoning(Bighead.LLM.request(), keyword()) :: map() | nil
   defp reasoning(request, opts) do
     case Map.get(request, :effort) || Keyword.get(opts, :effort) do
       nil -> nil
@@ -77,7 +77,7 @@ defmodule Mem0.LLM.OpenRouter do
     end
   end
 
-  @spec messages(Mem0.LLM.request()) :: [map()]
+  @spec messages(Bighead.LLM.request()) :: [map()]
   defp messages(request) do
     turns = Enum.map(request.messages, &%{role: Atom.to_string(&1.role), content: &1.content})
 
@@ -102,7 +102,7 @@ defmodule Mem0.LLM.OpenRouter do
 
   # A refusal is a 400, and must stay tellable from "the key is wrong" — the
   # caller's next move differs. Everything else keeps its status and body.
-  @spec error(pos_integer(), term()) :: Mem0.LLM.reason()
+  @spec error(pos_integer(), term()) :: Bighead.LLM.reason()
   defp error(_status, %{"error" => %{"metadata" => %{"error_type" => "refusal"}}} = body) do
     {:refusal, get_in(body, ["error", "message"])}
   end
@@ -111,7 +111,7 @@ defmodule Mem0.LLM.OpenRouter do
 
   # The committed-200-then-upstream-failure case. The error's `code` is the
   # status the response should have carried.
-  @spec decode(term()) :: {:ok, Mem0.LLM.response()} | {:error, Mem0.LLM.reason()}
+  @spec decode(term()) :: {:ok, Bighead.LLM.response()} | {:error, Bighead.LLM.reason()}
   defp decode(%{"error" => %{"code" => code}} = body) when is_integer(code) do
     {:error, {:http_error, code, body}}
   end
@@ -130,7 +130,7 @@ defmodule Mem0.LLM.OpenRouter do
 
   defp decode(body), do: {:error, {:malformed_response, body}}
 
-  @spec usage(map()) :: Mem0.LLM.usage()
+  @spec usage(map()) :: Bighead.LLM.usage()
   defp usage(body) do
     usage = Map.get(body, "usage") || %{}
 

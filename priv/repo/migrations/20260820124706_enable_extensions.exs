@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.EnableExtensions do
+defmodule Bighead.Repo.Migrations.EnableExtensions do
   use Ecto.Migration
 
   # This migration must stand alone. Postgrex resolves type OIDs when a

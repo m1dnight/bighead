@@ -1,17 +1,17 @@
-defmodule Mem0.ProcessorTest do
+defmodule Bighead.ProcessorTest do
   @moduledoc """
   The extract-then-embed pass over one stored session, with both ports
   stubbed: facts land in the store with embeddings, and the watermark moves
   so the next pass reads nothing twice.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Embedder
-  alias Mem0.LLM
-  alias Mem0.Processor
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Messages
-  alias Mem0.Store.Scopes
+  alias Bighead.Embedder
+  alias Bighead.LLM
+  alias Bighead.Processor
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Messages
+  alias Bighead.Store.Scopes
 
   @epoch ~U[2026-08-24 09:00:00.000000Z]
 

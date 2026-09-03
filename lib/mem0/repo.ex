@@ -1,5 +1,5 @@
-defmodule Mem0.Repo do
+defmodule Bighead.Repo do
   use Ecto.Repo,
-    otp_app: :mem0,
+    otp_app: :bighead,
     adapter: Ecto.Adapters.Postgres
 end

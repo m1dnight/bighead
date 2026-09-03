@@ -1,9 +1,9 @@
-defmodule Mem0Web.DiffJSON do
+defmodule BigheadWeb.DiffJSON do
   @moduledoc """
-  Renders `Mem0Web.DiffController` responses.
+  Renders `BigheadWeb.DiffController` responses.
   """
 
-  alias Mem0.Store.Diff
+  alias Bighead.Store.Diff
 
   @doc """
   Renders one stored diff.

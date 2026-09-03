@@ -28,15 +28,15 @@ default, and a real adapter exercised only under `mix test.live`.
 The Claude API is the Messages API plus supporting endpoints — batches, files, token counting,
 models. **There is no `/v1/embeddings`.** Anthropic's own recommendation is a separate vendor.
 
-mem0 cannot work without embeddings: top-`s` retrieval for the update phase is vector similarity
+bighead cannot work without embeddings: top-`s` retrieval for the update phase is vector similarity
 over dense embeddings, and the README's whole storage argument is pgvector. So the phase delivers
 **two independent ports with two providers**, not one port with two callbacks. They share no key,
 no base URL, and no request shape.
 
 | Port                | Provider this phase | Why                                                     |
 | ------------------- | ------------------- | ------------------------------------------------------- |
-| `Mem0.LLM`          | Anthropic           | Extraction and the update tool call, both LLM-shaped    |
-| `Mem0.Embedder`     | Ollama              | Local, free, no second vendor account, no per-call cost |
+| `Bighead.LLM`          | Anthropic           | Extraction and the update tool call, both LLM-shaped    |
+| `Bighead.Embedder`     | Ollama              | Local, free, no second vendor account, no per-call cost |
 
 Ollama for embeddings is a deliberate asymmetry, not an oversight. Embedding is high-volume and
 cheap to run locally; the decision phase is low-volume and quality-sensitive. Running the embedder
@@ -66,19 +66,19 @@ that cannot drift silently — `EnvGuard.required/3` raises at boot when it drif
 
 ```sh
 # --- LLM (decision phase) ---------------------------------------------------
-MEM0_LLM_PROVIDER=anthropic          # anthropic | ollama | stub
+BIGHEAD_LLM_PROVIDER=anthropic          # anthropic | ollama | stub
 ANTHROPIC_API_KEY=sk-ant-...
-MEM0_LLM_MODEL=claude-opus-5
-MEM0_LLM_MAX_TOKENS=16000
+BIGHEAD_LLM_MODEL=claude-opus-5
+BIGHEAD_LLM_MAX_TOKENS=16000
 
 # --- Embedder (retrieval) ---------------------------------------------------
-MEM0_EMBEDDER_PROVIDER=ollama        # ollama | stub
+BIGHEAD_EMBEDDER_PROVIDER=ollama        # ollama | stub
 OLLAMA_BASE_URL=http://localhost:11434
-MEM0_EMBEDDING_MODEL=nomic-embed-text
-MEM0_EMBEDDING_DIMENSIONS=768
+BIGHEAD_EMBEDDING_MODEL=nomic-embed-text
+BIGHEAD_EMBEDDING_DIMENSIONS=768
 ```
 
-`MEM0_EMBEDDING_DIMENSIONS` is not decoration. It is the `vector(N)` column width the store will
+`BIGHEAD_EMBEDDING_DIMENSIONS` is not decoration. It is the `vector(N)` column width the store will
 have to declare, and a mismatch between the configured model and the migrated column is a runtime
 error at insert time rather than at boot. Validating it here turns that into a boot-time failure.
 
@@ -87,19 +87,19 @@ error at insert time rather than at boot. Validating it here turns that into a b
 ```elixir
 import Config
 
-llm_provider = EnvGuard.optional("MEM0_LLM_PROVIDER", {:enum, ~w(anthropic ollama stub)}, "stub")
+llm_provider = EnvGuard.optional("BIGHEAD_LLM_PROVIDER", {:enum, ~w(anthropic ollama stub)}, "stub")
 
-config :mem0, Mem0.LLM,
+config :bighead, Bighead.LLM,
   provider: llm_provider,
-  model: EnvGuard.optional("MEM0_LLM_MODEL", :string, "claude-opus-5"),
-  max_tokens: EnvGuard.optional("MEM0_LLM_MAX_TOKENS", :integer, 16_000, min: 1),
+  model: EnvGuard.optional("BIGHEAD_LLM_MODEL", :string, "claude-opus-5"),
+  max_tokens: EnvGuard.optional("BIGHEAD_LLM_MAX_TOKENS", :integer, 16_000, min: 1),
   api_key: if(llm_provider == "anthropic", do: EnvGuard.required("ANTHROPIC_API_KEY", :string))
 
-config :mem0, Mem0.Embedder,
-  provider: EnvGuard.optional("MEM0_EMBEDDER_PROVIDER", {:enum, ~w(ollama stub)}, "stub"),
+config :bighead, Bighead.Embedder,
+  provider: EnvGuard.optional("BIGHEAD_EMBEDDER_PROVIDER", {:enum, ~w(ollama stub)}, "stub"),
   base_url: EnvGuard.optional("OLLAMA_BASE_URL", :string, "http://localhost:11434"),
-  model: EnvGuard.optional("MEM0_EMBEDDING_MODEL", :string, "nomic-embed-text"),
-  dimensions: EnvGuard.optional("MEM0_EMBEDDING_DIMENSIONS", :integer, 768, min: 1)
+  model: EnvGuard.optional("BIGHEAD_EMBEDDING_MODEL", :string, "nomic-embed-text"),
+  dimensions: EnvGuard.optional("BIGHEAD_EMBEDDING_DIMENSIONS", :integer, 768, min: 1)
 ```
 
 Three rules this shape enforces:
@@ -116,7 +116,7 @@ Three rules this shape enforces:
 ## 3.3 The LLM port
 
 ```elixir
-defmodule Mem0.LLM do
+defmodule Bighead.LLM do
   @type message :: %{role: :user | :assistant, content: String.t()}
 
   @type request :: %{
@@ -167,7 +167,7 @@ records the requests it received, so a test can assert *what was sent* without a
 ## 3.4 The embedder port
 
 ```elixir
-defmodule Mem0.Embedder do
+defmodule Bighead.Embedder do
   @callback embed([String.t()], keyword()) :: {:ok, [[float()]]} | {:error, reason()}
   @callback dimensions(keyword()) :: pos_integer()
 end
@@ -242,7 +242,7 @@ an over-long input rather than failing; whether that is acceptable is an open qu
 
 The default model is `nomic-embed-text` at 768 dimensions. `mxbai-embed-large` (1024) and
 `all-minilm` (384) are the other common choices; the dimension must match
-`MEM0_EMBEDDING_DIMENSIONS`, and the migrated column width once there is one.
+`BIGHEAD_EMBEDDING_DIMENSIONS`, and the migrated column width once there is one.
 
 ---
 
@@ -274,14 +274,14 @@ The phase's own exit criterion is that it adds **no** network dependency to the 
 - [ ] `.env.example` lists every variable the app reads, and `.env` is gitignored
 - [ ] No `System.get_env/1` outside `config/runtime.exs`
 - [ ] `mix test.live` makes one real Anthropic call and one real Ollama call, and both round-trip
-- [ ] The layering test still passes — nothing under `Mem0.Core.*` reaches `Req`, and the adapters
+- [ ] The layering test still passes — nothing under `Bighead.Core.*` reaches `Req`, and the adapters
       are the only modules that do
 - [ ] `mix precommit` green
 
 ## Explicitly out of scope
 
 No prompts — not the extraction prompt, not the update tool schema, not the system prompts. No
-retrieval, no persistence, no Ecto schemas, no pipeline, no `Mem0` public API. No streaming, no
+retrieval, no persistence, no Ecto schemas, no pipeline, no `Bighead` public API. No streaming, no
 prompt caching, no batching, no cost accounting. The ports make a call and return a value; deciding
 *what to send* comes later.
 
@@ -292,5 +292,5 @@ prompt caching, no batching, no cost accounting. The ports make a call and retur
 | Which model for extraction vs. the update call                 | It is a measurement against real prompts, which do not exist yet    | `model` in config         |
 | Retry and backoff policy on 429 / 5xx                          | The right policy depends on where the call sits in a pipeline       | the adapter's `opts`      |
 | Whether over-long embedder input should truncate or fail       | Ollama defaults to truncating; the cost only shows up with real text | `truncate` in `opts`      |
-| Embedding model and its dimension                              | Changing it later is a migration; changing it now is an env var      | `MEM0_EMBEDDING_*`        |
+| Embedding model and its dimension                              | Changing it later is a migration; changing it now is an env var      | `BIGHEAD_EMBEDDING_*`        |
 | Prompt caching on the stable prefix of the extraction prompt   | There is no prefix until there is a prompt                          | the Anthropic adapter     |

@@ -1,11 +1,11 @@
-defmodule Mem0.IngesterTest.StubIngester do
+defmodule Bighead.IngesterTest.StubIngester do
   @moduledoc """
-  A minimal `Mem0.Ingester` so the generic pipeline can be tested apart from
+  A minimal `Bighead.Ingester` so the generic pipeline can be tested apart from
   any real transcript format: entries opt out via `"skip"`, fail to parse via
   `"boom"`, and the scope comes from the first entry carrying `"scope"`.
   """
 
-  @behaviour Mem0.Ingester
+  @behaviour Bighead.Ingester
 
   @timestamp ~U[2026-08-24 09:00:00.000000Z]
 
@@ -34,9 +34,9 @@ defmodule Mem0.IngesterTest.StubIngester do
   end
 end
 
-defmodule Mem0.IngesterTest do
+defmodule Bighead.IngesterTest do
   @moduledoc """
-  The contract of `Mem0.Ingester.decode_transcript/2`: line decoding, skip
+  The contract of `Bighead.Ingester.decode_transcript/2`: line decoding, skip
   filtering, empty-message dropping and error propagation, driven through a
   stub ingester so no real format is involved.
   """
@@ -44,8 +44,8 @@ defmodule Mem0.IngesterTest do
 
   import ExUnit.CaptureLog
 
-  alias Mem0.Ingester
-  alias Mem0.IngesterTest.StubIngester
+  alias Bighead.Ingester
+  alias Bighead.IngesterTest.StubIngester
 
   describe "decode_transcript/2" do
     test "returns the scope and the messages, in file order" do

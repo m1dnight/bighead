@@ -1,4 +1,4 @@
-defmodule Mem0.Store.Scope do
+defmodule Bighead.Store.Scope do
   use Ecto.Schema
 
   import Ecto.Changeset

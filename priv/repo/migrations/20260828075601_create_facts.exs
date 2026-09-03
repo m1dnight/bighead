@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.CreateFacts do
+defmodule Bighead.Repo.Migrations.CreateFacts do
   use Ecto.Migration
 
   def change do

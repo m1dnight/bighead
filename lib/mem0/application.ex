@@ -1,4 +1,4 @@
-defmodule Mem0.Application do
+defmodule Bighead.Application do
   # See https://elixir.hexdocs.pm/Application.html
   # for more information on OTP Applications
   @moduledoc false
@@ -8,16 +8,16 @@ defmodule Mem0.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      Mem0Web.Telemetry,
-      {DNSCluster, query: Application.get_env(:mem0, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Mem0.PubSub},
+      BigheadWeb.Telemetry,
+      {DNSCluster, query: Application.get_env(:bighead, :dns_cluster_query) || :ignore},
+      {Phoenix.PubSub, name: Bighead.PubSub},
       # Start to serve requests, typically the last entry
-      Mem0Web.Endpoint
+      BigheadWeb.Endpoint
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: Mem0.Supervisor]
+    opts = [strategy: :one_for_one, name: Bighead.Supervisor]
     Supervisor.start_link(repo_children() ++ children ++ refresher_children(), opts)
   end
 
@@ -27,7 +27,7 @@ defmodule Mem0.Application do
   # the Repo, so this cannot silently disable persistence in dev or prod.
   @spec repo_children() :: [module()]
   defp repo_children do
-    if Application.get_env(:mem0, :start_repo, true), do: [Mem0.Repo], else: []
+    if Application.get_env(:bighead, :start_repo, true), do: [Bighead.Repo], else: []
   end
 
   # `config/test.exs` sets this to `false`: the refresher queries the database
@@ -35,14 +35,14 @@ defmodule Mem0.Application do
   # LLM besides. Dev and prod leave it alone and get the sweep.
   @spec refresher_children() :: [module()]
   defp refresher_children do
-    if Application.get_env(:mem0, :start_refresher, true), do: [Mem0.Refresher], else: []
+    if Application.get_env(:bighead, :start_refresher, true), do: [Bighead.Refresher], else: []
   end
 
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.
   @impl true
   def config_change(changed, _new, removed) do
-    Mem0Web.Endpoint.config_change(changed, removed)
+    BigheadWeb.Endpoint.config_change(changed, removed)
     :ok
   end
 end

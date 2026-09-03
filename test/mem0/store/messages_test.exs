@@ -1,12 +1,12 @@
-defmodule Mem0.Store.MessagesTest do
+defmodule Bighead.Store.MessagesTest do
   @moduledoc """
   The messages context: dedup on `(scope, timestamp, role, content)`, the
   session and project reads with their ordering, and validation at the edge.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Store.Messages
-  alias Mem0.Store.Scopes
+  alias Bighead.Store.Messages
+  alias Bighead.Store.Scopes
 
   @epoch ~U[2026-08-24 09:00:00.000000Z]
 

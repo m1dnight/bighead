@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.CreateScopes do
+defmodule Bighead.Repo.Migrations.CreateScopes do
   use Ecto.Migration
 
   def change do

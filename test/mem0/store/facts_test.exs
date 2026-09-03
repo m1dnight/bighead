@@ -1,12 +1,12 @@
-defmodule Mem0.Store.FactsTest do
+defmodule Bighead.Store.FactsTest do
   @moduledoc """
   The facts context: dedup on `(scope, fact)`, the lifecycle of a fact, and
   similarity search over the embedded ones.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Scopes
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Scopes
 
   setup do
     {:ok, scope} = Scopes.create(%{user: "u", project: "/code/widget", session: "session-1"})

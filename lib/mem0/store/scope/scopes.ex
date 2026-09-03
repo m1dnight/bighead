@@ -1,4 +1,4 @@
-defmodule Mem0.Store.Scopes do
+defmodule Bighead.Store.Scopes do
   @moduledoc """
   Context module to retrieve/update/store scopes in the database.
   """
@@ -7,10 +7,10 @@ defmodule Mem0.Store.Scopes do
   # would otherwise win inside functions defined above it.
   import Ecto.Query, except: [update: 2, update: 3]
 
-  alias Mem0.Repo
-  alias Mem0.Store.Diff
-  alias Mem0.Store.Message
-  alias Mem0.Store.Scope
+  alias Bighead.Repo
+  alias Bighead.Store.Diff
+  alias Bighead.Store.Message
+  alias Bighead.Store.Scope
 
   @doc """
   Inserts a new scope, or returns the already-stored scope with the same
@@ -63,7 +63,7 @@ defmodule Mem0.Store.Scopes do
 
   @doc """
   Returns the scopes with diffs past their diff watermark — the work set for
-  `Mem0.Processor.Diffs`. A `nil` watermark means never extracted, so any
+  `Bighead.Processor.Diffs`. A `nil` watermark means never extracted, so any
   diff at all makes the scope stale.
   """
   @spec stale_diffs() :: [Scope.t()]

@@ -4,7 +4,7 @@ Logger.configure(level: :info)
 #   |> Enum.map(fn path ->
 #     content = File.read!(path)
 
-#     case Mem0.Importer.import_transcript(content, Mem0.Ingester.Claude) do
+#     case Bighead.Importer.import_transcript(content, Bighead.Ingester.Claude) do
 #       {:ok, _messages} ->
 #         :ok
 
@@ -19,7 +19,7 @@ Logger.configure(level: :info)
 #   |> Enum.map(fn path ->
 #     content = File.read!(path)
 
-#     case Mem0.Importer.import_transcript(content, Mem0.Ingester.Codex) do
+#     case Bighead.Importer.import_transcript(content, Bighead.Ingester.Codex) do
 #       {:ok, _messages} ->
 #         :ok
 
@@ -35,8 +35,8 @@ Logger.configure(level: :info)
 # end
 
 # max_scope =
-#   Mem0.Store.Messages.list()
+#   Bighead.Store.Messages.list()
 #   |> Enum.group_by(& &1.scope_id)
 #   |> Enum.max_by(fn {scope_id, msgs} -> Enum.count(msgs) end)
 #   |> elem(0)
-#   |> Mem0.Store.Scopes.get!()
+#   |> Bighead.Store.Scopes.get!()

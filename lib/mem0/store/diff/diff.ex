@@ -1,9 +1,9 @@
-defmodule Mem0.Store.Diff do
+defmodule Bighead.Store.Diff do
   use Ecto.Schema
 
   import Ecto.Changeset
 
-  alias Mem0.Store.Scope
+  alias Bighead.Store.Scope
 
   @type t :: %__MODULE__{}
 

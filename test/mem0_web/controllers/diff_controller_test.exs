@@ -1,15 +1,15 @@
-defmodule Mem0Web.DiffControllerTest do
-  use Mem0Web.ConnCase, async: true
+defmodule BigheadWeb.DiffControllerTest do
+  use BigheadWeb.ConnCase, async: true
 
-  alias Mem0.Store.Diffs
-  alias Mem0.Store.Scopes
+  alias Bighead.Store.Diffs
+  alias Bighead.Store.Scopes
 
   @payload %{
     "file" => "lib/foo.ex",
     "diff" => """
     @@ -1,2 +1,2 @@
     -def hello, do: :world
-    +def hello, do: :mem0
+    +def hello, do: :bighead
     """,
     "project" => "/code/widget",
     "session" => "session-1",

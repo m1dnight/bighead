@@ -1,10 +1,10 @@
-defmodule Mem0.Repo.Migrations.CreateMessages do
+defmodule Bighead.Repo.Migrations.CreateMessages do
   use Ecto.Migration
 
   def change do
     create table(:messages, primary_key: false) do
       # `:text`, not `:uuid`. Every id is a Claude Code uuid today, but
-      # `Mem0.Core.Message.id/0` is `String.t()` by design and a second
+      # `Bighead.Core.Message.id/0` is `String.t()` by design and a second
       # transcript format is under no obligation to use uuids. A text column
       # costs an index page or two; a uuid column costs a migration on a
       # populated table the first time one does not.
@@ -13,7 +13,7 @@ defmodule Mem0.Repo.Migrations.CreateMessages do
       add :app_id, :text
       add :run_id, :text
       # `:text`, not a Postgres enum. Extending an enum is a migration; the
-      # closed set already lives in `Mem0.Core.Message.role/0`.
+      # closed set already lives in `Bighead.Core.Message.role/0`.
       add :role, :text, null: false
       add :content, :text, null: false
       # Claude Code stamps milliseconds and `:utc_datetime` truncates them
@@ -26,7 +26,7 @@ defmodule Mem0.Repo.Migrations.CreateMessages do
       # distance in an ORDER BY. NULL is skipped, and it is honest about
       # meaning "not computed".
       #
-      # 768 is the value of `config :mem0, :embedder, :dimensions`, hardcoded
+      # 768 is the value of `config :bighead, :embedder, :dimensions`, hardcoded
       # here on purpose — a migration that changes shape with runtime
       # configuration is not a migration. No HNSW or IVFFlat index; an index
       # over NULLs is pure cost.
@@ -36,7 +36,7 @@ defmodule Mem0.Repo.Migrations.CreateMessages do
     end
 
     # Covers the only read this phase makes, and its prefix matches the shape
-    # `Mem0.Core.Scope.covering/1` will want later.
+    # `Bighead.Core.Scope.covering/1` will want later.
     #
     # Deliberately not unique. A unique index on (user_id, app_id, run_id, seq)
     # looks right and would fail a whole batch over a cosmetic duplicate; left

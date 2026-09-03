@@ -22,7 +22,7 @@ Three environment facts that shape this phase:
 - **`mix.exs` already sets `cli/0 → preferred_envs: [precommit: :test]`.** This constrains which
   envs every dep in the `precommit` alias must be available in — see 1.6. It is the single most
   likely thing to break here.
-- **`/mem0/` is the upstream Python clone** (100 MB) and is gitignored. Keep it — it is the
+- **`/bighead/` is the upstream Python clone** (100 MB) and is gitignored. Keep it — it is the
   reference implementation. But it must be kept out of the Docker build context (1.5).
 
 ---
@@ -47,9 +47,9 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mem0_dev
+      POSTGRES_DB: bighead_dev
     ports: ["5432:5432"]
-    volumes: [mem0_pgdata:/var/lib/postgresql/data]
+    volumes: [bighead_pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -57,7 +57,7 @@ services:
       retries: 10
 
 volumes:
-  mem0_pgdata:
+  bighead_pgdata:
 ```
 
 Verified: the tag exists and gives PostgreSQL 18.6 with pgvector 0.8.6 available. The credentials in
@@ -76,11 +76,11 @@ Verified: the tag exists and gives PostgreSQL 18.6 with pgvector 0.8.6 available
 
 Add `{:pgvector, "~> 0.4"}` (resolves to 0.4.0).
 
-`lib/mem0/postgrex_types.ex`:
+`lib/bighead/postgrex_types.ex`:
 
 ```elixir
 Postgrex.Types.define(
-  Mem0.PostgrexTypes,
+  Bighead.PostgrexTypes,
   Pgvector.extensions() ++ Ecto.Adapters.Postgres.extensions(),
   []
 )
@@ -98,7 +98,7 @@ documented pattern, it needs no special elixirc handling, and the `.beam` is pro
 Then `config/config.exs`:
 
 ```elixir
-config :mem0, Mem0.Repo, types: Mem0.PostgrexTypes
+config :bighead, Bighead.Repo, types: Bighead.PostgrexTypes
 ```
 
 This merges with, rather than replaces, the per-env repo config.
@@ -139,7 +139,7 @@ which breaks recency-ordered conflict resolution and supersession ordering.
 
 ### Exit check
 
-A round-trip test — and run it through `Mem0.DataCase, async: true`, not a bare `Repo.query`, so it
+A round-trip test — and run it through `Bighead.DataCase, async: true`, not a bare `Repo.query`, so it
 exercises the sandbox path every later test will use:
 
 ```elixir
@@ -172,13 +172,13 @@ a `.env` in a repo that does not ignore it.
 - Add `.env` and `.env.*` (excluding `.env.example`) to `.gitignore`; commit a `.env.example`
 - Decide the loading mechanism now — `dotenvy` in `runtime.exs`, or direnv. Either is fine; having
   two is not
-- Add empty `config :mem0, :llm, ...` / `config :mem0, :embedder, ...` runtime blocks reading
+- Add empty `config :bighead, :llm, ...` / `config :bighead, :embedder, ...` runtime blocks reading
   `System.get_env/1`, so Phase 3 fills in values instead of restructuring config
 
 **Tests must not hit the network or spend money.** The plan's argument for building ports before
 pipelines depends on this, and nothing currently enforces it.
 
-- `config/test.exs`: point `:llm` and `:embedder` at `Mem0.LLM.Stub` / `Mem0.Embedder.Stub`. The
+- `config/test.exs`: point `:llm` and `:embedder` at `Bighead.LLM.Stub` / `Bighead.Embedder.Stub`. The
   config keys can exist before the modules do
 - `test/test_helper.exs`: `ExUnit.configure(exclude: [:live])`, plus a `test.live` alias
 
@@ -186,8 +186,8 @@ pipelines depends on this, and nothing currently enforces it.
 volume, vector-search latency — are all produced by code written in later phases. If the convention
 doesn't exist first, each phase invents its own and they get normalised later.
 
-- Document `[:mem0, :llm | :embedder | :ingest | :search, :start | :stop | :exception]` in
-  `Mem0Web.Telemetry` as placeholder metric definitions
+- Document `[:bighead, :llm | :embedder | :ingest | :search, :start | :stop | :exception]` in
+  `BigheadWeb.Telemetry` as placeholder metric definitions
 - Enable `Telemetry.Metrics.ConsoleReporter` in dev
 - **Decide the redaction policy now:** memory contents are user data and prompts are exactly what
   you most want to log when debugging. Decide before debug logging is scattered across four phases
@@ -203,13 +203,13 @@ Verified output — note this is **more** than a Dockerfile:
 ```
 Dockerfile
 .dockerignore
-lib/mem0/release.ex
+lib/bighead/release.ex
 rel/overlays/bin/server      rel/overlays/bin/server.bat
 rel/overlays/bin/migrate     rel/overlays/bin/migrate.bat
 ```
 
-`lib/mem0/release.ex` is real `lib/` code (it is what `bin/migrate` calls via
-`eval Mem0.Release.migrate`) and is therefore subject to format/credo/dialyzer — which is why this
+`lib/bighead/release.ex` is real `lib/` code (it is what `bin/migrate` calls via
+`eval Bighead.Release.migrate`) and is therefore subject to format/credo/dialyzer — which is why this
 step runs **before** the formatting sweep in 1.6, not after.
 
 It does **not** generate `rel/env.sh.eex` or `rel/vm.args.eex` (those come from `mix release.init`),
@@ -221,7 +221,7 @@ Verified: `docker build .` succeeds as generated, including the `heroicons`/`dai
 **Two edits immediately after the generator, in the same step:**
 
 1. **`.dockerignore` is a deny-list and knows nothing about this repo.** It excludes `/test/`,
-   `/deps/`, `/_build/` and friends, but not `/mem0/` (100 MB Python clone), `/.expert/` (29 MB),
+   `/deps/`, `/_build/` and friends, but not `/bighead/` (100 MB Python clone), `/.expert/` (29 MB),
    `/.plan/` or `/docs/`. Add them, or every `docker build .` ships them into the build context.
 2. **Reconcile the Dockerfile's pinned `ELIXIR_VERSION`/`OTP_VERSION`/`DEBIAN` args** with
    `.tool-versions` from 1.1.
@@ -288,8 +288,8 @@ exits 0, and use `--force` in `precommit` (1.7).
 Measured on the actual repo with a freshly generated `.credo.exs`:
 
 - Before Quokka: `mix credo --strict` → exit 6, four findings —
-  `Design.AliasUsage` at `lib/mem0_web/components/core_components.ex:211` and
-  `test/support/data_case.ex:39,40`; `Readability.AliasOrder` at `lib/mem0_web.ex:91`.
+  `Design.AliasUsage` at `lib/bighead_web/components/core_components.ex:211` and
+  `test/support/data_case.ex:39,40`; `Readability.AliasOrder` at `lib/bighead_web.ex:91`.
 - After Quokka: still exit 2. Quokka fixes the `AliasOrder` and `core_components` findings but
   **not** the `Ecto.Adapters.SQL.Sandbox` usages in `test/support/data_case.ex`.
 
@@ -395,7 +395,7 @@ Also:
 - [ ] `mix setup` succeeds from clean `deps/` and `_build/`
 - [ ] `docker compose down -v && docker compose up -d && mix ecto.reset` succeeds — the from-zero
       path, which is the one the extension-ordering constraint in 1.3 threatens
-- [ ] The vector round-trip test passes under `Mem0.DataCase, async: true`
+- [ ] The vector round-trip test passes under `Bighead.DataCase, async: true`
 - [ ] `mix precommit` is green, **and** `mix format --check-formatted` and `git diff --exit-code`
       are clean immediately after it
 - [ ] `mix dialyzer` reports zero warnings with no `ignore_warnings` file

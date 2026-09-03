@@ -1,9 +1,9 @@
-"""Storage for the hook scripts, kept under <cwd>/.claude/mem0/."""
+"""Storage for the hook scripts, kept under <cwd>/.claude/bighead/."""
 
 import json
 from pathlib import Path
 
-_SUBDIR = "mem0"
+_SUBDIR = "bighead"
 
 
 def init(cwd):

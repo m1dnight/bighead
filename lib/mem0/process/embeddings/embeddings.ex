@@ -1,13 +1,13 @@
-defmodule Mem0.Embeddings do
+defmodule Bighead.Embeddings do
   @moduledoc """
   Embeds a fact using the embedder.
   """
 
   import Util
 
-  alias Mem0.Embedder
-  alias Mem0.Store.Fact
-  alias Mem0.Store.Facts
+  alias Bighead.Embedder
+  alias Bighead.Store.Fact
+  alias Bighead.Store.Facts
 
   require Logger
 

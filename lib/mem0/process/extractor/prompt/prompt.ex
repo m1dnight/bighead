@@ -1,4 +1,4 @@
-defmodule Mem0.Extractor.Prompt do
+defmodule Bighead.Extractor.Prompt do
   @moduledoc """
   Renders a list of messages into the conversation block of the extractor's
   system prompt.

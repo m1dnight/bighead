@@ -1,10 +1,10 @@
-defmodule Mem0Web.ConversationLive.Show do
+defmodule BigheadWeb.ConversationLive.Show do
   @moduledoc """
   Shows one conversation: every message captured for a single session, in order.
   """
-  use Mem0Web, :live_view
+  use BigheadWeb, :live_view
 
-  alias Mem0.Store.Messages
+  alias Bighead.Store.Messages
 
   @impl true
   def mount(%{"session" => session}, _session, socket) do

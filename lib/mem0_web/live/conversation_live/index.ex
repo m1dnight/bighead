@@ -1,10 +1,10 @@
-defmodule Mem0Web.ConversationLive.Index do
+defmodule BigheadWeb.ConversationLive.Index do
   @moduledoc """
   Lists every scope that carries a session and links through to its conversation.
   """
-  use Mem0Web, :live_view
+  use BigheadWeb, :live_view
 
-  alias Mem0.Store.Scopes
+  alias Bighead.Store.Scopes
 
   @impl true
   def mount(_params, _session, socket) do

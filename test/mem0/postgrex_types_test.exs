@@ -1,16 +1,16 @@
-defmodule Mem0.PostgrexTypesTest do
+defmodule Bighead.PostgrexTypesTest do
   @moduledoc """
-  Wiring check for `Mem0.PostgrexTypes`. Runs through `Mem0.DataCase` rather than
+  Wiring check for `Bighead.PostgrexTypes`. Runs through `Bighead.DataCase` rather than
   a bare `Repo.query/2` so it exercises the sandbox path every later test uses.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
   test "vector type round-trips through the repo" do
     v = Pgvector.new([1.0, 2.0, 3.0])
     assert {:ok, %{rows: [[^v]]}} = Repo.query("SELECT $1::vector", [v])
   end
 
-  # Guards the `Pgvector.extensions()` call in lib/mem0/postgrex_types.ex.
+  # Guards the `Pgvector.extensions()` call in lib/bighead/postgrex_types.ex.
   # Listing only `Pgvector.Extensions.Vector` there compiles and works, then
   # fails at runtime the moment a halfvec column appears — and halfvec is the
   # standard choice above pgvector's 2000-dimension index ceiling.

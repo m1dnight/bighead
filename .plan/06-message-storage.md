@@ -1,7 +1,7 @@
 # Phase 6 — Message storage
 
-**Goal:** a `messages` table, and a store that puts `Mem0.Core.Message` structs into it and reads
-them back as the same structs. **Nothing calls it.** `Mem0.Ingest` is untouched, the controller is
+**Goal:** a `messages` table, and a store that puts `Bighead.Core.Message` structs into it and reads
+them back as the same structs. **Nothing calls it.** `Bighead.Ingest` is untouched, the controller is
 untouched, and no message is persisted as a side effect of anything yet.
 
 Same shape as Phase 5: the interface and its implementation, exercisable from IEx and from tests,
@@ -35,7 +35,7 @@ create index(:messages, [:user_id, :app_id, :run_id, :seq])
 Each choice that is not obvious:
 
 - **`id` is `:text`, not `:uuid`.** Every id is a Claude Code uuid today, so `:uuid` would fit —
-  but `Mem0.Core.Message.id/0` is `String.t()` by design (02-domain-data: ids stay opaque), and a
+  but `Bighead.Core.Message.id/0` is `String.t()` by design (02-domain-data: ids stay opaque), and a
   second transcript format is under no obligation to use uuids. A text column costs an index page
   or two; a uuid column costs a migration on a populated table the first time one does not.
 - **`role` is `:text`, not a Postgres enum.** Extending an enum is a migration; the closed set
@@ -50,10 +50,10 @@ Each choice that is not obvious:
 The index covers the only read this phase makes, and its prefix matches the shape
 `Scope.covering/1` will want later.
 
-## 6.2 `Mem0.Messages.Row` — the table, not a second domain type
+## 6.2 `Bighead.Messages.Row` — the table, not a second domain type
 
-One Ecto schema over that table, and `Mem0.Messages` is the only module allowed to know it exists.
-Its public functions take and return `Mem0.Core.Message`, so nothing else in the system grows an
+One Ecto schema over that table, and `Bighead.Messages` is the only module allowed to know it exists.
+Its public functions take and return `Bighead.Core.Message`, so nothing else in the system grows an
 Ecto dependency.
 
 ```elixir
@@ -82,7 +82,7 @@ end
 
 Round-trip fidelity is the single most valuable test in the phase.
 
-## 6.3 `Mem0.Messages` — the store
+## 6.3 `Bighead.Messages` — the store
 
 ```elixir
 @spec put([Message.t()]) :: {:ok, non_neg_integer()} | {:error, term()}
@@ -110,14 +110,14 @@ Round-trip fidelity is the single most valuable test in the phase.
   distance in an `ORDER BY`. Zero placeholders would silently rank every message first the day
   someone writes the first similarity query. NULL is skipped, and it is honest about meaning "not
   computed". `768` is hardcoded in the migration with a comment naming
-  `config :mem0, :embedder, :dimensions` as its source — a migration that changes shape with runtime
+  `config :bighead, :embedder, :dimensions` as its source — a migration that changes shape with runtime
   configuration is not a migration. No HNSW or IVFFlat index; an index over NULLs is pure cost.
 
 ---
 
 ## Tests
 
-`Mem0.MessagesTest` through `Mem0.DataCase`, `async: true`. Nothing else changes, because nothing
+`Bighead.MessagesTest` through `Bighead.DataCase`, `async: true`. Nothing else changes, because nothing
 else calls this.
 
 - a batch put and read back equals what went in — `said_at` microseconds intact, `nil` `app_id` and
@@ -130,19 +130,19 @@ else calls this.
 
 ## Exit criteria
 
-- [ ] `Mem0.Messages.put/1` then `for_run/1` returns `Mem0.Core.Message` structs identical to what
+- [ ] `Bighead.Messages.put/1` then `for_run/1` returns `Bighead.Core.Message` structs identical to what
       went in, microseconds included
-- [ ] Nothing outside `Mem0.Messages` references `Mem0.Messages.Row` or `Mem0.Repo`
+- [ ] Nothing outside `Bighead.Messages` references `Bighead.Messages.Row` or `Bighead.Repo`
 - [ ] No message content reaches any log at default dev configuration, Ecto's included
 - [ ] `mix test.core` still passes with the Postgres container stopped
 - [ ] `mix precommit` green
 
 ## Explicitly out of scope
 
-**No wiring** — `Mem0.Ingest`, `Mem0Web.HooksController` and their tests are untouched, and no
+**No wiring** — `Bighead.Ingest`, `BigheadWeb.HooksController` and their tests are untouched, and no
 message is persisted as a side effect of a hook. No dedup policy beyond "putting the same batch
 twice does not raise". No embeddings computed and no embedder call. No memories table. No recall.
-No retention, deletion or export. No pagination on `for_run/1`. No auth. No `lib/mem0.ex`.
+No retention, deletion or export. No pagination on `for_run/1`. No auth. No `lib/bighead.ex`.
 
 ## Open questions this phase deliberately leaves open
 

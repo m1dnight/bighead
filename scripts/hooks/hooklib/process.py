@@ -1,7 +1,7 @@
 """Process pending ledger changes into a durable change log.
 
 Going file by file, every change still in the ledger becomes a diff posted
-to the mem0 server and appended to changes.jsonl. The ledger is then
+to the bighead server and appended to changes.jsonl. The ledger is then
 compacted down to each file's latest version, which stays behind as the
 baseline for future diffs.
 """
@@ -25,7 +25,7 @@ def run(cwd):
     # again later. server dedupes anyway.
     delivered = [client.post_diff(change) for change in changes]
     if not all(delivered):
-        print(f"mem0 unreachable ({sum(delivered)}/{len(delivered)} delivered), keeping ledger")
+        print(f"bighead unreachable ({sum(delivered)}/{len(delivered)} delivered), keeping ledger")
         return []
 
     for change in changes:

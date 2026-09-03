@@ -1,4 +1,4 @@
-defmodule Mem0Web.Telemetry do
+defmodule BigheadWeb.Telemetry do
   use Supervisor
 
   import Telemetry.Metrics
@@ -57,31 +57,31 @@ defmodule Mem0Web.Telemetry do
       ),
 
       # Database Metrics
-      summary("mem0.repo.query.total_time",
+      summary("bighead.repo.query.total_time",
         unit: {:native, :millisecond},
         description: "The sum of the other measurements"
       ),
-      summary("mem0.repo.query.decode_time",
+      summary("bighead.repo.query.decode_time",
         unit: {:native, :millisecond},
         description: "The time spent decoding the data received from the database"
       ),
-      summary("mem0.repo.query.query_time",
+      summary("bighead.repo.query.query_time",
         unit: {:native, :millisecond},
         description: "The time spent executing the query"
       ),
-      summary("mem0.repo.query.queue_time",
+      summary("bighead.repo.query.queue_time",
         unit: {:native, :millisecond},
         description: "The time spent waiting for a database connection"
       ),
-      summary("mem0.repo.query.idle_time",
+      summary("bighead.repo.query.idle_time",
         unit: {:native, :millisecond},
         description: "The time the connection spent waiting before being checked out for the query"
       ),
 
-      # Mem0 Metrics
+      # Bighead Metrics
       #
       # Every span below follows the `:telemetry.span/3` convention:
-      # `[:mem0, <domain>, :start | :stop | :exception]`, where `<domain>` is
+      # `[:bighead, <domain>, :start | :stop | :exception]`, where `<domain>` is
       # one of `:llm`, `:embedder`, `:ingest`, `:search`. The events themselves
       # are emitted by code written from Phase 3 onward; the definitions live
       # here first so that each phase extends one convention rather than
@@ -91,29 +91,29 @@ defmodule Mem0Web.Telemetry do
       # these events may carry a prompt, a completion or a memory's contents.
       # Tags are limited to low-cardinality metadata such as `:model`,
       # `:adapter` and `:operation`.
-      summary("mem0.llm.stop.duration",
+      summary("bighead.llm.stop.duration",
         tags: [:model],
         unit: {:native, :millisecond},
         description: "Wall time of one LLM call"
       ),
-      counter("mem0.llm.exception.duration",
+      counter("bighead.llm.exception.duration",
         tags: [:model, :kind],
         description: "LLM calls that raised"
       ),
-      sum("mem0.llm.stop.input_tokens",
+      sum("bighead.llm.stop.input_tokens",
         tags: [:model],
         description: "Prompt tokens consumed"
       ),
-      sum("mem0.llm.stop.output_tokens",
+      sum("bighead.llm.stop.output_tokens",
         tags: [:model],
         description: "Completion tokens produced"
       ),
-      summary("mem0.embedder.stop.duration",
+      summary("bighead.embedder.stop.duration",
         tags: [:model],
         unit: {:native, :millisecond},
         description: "Wall time of one embedding call"
       ),
-      sum("mem0.embedder.stop.input_count",
+      sum("bighead.embedder.stop.input_count",
         tags: [:model],
         description: "Texts submitted for embedding"
       ),
@@ -123,20 +123,20 @@ defmodule Mem0Web.Telemetry do
       # by reason — an aggregate would bury a new entry type under the
       # known-constant majority the type rule rejects on every batch. With no
       # dev LiveView any more, this is the only thing that says a batch landed.
-      summary("mem0.ingest.received.duration",
+      summary("bighead.ingest.received.duration",
         tags: [:hook_event],
         unit: {:microsecond, :millisecond},
         description: "Wall time of one transcript normalisation"
       ),
-      sum("mem0.ingest.received.entries",
+      sum("bighead.ingest.received.entries",
         tags: [:hook_event],
         description: "Transcript entries offered by a hook"
       ),
-      sum("mem0.ingest.received.messages",
+      sum("bighead.ingest.received.messages",
         tags: [:hook_event],
         description: "Entries that became messages"
       ),
-      sum("mem0.ingest.received.dropped",
+      sum("bighead.ingest.received.dropped",
         tags: [:hook_event],
         description: "Entries the normaliser could not use"
       ),
@@ -145,25 +145,25 @@ defmodule Mem0Web.Telemetry do
       # the Stop pulse, which makes this its only failure surface — and the
       # `:fresh`/`:regenerated` ratio per turn is the cadence-versus-cost
       # curve `max_lag` gets retuned against.
-      summary("mem0.summarize.refresh.duration",
+      summary("bighead.summarize.refresh.duration",
         tags: [:outcome],
         unit: {:microsecond, :millisecond},
         description: "Wall time of one summary freshness check, by outcome"
       ),
-      summary("mem0.ingest.stop.duration",
+      summary("bighead.ingest.stop.duration",
         unit: {:native, :millisecond},
         description: "Wall time of one ingestion, extraction through update"
       ),
-      sum("mem0.ingest.stop.operation_count",
+      sum("bighead.ingest.stop.operation_count",
         tags: [:operation],
         description: "Memory operations performed, by ADD/UPDATE/DELETE/NOOP"
       ),
-      summary("mem0.search.stop.duration",
+      summary("bighead.search.stop.duration",
         tags: [:channel],
         unit: {:native, :millisecond},
         description: "Wall time of one retrieval, by channel"
       ),
-      summary("mem0.search.stop.result_count",
+      summary("bighead.search.stop.result_count",
         tags: [:channel],
         description: "Results returned, by channel"
       ),
@@ -178,7 +178,7 @@ defmodule Mem0Web.Telemetry do
 
   @spec reporters() :: [Supervisor.child_spec() | {module(), term()}]
   defp reporters do
-    if Application.get_env(:mem0, :telemetry_console_reporter, false) do
+    if Application.get_env(:bighead, :telemetry_console_reporter, false) do
       [{ConsoleReporter, metrics: metrics()}]
     else
       []
@@ -190,7 +190,7 @@ defmodule Mem0Web.Telemetry do
     [
       # A module, function and arguments to be invoked periodically.
       # This function must call :telemetry.execute/3 and a metric must be added above.
-      # {Mem0Web, :count_users, []}
+      # {BigheadWeb, :count_users, []}
     ]
   end
 end

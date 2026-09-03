@@ -1,11 +1,11 @@
-defmodule Mem0.Extractor.PromptTest do
+defmodule Bighead.Extractor.PromptTest do
   @moduledoc """
   The extraction prompt: the conversation renders as `role: content` lines
   under the summary, and the system prompt carries the extraction rules.
   """
   use ExUnit.Case, async: true
 
-  alias Mem0.Extractor.Prompt
+  alias Bighead.Extractor.Prompt
 
   describe "render/1" do
     test "renders each message as a role: content line, in order" do

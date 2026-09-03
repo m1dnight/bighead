@@ -1,6 +1,6 @@
-defmodule Mem0Web.DiffApiSpec do
+defmodule BigheadWeb.DiffApiSpec do
   @moduledoc """
-  OpenAPI operations for `Mem0Web.DiffController`. The controller delegates
+  OpenAPI operations for `BigheadWeb.DiffController`. The controller delegates
   `open_api_operation/1` here so the spec lives next to the code it
   describes without crowding it.
   """

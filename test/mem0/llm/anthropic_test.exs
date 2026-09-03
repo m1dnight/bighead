@@ -1,13 +1,13 @@
-defmodule Mem0.LLM.AnthropicTest do
+defmodule Bighead.LLM.AnthropicTest do
   @moduledoc """
-  Turns the five API facts in `Mem0.LLM.Anthropic`'s moduledoc into regression
+  Turns the five API facts in `Bighead.LLM.Anthropic`'s moduledoc into regression
   tests. These are the behaviours that are expensive to discover in production,
   and none of them needs a socket: the request-shape tests swap in a `Req`
   adapter module, the response-shape tests use `Req.Test`.
   """
   use ExUnit.Case, async: true
 
-  alias Mem0.LLM.Anthropic
+  alias Bighead.LLM.Anthropic
 
   @opts [api_key: "sk-ant-test", model: "claude-opus-5", max_tokens: 16_000]
 
@@ -191,7 +191,7 @@ defmodule Mem0.LLM.AnthropicTest do
 
   @tag :live
   test "a well-formed call round-trips against the real API" do
-    config = Application.fetch_env!(:mem0, :live_llm)
+    config = Application.fetch_env!(:bighead, :live_llm)
 
     assert config[:api_key], "ANTHROPIC_API_KEY is not set; mix test.live needs it"
 
@@ -207,11 +207,11 @@ defmodule Mem0.LLM.AnthropicTest do
     assert response.model =~ "claude"
   end
 
-  # `Mem0.ReqEcho` replaces the transport and hands the built request back. It
+  # `Bighead.ReqEcho` replaces the transport and hands the built request back. It
   # is the only place options like `receive_timeout` are still visible — a
   # `Plug` sees the socket-level request, not Req's configuration.
   defp capture_request(request, opts) do
-    Anthropic.complete(request, Keyword.put(opts, :req_options, adapter: Mem0.ReqEcho))
+    Anthropic.complete(request, Keyword.put(opts, :req_options, adapter: Bighead.ReqEcho))
 
     assert_received {:req_request, req}
     req

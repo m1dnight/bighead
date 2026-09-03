@@ -1,9 +1,9 @@
-defmodule Mem0.MixProject do
+defmodule Bighead.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :mem0,
+      app: :bighead,
       version: "0.1.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -21,7 +21,7 @@ defmodule Mem0.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Mem0.Application, []},
+      mod: {Bighead.Application, []},
       extra_applications: [:logger, :runtime_tools, :xmerl]
     ]
   end
@@ -107,7 +107,7 @@ defmodule Mem0.MixProject do
   # `Mix.Task.run("test", ...)`, because the latter goes back through the alias
   # table and lands on the `ecto.create`-prefixed `test` alias again.
   defp run_core_tests(args) do
-    Application.put_env(:mem0, :start_repo, false)
+    Application.put_env(:bighead, :start_repo, false)
     Mix.Tasks.Test.run(["--exclude", "db" | args])
   end
 
@@ -128,7 +128,7 @@ defmodule Mem0.MixProject do
       "test.live": ["ecto.create --quiet", "ecto.migrate --quiet", "test --include live"],
       # The functional core needs nothing: no database, no network, no sandbox.
       # `:db` tags every test that checks out a sandbox connection (see
-      # `Mem0.DataCase` and `Mem0Web.ConnCase`), so excluding it makes that
+      # `Bighead.DataCase` and `BigheadWeb.ConnCase`), so excluding it makes that
       # claim checkable — `mix test.core` passes with the container stopped.
       #
       # It cannot be written `["test --exclude db"]`. A task named from inside
@@ -138,10 +138,10 @@ defmodule Mem0.MixProject do
       # prove does not happen. Invoking the task module bypasses the table.
       "test.core": [&run_core_tests/1],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind mem0", "esbuild mem0"],
+      "assets.build": ["compile", "tailwind bighead", "esbuild bighead"],
       "assets.deploy": [
-        "tailwind mem0 --minify",
-        "esbuild mem0 --minify",
+        "tailwind bighead --minify",
+        "esbuild bighead --minify",
         "phx.digest"
       ],
       # `format` rewrites rather than checks, because locally you want it fixed,
@@ -154,7 +154,7 @@ defmodule Mem0.MixProject do
       # defects it alone catches are cheap to fix once everything else is
       # green. It was kept out while there was no domain code for it to
       # analyse; Phase 2 added one, and with it the failure mode nothing else
-      # sees — a remote type written `Scope.t()` where `Mem0.Core.Scope.t()`
+      # sees — a remote type written `Scope.t()` where `Bighead.Core.Scope.t()`
       # was meant compiles clean, under `--warnings-as-errors`, as a reference
       # to a module that does not exist.
       #

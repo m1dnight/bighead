@@ -1,10 +1,10 @@
-defmodule Mem0Web.ProjectLive.Show do
+defmodule BigheadWeb.ProjectLive.Show do
   @moduledoc """
   Shows the facts and guidelines extracted for one `(user, project)` pair, across all its sessions.
   """
-  use Mem0Web, :live_view
+  use BigheadWeb, :live_view
 
-  alias Mem0.Store.Facts
+  alias Bighead.Store.Facts
 
   @impl true
   def mount(%{"user" => user, "project" => project}, _session, socket) do

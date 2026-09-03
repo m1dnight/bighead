@@ -1,4 +1,4 @@
-defmodule Mem0.Store.Messages do
+defmodule Bighead.Store.Messages do
   @moduledoc """
   Context module to retrieve/update/store messages in the database.
   """
@@ -6,9 +6,9 @@ defmodule Mem0.Store.Messages do
   import Ecto.Query
   import Util
 
-  alias Mem0.Repo
-  alias Mem0.Store.Message
-  alias Mem0.Store.Scope
+  alias Bighead.Repo
+  alias Bighead.Store.Message
+  alias Bighead.Store.Scope
 
   @doc """
   Inserts a new message, or returns the already-stored message with the same

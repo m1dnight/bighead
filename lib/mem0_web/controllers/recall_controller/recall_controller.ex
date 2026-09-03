@@ -1,4 +1,4 @@
-defmodule Mem0Web.RecallController do
+defmodule BigheadWeb.RecallController do
   @moduledoc """
   Returns the stored facts most relevant to a prompt.
 
@@ -9,11 +9,11 @@ defmodule Mem0Web.RecallController do
   expected shape, 502 when the embedder upstream is down.
   """
 
-  use Mem0Web, :controller
+  use BigheadWeb, :controller
 
-  alias Mem0.Recaller
+  alias Bighead.Recaller
 
-  defdelegate open_api_operation(action), to: Mem0Web.RecallApiSpec
+  defdelegate open_api_operation(action), to: BigheadWeb.RecallApiSpec
 
   @doc """
   Recalls the facts relevant to one prompt:

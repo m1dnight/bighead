@@ -1,4 +1,4 @@
-defmodule Mem0.Repo.Migrations.CreateMemories do
+defmodule Bighead.Repo.Migrations.CreateMemories do
   use Ecto.Migration
 
   def change do
@@ -20,7 +20,7 @@ defmodule Mem0.Repo.Migrations.CreateMemories do
       # NOT NULL turns that bug into a constraint violation at write time
       # instead of a silent retrieval gap.
       #
-      # 768 is the value of `config :mem0, :embedder, :dimensions`, hardcoded
+      # 768 is the value of `config :bighead, :embedder, :dimensions`, hardcoded
       # here on purpose — a migration that changes shape with runtime
       # configuration is not a migration.
       add :embedding, :vector, size: 768, null: false

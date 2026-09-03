@@ -1,12 +1,12 @@
-defmodule Mem0.Ingester.Codex do
+defmodule Bighead.Ingester.Codex do
   @moduledoc """
   Ingests JSON entries form transcripts in a Codex chat, and converts them to
-  `t:Mem0.Ingester.message/0` maps.
+  `t:Bighead.Ingester.message/0` maps.
   """
 
-  @behaviour Mem0.Ingester
+  @behaviour Bighead.Ingester
 
-  alias Mem0.Ingester.Decoder
+  alias Bighead.Ingester.Decoder
 
   @impl true
   # a user message in a response_item is kept.

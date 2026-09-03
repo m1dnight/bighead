@@ -1,4 +1,4 @@
-defmodule Mem0Web.ErrorJSON do
+defmodule BigheadWeb.ErrorJSON do
   @moduledoc """
   This module is invoked by your endpoint in case of errors on JSON requests.
 

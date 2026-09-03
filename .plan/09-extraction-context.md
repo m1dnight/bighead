@@ -36,18 +36,18 @@ itself, which is memory laundered back into facts.
 Scope ──┤                                    ├──▶ Prompt.from_history ──▶ P = (S, recent, new)
             Messages.for_run/1 ──▶ history ──┘        (pure split at `since`)
                                                              │
-P ──render──▶ sectioned prompt text ──Mem0.LLM──▶ {"facts": [...]} ──decode──▶ [Fact.t()] in Extraction.t()
+P ──render──▶ sectioned prompt text ──Bighead.LLM──▶ {"facts": [...]} ──decode──▶ [Fact.t()] in Extraction.t()
     (pure)                           (boundary)                        (pure; provenance = new ids only)
 ```
 
-Same two seams as Phase 5, one struct richer. `Mem0.Core.Prompt` and `Mem0.Core.Extraction` stay
-pure — no clock, no store, same layering test. `Mem0.Extract` grows the store reads the way
-`Mem0.Summarize.refresh/2` did in Phase 8, and for the same reason: the composition goes in the
+Same two seams as Phase 5, one struct richer. `Bighead.Core.Prompt` and `Bighead.Core.Extraction` stay
+pure — no clock, no store, same layering test. `Bighead.Extract` grows the store reads the way
+`Bighead.Summarize.refresh/2` did in Phase 8, and for the same reason: the composition goes in the
 module that already owns the impure step, because a new module would be surface for one function.
 
 ---
 
-## 9.1 `Mem0.Core.Prompt` — reshaped, because the pair was the wrong unit
+## 9.1 `Bighead.Core.Prompt` — reshaped, because the pair was the wrong unit
 
 The struct exists (Phase 2) and nothing but test fixtures constructs one, so it is reshaped
 rather than versioned:
@@ -98,11 +98,11 @@ end
   is what everything else calls. The core trusts its input: no cross-checking that the summary's
   scope matches the messages' — one validation point, at the boundary, per the standing decision.
 
-## 9.2 `Mem0.Core.Extraction` — the prompt learns to tell context from target
+## 9.2 `Bighead.Core.Extraction` — the prompt learns to tell context from target
 
 `request/1` and `render/1` are rewritten to take a `Prompt.t()`, not wrapped — the Phase 8
 `stale?/2` argument: the add-a-new-function rule protects callers, and the only callers are
-`Mem0.Extract` and the `:live` test, both of which this phase changes anyway. `decode/4` is
+`Bighead.Extract` and the `:live` test, both of which this phase changes anyway. `decode/4` is
 untouched.
 
 - **`render/1`** produces sectioned user content in place of the flat transcript:
@@ -136,7 +136,7 @@ untouched.
   `{"facts": [string]}` schema. One place builds it, so the `:live` test and the boundary send
   the same bytes.
 
-## 9.3 `Mem0.Extract` — the boundary, now two functions
+## 9.3 `Bighead.Extract` — the boundary, now two functions
 
 ```elixir
 @spec facts(Prompt.t(), keyword()) :: {:ok, Extraction.t()} | {:error, term()}
@@ -145,7 +145,7 @@ untouched.
 
 - **`facts/2`** takes the assembled prompt: scope from `prompt.scope`, request from
   `Extraction.request/1`, one `DateTime.utc_now/0` stamping `prompt_at` and every fact's
-  `extracted_at`, `opts` through to `Mem0.LLM.complete/2` untouched, port errors through
+  `extracted_at`, `opts` through to `Bighead.LLM.complete/2` untouched, port errors through
   unchanged. A hand-built prompt with an empty `new` is refused with `{:error, :no_messages}`
   before any call — Phase 5's "a call that should never be made" posture, kept.
 - **`source_message_ids` becomes the new slice's ids only.** Phase 5 passed every id in the batch
@@ -170,7 +170,7 @@ at most 10 stored messages behind the head, and extraction's context window hold
 before the new exchange — so the gap between what `S` has read and what `recent` shows is covered
 by construction, provided a turn stays smaller than the difference. That proviso is now a real
 invariant with a real failure mode (a 15-message turn leaves messages no context covers), it is
-machine-shape-dependent, and the `[:mem0, :summarize, :refresh]` telemetry Phase 8 added is the
+machine-shape-dependent, and the `[:bighead, :summarize, :refresh]` telemetry Phase 8 added is the
 instrument for watching it. This phase writes the invariant down and changes neither constant:
 retuning either cap belongs to the phase that can read the live ratio.
 
@@ -185,11 +185,11 @@ retuning either cap belongs to the phase that can read the live ratio.
   at 20; a `new` slice past 20 comes through whole; char truncation in every section; ordering
   within sections. `request/1` carries the system prompt and the schema. The `decode/4` suite is
   untouched. Constructors test and `core_fixtures` updated for the reshaped struct.
-- **Boundary, against `Mem0.LLM.Stub`:** the request bytes place the summary text and both
+- **Boundary, against `Bighead.LLM.Stub`:** the request bytes place the summary text and both
   message sections where `render/1` says (assert via `Stub.calls/0`); the extraction's and every
   fact's `source_message_ids` name only `new`'s ids even when `recent` is present; an empty-`new`
   prompt makes zero calls; a port error passes through.
-- **Composition, `Mem0.DataCase` + `Stub`** — the Phase 8 pattern: `facts_since/3` on a run with
+- **Composition, `Bighead.DataCase` + `Stub`** — the Phase 8 pattern: `facts_since/3` on a run with
   a stored summary sends that summary's text; on a run with none sends no summary section; with
   `since` at the head makes zero calls; on an empty run makes zero calls.
 - **One `@tag :live` test**, run by hand and *read*: the same fixture conversation extracted
@@ -221,7 +221,7 @@ spend. **No fact persistence** — no facts table, no memories table, no embedde
 us read. **No recall change**: `user_prompt_submit` still answers `""`. **No app- or user-rung
 summaries in the prompt** — `S` is per-run; reading up the covering ladder is recall's question.
 **No per-fact attribution and no `event_time`** — re-parked from Phase 5, unchanged. **No
-extraction telemetry** — `[:mem0, :extract, :completed]` lands with the trigger, where there is a
+extraction telemetry** — `[:bighead, :extract, :completed]` lands with the trigger, where there is a
 call site worth measuring; re-parked from Phase 5. **No retuning** of `@max_messages`, `@max_chars`
 or `max_lag` (§9.4).
 

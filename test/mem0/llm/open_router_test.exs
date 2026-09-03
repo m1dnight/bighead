@@ -1,13 +1,13 @@
-defmodule Mem0.LLM.OpenRouterTest do
+defmodule Bighead.LLM.OpenRouterTest do
   @moduledoc """
-  Turns the API facts in `Mem0.LLM.OpenRouter`'s moduledoc into regression
-  tests, the same way `Mem0.LLM.AnthropicTest` does for its adapter. None of
+  Turns the API facts in `Bighead.LLM.OpenRouter`'s moduledoc into regression
+  tests, the same way `Bighead.LLM.AnthropicTest` does for its adapter. None of
   them needs a socket: the request-shape tests swap in a `Req` adapter module,
   the response-shape tests use `Req.Test`.
   """
   use ExUnit.Case, async: true
 
-  alias Mem0.LLM.OpenRouter
+  alias Bighead.LLM.OpenRouter
 
   @opts [api_key: "sk-or-test", model: "anthropic/claude-opus-5", max_tokens: 16_000]
 
@@ -205,7 +205,7 @@ defmodule Mem0.LLM.OpenRouterTest do
   end
 
   defp capture_request(request, opts) do
-    OpenRouter.complete(request, Keyword.put(opts, :req_options, adapter: Mem0.ReqEcho))
+    OpenRouter.complete(request, Keyword.put(opts, :req_options, adapter: Bighead.ReqEcho))
 
     assert_received {:req_request, req}
     req

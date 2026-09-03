@@ -1,9 +1,9 @@
 # Phase 4 — Hook ingress
 
-**Goal:** a real Claude Code session can post its conversation to mem0 over HTTP, and mem0 turns it
-into `Mem0.Core.Message` structs — validated, attributed to a scope, tolerant of a format it does
+**Goal:** a real Claude Code session can post its conversation to bighead over HTTP, and bighead turns it
+into `Bighead.Core.Message` structs — validated, attributed to a scope, tolerant of a format it does
 not control, and unable to break the session that sent it. **The phase terminates at that data.**
-No extraction, no embedding, no persistence, no recall, and no call into the `Mem0` boundary, which
+No extraction, no embedding, no persistence, no recall, and no call into the `Bighead` boundary, which
 does not exist yet.
 
 > Phase 3.5 built a throwaway version of this: a controller that logged its payload, and a
@@ -14,7 +14,7 @@ does not exist yet.
 ## Why a surface now, ahead of the pipeline
 
 The overview's fourth sequencing principle is *surfaces last*: REST, MCP and the hooks are thin
-wrappers over a `Mem0` boundary, cheap once the boundary is right and worthless before. Taken
+wrappers over a `Bighead` boundary, cheap once the boundary is right and worthless before. Taken
 literally, this phase violates it.
 
 It does not, and the distinction matters. What this phase delivers is **a pure function from Claude
@@ -28,20 +28,20 @@ guess is the expensive order.
 
 ### What "no boundary" means concretely
 
-`Mem0.Core.Message` is core *data*, not a boundary — the layering test forbids anything under
-`Mem0.Core.*` from reaching a `Repo`, an HTTP client, a process or a clock, and a boundary is
+`Bighead.Core.Message` is core *data*, not a boundary — the layering test forbids anything under
+`Bighead.Core.*` from reaching a `Repo`, an HTTP client, a process or a clock, and a boundary is
 defined by doing exactly those things. Having the struct means having the vocabulary the boundary
-will speak, not the boundary. `lib/mem0.ex` is still the generated moduledoc.
+will speak, not the boundary. `lib/bighead.ex` is still the generated moduledoc.
 
-So this phase adds **one small boundary of its own, and it terminates.** `Mem0.Ingest` validates,
+So this phase adds **one small boundary of its own, and it terminates.** `Bighead.Ingest` validates,
 builds a `Scope`, calls the normaliser, emits telemetry and broadcasts. Its only effects are a
 telemetry event and a `PubSub` message. It calls nothing downstream, because there is nothing
-downstream: no `Mem0.remember/2`, no `Repo`, no LLM, no embedder. The messages it produces are
+downstream: no `Bighead.remember/2`, no `Repo`, no LLM, no embedder. The messages it produces are
 handed to a dev LiveView and then dropped on the floor.
 
 That is the point of doing it now. Its output is Phase 5's *input* — real messages, in the real
 shape, from real sessions — available to write prompts against before the machinery that consumes
-them exists. The seam is `Mem0.Ingest.receive/2`; Phase 5 changes what happens to the list it
+them exists. The seam is `Bighead.Ingest.receive/2`; Phase 5 changes what happens to the list it
 returns, and nothing about the parsing changes.
 
 ---
@@ -60,7 +60,7 @@ That produces the phase's central rule:
 
 Concretely: no `Map.fetch!/2`, no `struct!/2` on payload-derived data, no pattern match that assumes
 a key. A `case` with a catch-all returning `{:drop, reason}` on every path. When Claude Code ships a
-new entry type, mem0 keeps ingesting the ones it recognises and the drop counter says something
+new entry type, bighead keeps ingesting the ones it recognises and the drop counter says something
 changed. The failure mode of the alternative is a `UserPromptSubmit` hook returning 500 and every
 prompt in every session stalling behind it.
 
@@ -105,7 +105,7 @@ The assumed rows are exactly where a wrong guess costs a real message, so verify
 
 ---
 
-## 4.2 `Mem0.Core.Transcript.ClaudeCode`
+## 4.2 `Bighead.Core.Transcript.ClaudeCode`
 
 The spine of the phase. Pure, in the core, no clock, no I/O.
 
@@ -114,7 +114,7 @@ plain chat log — is a sibling module returning the same `[Message.t()]`, and t
 namespace is left free in case one ever justifies a behaviour.
 
 ```elixir
-defmodule Mem0.Core.Transcript.ClaudeCode do
+defmodule Bighead.Core.Transcript.ClaudeCode do
   @type entry :: map()
 
   # Ordered as the rules are applied: cheap structural rejections first,
@@ -177,26 +177,26 @@ appended to right now.
 as `:unparseable_timestamp` rather than stamped with the current time. Inventing a `said_at` for a
 message whose real one is unknown corrupts every temporal predicate downstream, and the entries that
 would need it are exactly the malformed ones nobody wants. This satisfies
-`test/mem0/core/layering_test.exs`'s clock rule by construction rather than by care.
+`test/bighead/core/layering_test.exs`'s clock rule by construction rather than by care.
 
 ### Why not a behaviour
 
-The instinct is to make this a port like `Mem0.LLM`, so a second agent's format drops in behind the
+The instinct is to make this a port like `Bighead.LLM`, so a second agent's format drops in behind the
 same contract. Three reasons not to, yet:
 
-- **The Phase 3 ports isolate I/O; this isolates nothing.** `Mem0.LLM` earns its behaviour because
+- **The Phase 3 ports isolate I/O; this isolates nothing.** `Bighead.LLM` earns its behaviour because
   the stub is a real second implementation doing a real job — a suite with no network and no keys.
   A stub transcript parser has no job: the parser is already pure and fixtures test it directly. One
   implementation and no test-driven second one is the definition of a premature abstraction.
 - **The format is a property of the request, not the deployment.** A config-selected adapter picks
-  one at boot, which is right for `MEM0_LLM_PROVIDER`. Two agents posting to the same instance need
+  one at boot, which is right for `BIGHEAD_LLM_PROVIDER`. Two agents posting to the same instance need
   both parsers live at once, selected per route or per payload — a router entry, not a behaviour.
 - **The callback would be wrong.** Sources differ in what they can say about identity: an export
   with no `session_id` and no `cwd` derives its `Scope` differently. That derivation belongs in the
   boundary above the parser, which is why `messages/3` takes a `Scope` rather than building one.
 
 The seam that matters is the return type. Any second source is a module returning `[Message.t()]` —
-a new file, not a changed contract. Promote `Mem0.Core.Transcript` to a behaviour on the day there
+a new file, not a changed contract. Promote `Bighead.Core.Transcript` to a behaviour on the day there
 is a second parser and the two agree on a signature, not before.
 
 ---
@@ -358,14 +358,14 @@ body, which is written by whatever process ran the hook.
 | `run_id` | `session_id` from the payload | client |
 
 **Authentication is deferred, and the rule above is what makes deferring it safe.** There is no
-bearer token in this phase: `user_id` comes from `MEM0_DEFAULT_USER_ID`, resolved in the boundary.
+bearer token in this phase: `user_id` comes from `BIGHEAD_DEFAULT_USER_ID`, resolved in the boundary.
 Nothing changes about where it may *not* come from — a payload claiming another user is still
 attributed to the server's value, because the body is still never read for it. What is missing is
 only the ability to have more than one user, and 4.8 records that as debt.
 
 It stays a real binary rather than `nil`, because the `Scope` it builds is threaded through every
 downstream filter; a `nil` there would shape the whole pipeline around a value that disappears the
-day auth lands. When it does, `MEM0_HOOK_TOKENS` maps token to `user_id`, compared with
+day auth lands. When it does, `BIGHEAD_HOOK_TOKENS` maps token to `user_id`, compared with
 `Plug.Crypto.secure_compare/2`, and the only line that changes is the one resolving the default.
 
 `app_id` and `run_id` stay client-supplied because a wrong one mislabels a memory rather than
@@ -381,17 +381,17 @@ the user-global scope rather than raising. That is correct behaviour and it come
 
 ---
 
-## 4.6 The boundary: `Mem0.Ingest`
+## 4.6 The boundary: `Bighead.Ingest`
 
-**This is not `Mem0`.** It is a boundary whose only job is to get data in and stop. When `Mem0`
-exists, `Mem0.Ingest` becomes one of its callers; today it calls nothing.
+**This is not `Bighead`.** It is a boundary whose only job is to get data in and stop. When `Bighead`
+exists, `Bighead.Ingest` becomes one of its callers; today it calls nothing.
 
 ```elixir
 @spec receive(payload :: map(), user_id :: String.t()) ::
         {:ok, [Message.t()], [ClaudeCode.drop()]} | {:error, term()}
 ```
 
-The second argument is the server-resolved `user_id` — `MEM0_DEFAULT_USER_ID` in this phase, the
+The second argument is the server-resolved `user_id` — `BIGHEAD_DEFAULT_USER_ID` in this phase, the
 token's user when auth lands (4.5) — and **not** a `Scope`. Building the `Scope` is this module's
 job, because that is where server-trusted identity and client-supplied `cwd`/`session_id` are
 combined, and 4.5's rule only holds if one place does it. Keeping the argument even though it has
@@ -401,7 +401,7 @@ to this module.
 It validates (per the overview's *the core trusts its input; the boundary validates*), checks
 `length(entries) == transcript_length` and derives
 `offset = total_transcript_length - transcript_length` (4.2), builds the `Scope`, calls
-`Transcript.ClaudeCode.messages/3`, emits telemetry, broadcasts on `Mem0.PubSub`, and returns.
+`Transcript.ClaudeCode.messages/3`, emits telemetry, broadcasts on `Bighead.PubSub`, and returns.
 
 It exists as a module rather than as controller code for one reason: validation and scope
 construction are what a second surface would otherwise duplicate, and putting them in a Phoenix
@@ -442,7 +442,7 @@ none of it.
 > answer just produced missing. Overlap recovers it on the next turn, but the last answer of a
 > session never would, and recall would lag a turn behind.
 >
-> **Reverted in Phase 6.** `Mem0.Ingest` did rebuild that message from the payload's own
+> **Reverted in Phase 6.** `Bighead.Ingest` did rebuild that message from the payload's own
 > `last_assistant_message`, under the id `"pending:" <> prompt_id`. It was removed: that id is one
 > no transcript will ever agree with, so the real entry arriving on the next turn is a second row
 > with the same words and a different identity — a duplicate no primary key can catch and every
@@ -489,23 +489,23 @@ All of it through `runtime.exs`, per `AGENTS.md`, with `.env.example` updated in
 
 ```sh
 # --- Claude Code hook ingress -----------------------------------------------
-MEM0_DEFAULT_USER_ID=christophe   # until bearer tokens land (4.5)
-MEM0_HOOK_MAX_BODY=16777216       # bytes; a safety valve, not the real control
+BIGHEAD_DEFAULT_USER_ID=christophe   # until bearer tokens land (4.5)
+BIGHEAD_HOOK_MAX_BODY=16777216       # bytes; a safety valve, not the real control
 ```
 
-`MEM0_DEFAULT_USER_ID` falls back to something like `"local"` rather than being required. An install
+`BIGHEAD_DEFAULT_USER_ID` falls back to something like `"local"` rather than being required. An install
 with no configuration should ingest: there is nothing to protect yet, and a hard failure at boot is
 a worse first experience than a memory filed under a placeholder name.
 
 **That default is open, and it is the one place this phase is deliberately less safe than the
-previous draft.** With `MEM0_HOOK_TOKENS` the rule was that an unconfigured install rejects
+previous draft.** With `BIGHEAD_HOOK_TOKENS` the rule was that an unconfigured install rejects
 everything with a 401, on the grounds that an open default fails silently and a closed one fails
 with a log line. That reasoning is still correct and returns with auth. What suspends it here is
 that there is no second user to keep out, and the loopback bind in 4.7 carries the weight in the
 meantime. Record it as debt, not as a decision that was re-argued and won.
 
-The scripts hardcode `http://localhost:4001` and send no token. `MEM0_HOOK_URL` and
-`MEM0_HOOK_TOKEN` arrive with auth; reading them in the script is not a violation of the
+The scripts hardcode `http://localhost:4001` and send no token. `BIGHEAD_HOOK_URL` and
+`BIGHEAD_HOOK_TOKEN` arrive with auth; reading them in the script is not a violation of the
 `System.get_env`-only-in-`runtime.exs` rule, because the script is not the application.
 
 ---
@@ -525,7 +525,7 @@ deleting the `Logger.info` fixes only half of it. The route needs its params fil
 What replaces it:
 
 ```
-[:mem0, :ingest, :received]   %{entries: n, messages: n, dropped: n, duration: µs}
+[:bighead, :ingest, :received]   %{entries: n, messages: n, dropped: n, duration: µs}
                               %{user_id: ..., app_id: ..., run_id: ..., hook_event: ...}
 ```
 
@@ -539,7 +539,7 @@ types appear in the local corpus and only two are conversation — `attachment` 
 aggregate counter would bury a genuinely new type under that known-constant majority. Per-type
 counts turn the same data into the intended alarm: a bucket that did not exist last week.
 
-Payload inspection stays behind the existing `config :mem0, :log_llm_payloads`, which already
+Payload inspection stays behind the existing `config :bighead, :log_llm_payloads`, which already
 defaults to `false` everywhere and is hard-`false` in test.
 
 A dev-only LiveView at `/dev/ingest` subscribing to the broadcast replaces reading the log. It shows
@@ -573,9 +573,9 @@ someone just typed and the session it belongs to.
 
 Their invariants, which are the reason they are safe to run on every turn:
 
-- **Always exit 0.** A non-zero exit interrupts the session, so a mem0 that is down has to be
+- **Always exit 0.** A non-zero exit interrupts the session, so a bighead that is down has to be
   invisible.
-- **`user-prompt-submit.sh` writes nothing to stdout but mem0's response.** Claude Code reads that
+- **`user-prompt-submit.sh` writes nothing to stdout but bighead's response.** Claude Code reads that
   stdout as the hook result, so a stray `echo` becomes context in the conversation.
 - **`stop.sh` writes nothing to stdout at all**, and detaches its `curl`. A `Stop` hook that prints
   `{"decision": "block"}` sends Claude back to work instead of ending the turn.
@@ -605,7 +605,7 @@ reading them.
 - **A property test** (`stream_data` is already a dependency): for *any* generated JSON-shaped map,
   `messages/3` returns a tuple and does not raise. This is the direct test of 4.1's rule and the one
   most likely to catch a real bug.
-- **Controller tests** through `Mem0Web.ConnCase`: 200 from `/hooks/stop` on a real fixture body,
+- **Controller tests** through `BigheadWeb.ConnCase`: 200 from `/hooks/stop` on a real fixture body,
   200 on a body of garbage, 200 from `/hooks/user-prompt-submit`, the exact response key names for
   both, and a payload carrying its own `user_id` attributed to the configured default instead. Note that `ConnCase` sets
   `@moduletag :db`, so these are excluded from `mix test.core` even though the controller touches no
@@ -632,18 +632,18 @@ reading them.
 - [ ] `user_id` cannot be set from the request body — a payload claiming a different user is
       attributed to the configured default
 - [ ] No request produces a 5xx, including on a body that is not JSON at all
-- [ ] No transcript content appears in any log at default configuration, from mem0 *or* from
+- [ ] No transcript content appears in any log at default configuration, from bighead *or* from
       Phoenix's request logger
 - [ ] `stop/2`'s `IO.puts` and the dormant `log_payload/2` are both deleted
 - [ ] `mix test.core` still passes with the Postgres container stopped
-- [ ] The layering test still passes — `Mem0.Core.Transcript.ClaudeCode` reaches no clock, no `Req`,
+- [ ] The layering test still passes — `Bighead.Core.Transcript.ClaudeCode` reaches no clock, no `Req`,
       no `Repo`
 - [ ] `mix precommit` green
 
 ## Explicitly out of scope
 
-No extraction, no embedding, no persistence, no Ecto schema for messages, and no `Mem0` public API —
-`lib/mem0.ex` is untouched by this phase. No recall: `additionalContext` ships empty. No
+No extraction, no embedding, no persistence, no Ecto schema for messages, and no `Bighead` public API —
+`lib/bighead.ex` is untouched by this phase. No recall: `additionalContext` ships empty. No
 deduplication (4.6). No authentication (4.5, 4.8). No pruning of retracted turns (4.3). No
 `MessageDisplay` — it was built, measured and removed (4.7). No `PreToolUse`, no `SessionEnd`. No
 MCP server. No retention or deletion of what was ingested, because nothing is stored yet.
@@ -657,7 +657,7 @@ MCP server. No retention or deletion of what was ingested, because nothing is st
 | Whether subagent (`isSidechain`) turns are the user's conversation | Depends on whether memories are per-person or per-conversation | the `:sidechain` drop becoming a config flag |
 | `app_id` collisions between two checkouts with the same basename | Only bites with more than one machine or checkout | git remote, or a hash of the full path |
 | Whether retracted (rewound or edited) turns should be pruned | Worth two entries in 1546 today, and the rule can discard real prompts if the assumed fork behaviour is wrong (4.3) | a `parentUuid` walk, once a real rewound transcript exists to test against |
-| When bearer tokens land | Nothing to protect while the endpoint is loopback-bound and single-user (4.8) | `MEM0_HOOK_TOKENS` and an auth plug in front of both routes |
+| When bearer tokens land | Nothing to protect while the endpoint is loopback-bound and single-user (4.8) | `BIGHEAD_HOOK_TOKENS` and an auth plug in front of both routes |
 | Backpressure if a client posts a huge transcript every turn | Measured at 0.45 MB worst case over the local corpus; the tail-slice is the control and has two orders of headroom | the scoped `Plug.Parsers` limit |
 | Whether `seq` should be assigned by the store at insert rather than by the client | The store knows the run's true length and cannot miscount; there is no store yet | `offset` disappearing from `messages/3` |
-| Whether transcript parsing becomes a behaviour | Needs a second real format before a shared signature can be designed rather than guessed | `Mem0.Core.Transcript` as a `@behaviour` |
+| Whether transcript parsing becomes a behaviour | Needs a second real format before a shared signature can be designed rather than guessed | `Bighead.Core.Transcript` as a `@behaviour` |

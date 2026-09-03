@@ -1,6 +1,6 @@
-defmodule Mem0Web.TranscriptApiSpec do
+defmodule BigheadWeb.TranscriptApiSpec do
   @moduledoc """
-  OpenAPI operations for `Mem0Web.TranscriptController`. The controller
+  OpenAPI operations for `BigheadWeb.TranscriptController`. The controller
   delegates `open_api_operation/1` here so the spec lives next to the code
   it describes without crowding it.
   """

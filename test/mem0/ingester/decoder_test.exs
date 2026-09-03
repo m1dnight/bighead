@@ -1,11 +1,11 @@
-defmodule Mem0.Ingester.DecoderTest do
+defmodule Bighead.Ingester.DecoderTest do
   @moduledoc """
-  The content shapes `Mem0.Ingester.Decoder` accepts: a bare string, a list of
+  The content shapes `Bighead.Ingester.Decoder` accepts: a bare string, a list of
   text blocks, and the non-text blocks that must contribute nothing.
   """
   use ExUnit.Case, async: true
 
-  alias Mem0.Ingester.Decoder
+  alias Bighead.Ingester.Decoder
 
   describe "decode_contents/1" do
     test "a bare string is trimmed" do

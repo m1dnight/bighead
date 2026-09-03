@@ -1,4 +1,4 @@
-defmodule Mem0.DataCase do
+defmodule Bighead.DataCase do
   @moduledoc """
   This module defines the setup for tests requiring
   access to the application's data layer.
@@ -10,7 +10,7 @@ defmodule Mem0.DataCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use Mem0.DataCase, async: true`, although
+  by setting `use Bighead.DataCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -27,16 +27,16 @@ defmodule Mem0.DataCase do
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
-      import Mem0.DataCase
+      import Bighead.DataCase
 
-      alias Mem0.Repo
+      alias Bighead.Repo
 
       @moduletag :db
     end
   end
 
   setup tags do
-    Mem0.DataCase.setup_sandbox(tags)
+    Bighead.DataCase.setup_sandbox(tags)
     :ok
   end
 
@@ -44,7 +44,7 @@ defmodule Mem0.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Sandbox.start_owner!(Mem0.Repo, shared: not tags[:async])
+    pid = Sandbox.start_owner!(Bighead.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
   end
 

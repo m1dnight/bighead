@@ -1,13 +1,13 @@
-defmodule Mem0.RecallerTest do
+defmodule Bighead.RecallerTest do
   @moduledoc """
   The recaller: embed a prompt, keep the closest facts above the floor.
   """
-  use Mem0.DataCase, async: true
+  use Bighead.DataCase, async: true
 
-  alias Mem0.Embedder
-  alias Mem0.Recaller
-  alias Mem0.Store.Facts
-  alias Mem0.Store.Scopes
+  alias Bighead.Embedder
+  alias Bighead.Recaller
+  alias Bighead.Store.Facts
+  alias Bighead.Store.Scopes
 
   setup do
     Embedder.Stub.start!()

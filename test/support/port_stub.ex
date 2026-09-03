@@ -1,6 +1,6 @@
-defmodule Mem0.PortStub do
+defmodule Bighead.PortStub do
   @moduledoc """
-  The machinery behind `Mem0.LLM.Stub` and `Mem0.Embedder.Stub`.
+  The machinery behind `Bighead.LLM.Stub` and `Bighead.Embedder.Stub`.
 
   A stub holds two things: what to reply with, and every request it was handed.
   Both live in an `Agent` started by the test and supervised by ExUnit, so state
@@ -26,8 +26,8 @@ defmodule Mem0.PortStub do
   @doc """
   Starts a stub agent under the test supervisor and registers it for this process.
 
-  Returns the agent pid. Called from `Mem0.LLM.Stub.start!/1` and
-  `Mem0.Embedder.Stub.start!/1` rather than directly.
+  Returns the agent pid. Called from `Bighead.LLM.Stub.start!/1` and
+  `Bighead.Embedder.Stub.start!/1` rather than directly.
   """
   @spec start!(atom(), reply()) :: pid()
   def start!(key, reply) do
@@ -71,7 +71,7 @@ defmodule Mem0.PortStub do
         Start one in the test (or in a setup block) before the code under test
         calls the port:
 
-            Mem0.LLM.Stub.start!(reply: {:ok, %{content: "…"}})
+            Bighead.LLM.Stub.start!(reply: {:ok, %{content: "…"}})
         """
 
       pid ->

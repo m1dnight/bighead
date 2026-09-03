@@ -1,4 +1,4 @@
-defmodule Mem0.Reconciler do
+defmodule Bighead.Reconciler do
   @moduledoc """
   Reconciles newly extracted facts with the facts that are already in the
   database.
@@ -8,9 +8,9 @@ defmodule Mem0.Reconciler do
 
   If there are contradictions they are reoconciled here.
   """
-  alias Mem0.Reconciler.Prompt
-  alias Mem0.Store.Fact
-  alias Mem0.Store.Facts
+  alias Bighead.Reconciler.Prompt
+  alias Bighead.Store.Fact
+  alias Bighead.Store.Facts
 
   @typep operation ::
            {:delete, integer(), String.t()}
@@ -70,12 +70,12 @@ defmodule Mem0.Reconciler do
 
   @spec reconcile_fact(String.t(), [Fact.t()]) ::
           {String.t(), operation()}
-          | {:error, :no_facts_to_reconcile | Mem0.LLM.reason()}
+          | {:error, :no_facts_to_reconcile | Bighead.LLM.reason()}
           | {:error, :invalid_response, map()}
           | {:error, :invalid_json, String.t()}
   defp reconcile_fact(fact, facts) do
     with {:ok, request} <- request(fact, facts),
-         {:ok, response} <- Mem0.LLM.complete(request),
+         {:ok, response} <- Bighead.LLM.complete(request),
          {:ok, operation} <- decode_response(response) do
       {fact, operation}
     end
@@ -114,7 +114,7 @@ defmodule Mem0.Reconciler do
 
   # generates the request to complete via the LLM.
   @spec request(String.t(), [Fact.t()]) ::
-          {:ok, Mem0.LLM.request()} | {:error, :no_facts_to_reconcile}
+          {:ok, Bighead.LLM.request()} | {:error, :no_facts_to_reconcile}
   defp request(_fact, []) do
     {:error, :no_facts_to_reconcile}
   end
@@ -130,7 +130,7 @@ defmodule Mem0.Reconciler do
      }}
   end
 
-  @spec decode_response(Mem0.LLM.response()) ::
+  @spec decode_response(Bighead.LLM.response()) ::
           {:ok, operation()}
           | {:error, :invalid_response, map()}
           | {:error, :invalid_json, String.t()}

@@ -1,4 +1,4 @@
-defmodule Mem0Web.CoreComponents do
+defmodule BigheadWeb.CoreComponents do
   @moduledoc """
   Provides core UI components.
 
@@ -27,7 +27,7 @@ defmodule Mem0Web.CoreComponents do
 
   """
   use Phoenix.Component
-  use Gettext, backend: Mem0Web.Gettext
+  use Gettext, backend: BigheadWeb.Gettext
 
   alias Phoenix.HTML.Form
   alias Phoenix.HTML.FormField
@@ -502,9 +502,9 @@ defmodule Mem0Web.CoreComponents do
     # with our gettext backend as first argument. Translations are
     # available in the errors.po file (as we use the "errors" domain).
     if count = opts[:count] do
-      Gettext.dngettext(Mem0Web.Gettext, "errors", msg, msg, count, opts)
+      Gettext.dngettext(BigheadWeb.Gettext, "errors", msg, msg, count, opts)
     else
-      Gettext.dgettext(Mem0Web.Gettext, "errors", msg, opts)
+      Gettext.dgettext(BigheadWeb.Gettext, "errors", msg, opts)
     end
   end
 

@@ -1,6 +1,6 @@
 # Phase 5 — Fact extraction (minimal)
 
-**Goal:** one function. Hand it a `[Mem0.Core.Message]` and get `[Mem0.Core.Fact]` back, via a
+**Goal:** one function. Hand it a `[Bighead.Core.Message]` and get `[Bighead.Core.Fact]` back, via a
 single LLM call. **Nothing calls it yet.** The controller is untouched, nothing is stored, nothing
 is embedded, nothing is compared against what memory already holds.
 
@@ -14,7 +14,7 @@ against facts a real model actually returns, not against facts we imagine it ret
 ## The whole pipeline
 
 ```
-[Message.t()]  ──render──▶  transcript text  ──Mem0.LLM──▶  JSON  ──decode──▶  [Fact.t()] in an Extraction.t()
+[Message.t()]  ──render──▶  transcript text  ──Bighead.LLM──▶  JSON  ──decode──▶  [Fact.t()] in an Extraction.t()
      (pure)                                    (boundary)                          (pure)
 ```
 
@@ -23,7 +23,7 @@ two things that change on every prompt iteration, and both are testable with no 
 
 ---
 
-## 5.1 `Mem0.Core.Extraction` — the pure half
+## 5.1 `Bighead.Core.Extraction` — the pure half
 
 The struct already exists (`scope`, `prompt_at`, `facts`, `source_message_ids`). It gains three
 pure functions and the prompt text itself.
@@ -31,14 +31,14 @@ pure functions and the prompt text itself.
 ```elixir
 @spec system_prompt() :: String.t()
 @spec render([Message.t()]) :: String.t()
-@spec request([Message.t()]) :: Mem0.LLM.request()
+@spec request([Message.t()]) :: Bighead.LLM.request()
 @spec decode(String.t(), Scope.t(), DateTime.t(), [Message.id()]) ::
         {:ok, t()} | {:error, :malformed_facts}
 ```
 
 - **`system_prompt/0`** — a module attribute. It lives in the core because it is pure data and the
-  thing most worth diffing between iterations. Substance, adapted from upstream mem0's
-  `FACT_RETRIEVAL_PROMPT` (`mem0/mem0/configs/prompts.py`) but pointed at a *coding agent's*
+  thing most worth diffing between iterations. Substance, adapted from upstream bighead's
+  `FACT_RETRIEVAL_PROMPT` (`bighead/bighead/configs/prompts.py`) but pointed at a *coding agent's*
   conversation rather than a consumer chat: durable preferences, tooling and workflow choices,
   project constraints, stated goals, corrections the user made. Explicitly **not**: what the
   assistant did this turn, transient state, file contents, anything only true of this one task.
@@ -52,7 +52,7 @@ pure functions and the prompt text itself.
   holding `render(messages)`, and the `{"facts": [string]}` schema
   (`additionalProperties: false`, `facts` required). It lives here rather than in the boundary so
   that the prompt, the transcript and the reply shape are one artifact — and so the `:live` test
-  sends the *same bytes* as `Mem0.Extract` without restating them.
+  sends the *same bytes* as `Bighead.Extract` without restating them.
 - **`decode/4`** — `Jason.decode/1`, then require `%{"facts" => list_of_binaries}`. Trim, drop
   blanks, drop duplicates within the batch, map each to `Fact.new/1` with the given `scope`,
   `extracted_at` and `source_message_ids`. Anything else is `{:error, :malformed_facts}` — never a
@@ -61,9 +61,9 @@ pure functions and the prompt text itself.
 No clock. `prompt_at`/`extracted_at` arrive as arguments, which is what keeps the layering test
 green and the decode assertable without freezing time.
 
-## 5.2 `Mem0.Extract` — the boundary half
+## 5.2 `Bighead.Extract` — the boundary half
 
-`lib/mem0/extract.ex`, sibling to `Mem0.Ingest` and named the same way. This is the interface the
+`lib/bighead/extract.ex`, sibling to `Bighead.Ingest` and named the same way. This is the interface the
 phase delivers.
 
 ```elixir
@@ -71,18 +71,18 @@ phase delivers.
 def facts(messages, opts \\ [])
 ```
 
-It is the only impure part: reads `DateTime.utc_now/0` and calls `Mem0.LLM.complete/2`. In order:
+It is the only impure part: reads `DateTime.utc_now/0` and calls `Bighead.LLM.complete/2`. In order:
 
 1. `[]` → `{:error, :no_messages}`, no call.
 2. Scope comes from `hd(messages).scope`. Every `Message` already carries it, so the caller does not
    have to thread one through, and `Ingest.receive/2` does not return the one it built.
-3. The request comes from `Extraction.request/1`, unmodified. `Mem0.LLM.Anthropic` already carries
+3. The request comes from `Extraction.request/1`, unmodified. `Bighead.LLM.Anthropic` already carries
    `:schema` through to `output_config` (Phase 3), so the reply shape is stated to the provider
    rather than begged for in prose.
 4. `decode/4` the reply. `source_message_ids` is every id in the batch, not a per-fact attribution:
    the model is not asked which message a fact came from, and inventing that mapping here would be
    a lie in the data.
-5. `opts` passes through to `Mem0.LLM.complete/2` untouched, so a caller can override the model or
+5. `opts` passes through to `Bighead.LLM.complete/2` untouched, so a caller can override the model or
    raise `max_tokens` for one call.
 6. `{:error, reason}` from the port passes through unchanged.
 
@@ -94,7 +94,7 @@ It is the only impure part: reads `DateTime.utc_now/0` and calls `Mem0.LLM.compl
   and the per-message truncation; `decode/4` on a valid payload, on `{"facts": []}`, on blanks and
   duplicates, on non-JSON, on `{"facts": "nope"}`, on a list holding a non-binary. The last four all
   land on `{:error, :malformed_facts}` and none of them raise.
-- **Boundary, against `Mem0.LLM.Stub`:** the request carries the system prompt and the schema
+- **Boundary, against `Bighead.LLM.Stub`:** the request carries the system prompt and the schema
   (assert via `Stub.calls/0`); a canned reply becomes an `Extraction` with the right scope and
   `extracted_at`; `{:error, {:refusal, _}}` passes through; `[]` makes **zero** calls
   (`Stub.calls() == []`).
@@ -104,23 +104,23 @@ It is the only impure part: reads `DateTime.utc_now/0` and calls `Mem0.LLM.compl
 
 ## Exit criteria
 
-- [ ] `Mem0.Extract.facts/1`, given messages parsed from a real fixture transcript, returns facts
+- [ ] `Bighead.Extract.facts/1`, given messages parsed from a real fixture transcript, returns facts
       that are worth reading — checked by hand via the `:live` test
 - [ ] `decode/4` never raises, on any of the malformed inputs above
 - [ ] No fact text or transcript appears in any log at default configuration
 - [ ] `mix test.core` passes with the Postgres container stopped
-- [ ] The layering test still passes — `Mem0.Core.Extraction` reaches no clock, no `Req`, no `Repo`
+- [ ] The layering test still passes — `Bighead.Core.Extraction` reaches no clock, no `Req`, no `Repo`
 - [ ] `mix precommit` green
 
 ## Explicitly out of scope
 
-**No wiring.** `Mem0Web.HooksController` is untouched — its `IO.inspect` stays until the phase that
+**No wiring.** `BigheadWeb.HooksController` is untouched — its `IO.inspect` stays until the phase that
 uses the extractor removes it. No persistence and no Ecto schema for facts. No embedding. No dedup
 against existing memories, no `MemoryOperation`, no `Decision` — Phase 6. No recall. No telemetry
-event: there is no call site to measure yet, and `[:mem0, :extract, :completed]` lands with the
-wiring. No `Mem0.Core.Prompt` (summary + recent + pair) — the minimal version sends the whole batch,
-and that struct stays unused until the prompt is worth shaping. No `Mem0.Core.Summary`. No retries,
-no rate limiting, no cost cap beyond the render cap. No `lib/mem0.ex` boundary yet.
+event: there is no call site to measure yet, and `[:bighead, :extract, :completed]` lands with the
+wiring. No `Bighead.Core.Prompt` (summary + recent + pair) — the minimal version sends the whole batch,
+and that struct stays unused until the prompt is worth shaping. No `Bighead.Core.Summary`. No retries,
+no rate limiting, no cost cap beyond the render cap. No `lib/bighead.ex` boundary yet.
 
 ## Open questions this phase deliberately leaves open
 
