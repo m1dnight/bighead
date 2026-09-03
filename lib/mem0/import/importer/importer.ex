@@ -13,8 +13,7 @@ defmodule Mem0.Importer do
   Given the content of transcript and an ingester, parses and stores all the
   messages from this transcript.
   """
-  @spec import_transcript(String.t(), module()) ::
-          {:ok, Scope.t(), [Message.t()]} | {:error, term()}
+  @spec import_transcript(String.t(), module()) :: {:ok, Scope.t(), [Message.t()]} | {:error, term()}
   def import_transcript(content, ingester) do
     with {:ok, scope, messages} <- Ingester.decode_transcript(content, ingester),
          {:ok, scope} <- Scopes.create(Map.put(scope, :user, "default")),

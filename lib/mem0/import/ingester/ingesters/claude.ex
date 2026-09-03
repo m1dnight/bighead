@@ -8,8 +8,7 @@ defmodule Mem0.Ingester.Claude do
 
   alias Mem0.Ingester.Decoder
 
-  # The entry `type`s that are bookkeeping rather than conversation. Kept in
-  # sync with the jq filter in `scripts/dev/clean_claude.sh`.
+  # The entry `type`s that are bookkeeping rather than conversation.
   @machinery_types ~w(
     permission-mode atis-latch last-prompt attachment frame-link
     queue-operation ai-title system mode file-history-snapshot

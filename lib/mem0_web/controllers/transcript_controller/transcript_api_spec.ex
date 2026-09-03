@@ -60,7 +60,8 @@ defmodule Mem0Web.TranscriptApiSpec do
          }},
       bad_request: {"The request body could not be read", "application/json", @error_schema},
       request_entity_too_large: {"The transcript exceeds 50,000,000 bytes", "application/json", @error_schema},
-      internal_server_error: {"The transcript could not be imported — not JSON Lines, or storing failed", "application/json", @error_schema}
+      internal_server_error:
+        {"The transcript could not be imported — not JSON Lines, or storing failed", "application/json", @error_schema}
     ]
   )
 end

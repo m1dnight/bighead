@@ -28,13 +28,7 @@ defmodule Mem0Web.DiffController do
   developer's code.
   """
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def create(conn, %{
-        "file" => file,
-        "diff" => diff,
-        "project" => project,
-        "session" => session,
-        "origin" => origin
-      })
+  def create(conn, %{"file" => file, "diff" => diff, "project" => project, "session" => session, "origin" => origin})
       when is_binary(file) and is_binary(diff) and is_binary(project) and is_binary(session) do
     with {:ok, origin} <- origin(origin),
          :ok <- refuse_blank([file, diff, project, session]),

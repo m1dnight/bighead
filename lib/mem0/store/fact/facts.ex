@@ -99,8 +99,7 @@ defmodule Mem0.Store.Facts do
      kind by default
   """
   @spec most_similar([float()], pos_integer(), keyword()) :: [{float(), Fact.t()}]
-  def most_similar(embedding, n, opts \\ [])
-      when is_list(embedding) and is_integer(n) and n > 0 do
+  def most_similar(embedding, n, opts \\ []) when is_list(embedding) and is_integer(n) and n > 0 do
     vector = Pgvector.new(embedding)
 
     Fact

@@ -31,6 +31,5 @@ defmodule Mem0Web.ProjectLive.Index do
   end
 
   @spec project_path(%{user: String.t(), project: String.t() | nil}) :: String.t()
-  defp project_path(%{user: user, project: project}),
-    do: ~p"/projects/#{user}?#{[project: project]}"
+  defp project_path(%{user: user, project: project}), do: ~p"/projects/#{user}?#{[project: project]}"
 end

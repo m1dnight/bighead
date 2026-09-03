@@ -96,7 +96,6 @@ embedder_settings = [
 ]
 
 config :mem0, Mem0Web.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
-
 config :mem0, :hook, default_user_id: EnvGuard.optional("MEM0_DEFAULT_USER_ID", :string, "local", min_length: 1)
 
 if config_env() == :test do

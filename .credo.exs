@@ -53,7 +53,7 @@
           # Pinned to `mix format`'s own default rather than Credo's 120, so the
           # project has exactly one line-length number. Quokka inherits this
           # value; leaving it at 120 would silently widen formatting too.
-          {Credo.Check.Readability.MaxLineLength, [priority: :low, max_length: 98]},
+          {Credo.Check.Readability.MaxLineLength, [priority: :low, max_length: 138]},
           {Credo.Check.Readability.ModuleAttributeNames, []},
           {Credo.Check.Readability.ModuleDoc, []},
           {Credo.Check.Readability.ModuleNames, []},

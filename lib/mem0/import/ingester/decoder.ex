@@ -2,6 +2,11 @@ defmodule Mem0.Ingester.Decoder do
   @moduledoc """
   Decodes strings from the transcripts into plain strings.
   """
+
+  @doc """
+  Decode the content of a message into a `t:String`. Will return empty string on
+  invalid or empty input.
+  """
   @spec decode_contents([map() | String.t()] | String.t()) :: String.t()
   def decode_contents(content) when is_binary(content) do
     decode_contents([content])

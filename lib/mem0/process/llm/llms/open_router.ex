@@ -119,8 +119,7 @@ defmodule Mem0.LLM.OpenRouter do
   # OpenAI-style refusals also exist as a `refusal` string on the message —
   # null on every normal reply — and must be checked before content, which a
   # refusing reply may omit.
-  defp decode(%{"choices" => [%{"message" => %{"refusal" => refusal}} | _]})
-       when is_binary(refusal) and refusal != "" do
+  defp decode(%{"choices" => [%{"message" => %{"refusal" => refusal}} | _]}) when is_binary(refusal) and refusal != "" do
     {:error, {:refusal, refusal}}
   end
 

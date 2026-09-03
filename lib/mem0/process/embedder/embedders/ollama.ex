@@ -56,8 +56,7 @@ defmodule Mem0.Embedder.Ollama do
   # can recover from by looking at the vectors.
   @spec decode(term(), non_neg_integer()) ::
           {:ok, [embedding]} | {:error, {:malformed_response, term()}}
-  defp decode(%{"embeddings" => embeddings}, count)
-       when is_list(embeddings) and length(embeddings) == count do
+  defp decode(%{"embeddings" => embeddings}, count) when is_list(embeddings) and length(embeddings) == count do
     if Enum.all?(embeddings, &vector?/1) do
       # JSON decodes an exact `0` as an integer, so we normalize them to floats again.
       {:ok, Enum.map(embeddings, fn vector -> Enum.map(vector, &(&1 * 1.0)) end)}

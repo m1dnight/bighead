@@ -75,14 +75,15 @@ defmodule Mem0.Processor.Diffs do
     |> Diffs.for_scope(from: scope.last_extracted_diff_id)
     |> batches(max_batch_chars)
     |> Enum.reduce_while({:ok, scope, [], []}, fn batch, {:ok, scope, facts, diffs} ->
-      Logger.warning "Processing batch of size #{Enum.count(diffs)}"
+      Logger.warning("Processing batch of size #{Enum.count(diffs)}")
+
       case process_batch(batch, scope) do
         {:ok, scope, new_facts} ->
-          Logger.warning "Facts from diffs: #{inspect new_facts}"
+          Logger.warning("Facts from diffs: #{inspect(new_facts)}")
           {:cont, {:ok, scope, facts ++ new_facts, diffs ++ batch}}
 
         err ->
-          Logger.error "Failed to process batch"
+          Logger.error("Failed to process batch")
           {:halt, err}
       end
     end)

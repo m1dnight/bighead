@@ -10,19 +10,13 @@ defmodule Mem0.Ingester.Codex do
 
   @impl true
   # a user message in a response_item is kept.
-  def skip_entry?(%{
-        "type" => "response_item",
-        "payload" => %{"type" => "message", "role" => "user"}
-      }) do
+  def skip_entry?(%{"type" => "response_item", "payload" => %{"type" => "message", "role" => "user"}}) do
     false
   end
 
   # an assistant message is only kept when it is the final answer, not a
   # draft phase.
-  def skip_entry?(%{
-        "type" => "response_item",
-        "payload" => %{"type" => "message", "role" => "assistant", "phase" => "final_answer"}
-      }) do
+  def skip_entry?(%{"type" => "response_item", "payload" => %{"type" => "message", "role" => "assistant", "phase" => "final_answer"}}) do
     false
   end
 
