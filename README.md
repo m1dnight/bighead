@@ -5,14 +5,14 @@ Implementation of Mem0 in Elixir.
 
 ## Install
 
-If you have the Mem0 process running at `http://localhost:4001`, configure it as follows.
+If you have the Mem0 process running at `http://localhost:4000`, configure it as follows.
 
 #### Claude
 
 ```bash
 # Install the environment variable of your Mem0 endpoint.
 export f=~/.claude/settings.json
-jq '.env += {"MEM0_URL": "http://localhost:4001"}' "$f" > "$f.tmp"
+jq '.env += {"MEM0_URL": "http://localhost:4000"}' "$f" > "$f.tmp"
 mv "$f.tmp" "$f"
 unset f
 ```

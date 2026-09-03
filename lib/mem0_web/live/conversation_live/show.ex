@@ -30,13 +30,16 @@ defmodule Mem0Web.ConversationLive.Show do
 
       <p :if={@messages == []} class="text-sm opacity-70">No messages yet.</p>
 
-      <div id="messages" class="space-y-4">
-        <div :for={message <- @messages} class="rounded-lg border border-base-300 p-3">
-          <div class="mb-1 flex justify-between text-xs opacity-70">
-            <span class="font-semibold">{message.role}</span>
-            <span>{Calendar.strftime(message.timestamp, "%Y-%m-%d %H:%M:%S")}</span>
+      <div id="messages">
+        <div
+          :for={message <- @messages}
+          class={["chat", if(message.role == "user", do: "chat-end", else: "chat-start")]}
+        >
+          <div class="chat-header opacity-70">
+            {message.role}
+            <time class="text-xs">{Calendar.strftime(message.timestamp, "%Y-%m-%d %H:%M")}</time>
           </div>
-          <p class="whitespace-pre-wrap break-words text-sm">{message.content}</p>
+          <div class="chat-bubble w-3/5 whitespace-pre-wrap break-words text-sm">{message.content}</div>
         </div>
       </div>
     </Layouts.app>
